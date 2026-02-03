@@ -698,16 +698,27 @@
         };
         let iceQueue = [];
 
+        let gettingCamera = false;
+
         function startVideo(isInitiator) {
-            log("Requesting Camera...");
+            log("Requesting Camera... (Initiator: " + isInitiator + ")");
 
             if (localStream) {
-                log("Camera already active.");
-                if (isInitiator) setupPeerConnection(true);
+                log("Camera already active. Skipping getMedia.");
+                if (isInitiator) {
+                    setupPeerConnection(true);
+                }
                 return;
             }
 
+            if (gettingCamera) {
+                log("Camera request already in progress. Ignoring.");
+                return;
+            }
+            gettingCamera = true;
+
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                gettingCamera = false;
                 const hostname = window.location.hostname;
                 const isPC = (hostname !== '127.0.0.1' && hostname !== 'localhost');
                 showError(true, hostname);
@@ -717,6 +728,7 @@
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(stream => {
                     log("Camera Access Granted");
+                    gettingCamera = false;
                     localStream = stream;
                     document.getElementById('local-video').srcObject = stream;
 
@@ -724,6 +736,7 @@
                     setupPeerConnection(isInitiator);
                 })
                 .catch(err => {
+                    gettingCamera = false;
                     log("Camera Blocked: " + err);
                     console.error(err);
                     const hostname = window.location.hostname;
@@ -742,8 +755,12 @@
                 return;
             }
             peerConnection.createOffer()
-                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(offer => {
+                    log("Offer Created. Setting Local Desc...");
+                    return peerConnection.setLocalDescription(offer);
+                })
                 .then(() => {
+                    log("Local Desc Set. Sending Offer...");
                     sendSignal({ 'type': 'offer', 'sdp': peerConnection.localDescription });
                 })
                 .catch(err => log("Offer Error: " + err));
@@ -860,6 +877,7 @@
         }
 
         function sendSignal(signal) {
+            log("TX Signal: " + signal.type);
             chatSocket.send(JSON.stringify({
                 'type': 'video_signal',
                 'signal': signal
