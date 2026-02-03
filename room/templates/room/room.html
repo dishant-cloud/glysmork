@@ -491,15 +491,26 @@
 
         function log(msg) {
             console.log(msg);
-            document.getElementById('debug-log').innerHTML += "<br>" + msg;
+            const debugLog = document.getElementById('debug-log');
+            if (debugLog) debugLog.innerHTML += "<br>" + msg;
         }
 
         function setStatus(msg) {
             const el = document.getElementById('status-msg');
             el.innerText = msg;
             el.classList.add('visible');
-            // Hide after 3s if it's a "User Joined" type message, but keep "Connected"
-            // For now simply showing it is enough.
+
+            // Also show in chat for debugging
+            const chatLog = document.querySelector('#chat-log');
+            if (chatLog) {
+                const html = `
+                    <div style="text-align:center; font-size:12px; color:orange; margin:5px 0;">
+                        [System]: ${msg}
+                    </div>
+                `;
+                chatLog.insertAdjacentHTML('beforeend', html);
+                chatLog.scrollTop = chatLog.scrollHeight;
+            }
         }
 
         function showError(isPC, ip) {
