@@ -584,12 +584,14 @@
                 chatLog.scrollTop = chatLog.scrollHeight;
 
             } else if (data.type === 'user_joined') {
-                log("User Joined: " + data.sender);
-                setStatus("User Joined!");
-                if (isCaller) {
-                    log("Partner is here. Sending Offer...");
-                    startVideo(true);
-                }
+                log("User Joined: " + data.username);
+                setStatus("User Joined: " + data.username);
+
+                // CRITICAL FIX: The existing user always initiates when someone new joins.
+                // We ignore the initial 'isCaller' state here, because now we KNOW we have a partner.
+                log("Partner joined. I am initiating the call...");
+                startVideo(true);
+
             } else if (data.type === 'video_signal') {
                 log("RX Signal: " + data.signal.type);
                 handleVideoSignal(data.signal);

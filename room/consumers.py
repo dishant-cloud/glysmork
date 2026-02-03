@@ -17,7 +17,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             {
                 'type': 'user_joined',
-                'sender': self.channel_name
+                'sender': self.channel_name,
+                'username': self.scope['user'].username
             }
         )
 
@@ -99,7 +100,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.channel_name != event['sender']:
             await self.send(text_data=json.dumps({
                 'type': 'user_joined',
-                'sender': event['sender']
+                'sender': event['sender'],
+                'username': event.get('username', 'Unknown')
             }))
 
 class NotificationConsumer(AsyncWebsocketConsumer):
