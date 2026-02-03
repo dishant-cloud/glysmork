@@ -754,7 +754,7 @@
                 log("Error: PeerConnection not ready from createOffer");
                 return;
             }
-            peerConnection.createOffer()
+            peerConnection.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
                 .then(offer => {
                     log("Offer Created. Setting Local Desc...");
                     return peerConnection.setLocalDescription(offer);
@@ -768,6 +768,10 @@
 
         function setupPeerConnection(isInitiator) {
             log("Setting up RTC Connection...");
+            if (peerConnection) {
+                log("Closing existing PeerConnection");
+                peerConnection.close();
+            }
             peerConnection = new RTCPeerConnection(config);
 
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
@@ -822,18 +826,10 @@
                         })
                         .catch(err => showError(true, window.location.hostname));
                 } else {
-                    processOffer(signal);
-                }
-
-                if (!peerConnection) {
-                    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                        .then(stream => {
-                            localStream = stream;
-                            document.getElementById('local-video').srcObject = stream;
-                            setupPeerConnection();
-                            processOffer(signal);
-                        });
-                } else {
+                    // Stream exists, check if PC needs setup (e.g. if it was closed or never started)
+                    if (!peerConnection) {
+                        setupPeerConnection(false);
+                    }
                     processOffer(signal);
                 }
 
