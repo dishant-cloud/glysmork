@@ -704,18 +704,16 @@
         function startVideo(isInitiator) {
             log("Requesting Camera...");
 
+            if (localStream) {
+                log("Camera already active.");
+                if (isInitiator) setupPeerConnection(true);
+                return;
+            }
+
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 const hostname = window.location.hostname;
                 const isPC = (hostname !== '127.0.0.1' && hostname !== 'localhost');
                 showError(true, hostname);
-
-                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
-                    showError(false, hostname);
-                } else {
-                    showError(true, hostname);
-                }
-
-                log("Error: navigator.mediaDevices is undefined");
                 return;
             }
 
@@ -725,16 +723,8 @@
                     localStream = stream;
                     document.getElementById('local-video').srcObject = stream;
 
-                    setupPeerConnection();
-
-                    if (isInitiator) {
-                        log("Creating Offer...");
-                        peerConnection.createOffer()
-                            .then(offer => peerConnection.setLocalDescription(offer))
-                            .then(() => {
-                                sendSignal({ 'type': 'offer', 'sdp': peerConnection.localDescription });
-                            });
-                    }
+                    // We only setup the peer connection, we don't necessarily offer yet.
+                    setupPeerConnection(isInitiator);
                 })
                 .catch(err => {
                     log("Camera Blocked: " + err);
@@ -748,7 +738,22 @@
                 });
         }
 
-        function setupPeerConnection() {
+        function createOffer() {
+            log("Creating Offer...");
+            if (!peerConnection) {
+                log("Error: PeerConnection not ready from createOffer");
+                return;
+            }
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    sendSignal({ 'type': 'offer', 'sdp': peerConnection.localDescription });
+                })
+                .catch(err => log("Offer Error: " + err));
+        }
+
+        function setupPeerConnection(isInitiator) {
+            log("Setting up RTC Connection...");
             peerConnection = new RTCPeerConnection(config);
 
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
@@ -758,12 +763,12 @@
                 const video = document.getElementById('remote-video');
                 video.srcObject = event.streams[0];
                 video.play().catch(e => {
-                    // Auto-play might fail
                     console.error("Auto-play failed:", e);
                 });
                 setStatus("Connected!");
             };
 
+            // ... (rest of callbacks unchanged) ...
             peerConnection.onicecandidate = event => {
                 if (event.candidate) {
                     sendSignal({ 'type': 'candidate', 'candidate': event.candidate });
@@ -782,6 +787,10 @@
                     setStatus("Connected!");
                 }
             };
+
+            if (isInitiator) {
+                createOffer();
+            }
         }
 
         function handleVideoSignal(signal) {
