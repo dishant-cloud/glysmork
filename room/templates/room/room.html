@@ -587,7 +587,13 @@
                 // CRITICAL FIX: The existing user always initiates when someone new joins.
                 // We ignore the initial 'isCaller' state here, because now we KNOW we have a partner.
                 log("Partner joined. I am initiating the call...");
-                startVideo(true);
+
+                if (localStream && !gettingCamera) {
+                    log("Stream ready. Initiating immediately.");
+                    setupPeerConnection(true);
+                } else {
+                    startVideo(true);
+                }
 
             } else if (data.type === 'video_signal') {
                 log("RX Signal: " + data.signal.type);
