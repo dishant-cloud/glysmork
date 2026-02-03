@@ -390,7 +390,7 @@
             pointer-events: none;
             z-index: 100;
             white-space: pre-wrap;
-            display: none;
+            display: block;
             /* Hidden by default */
         }
     </style>
@@ -548,13 +548,10 @@
 
         chatSocket.onopen = function () {
             log("WebSocket OPEN Success!");
-            setStatus("Connected. Starting Video...");
-            if (isCaller) {
-                log("I am the Caller. Initiating...");
-                startVideo(true);
-            } else {
-                log("I am the Receiver. Waiting for offer...");
-            }
+            setStatus("Connected. Getting Camera...");
+            // ALWAYS start video immediately to ensure permissions are granted by user gesture/loading
+            // Pass false for initiator, we decide that later based on events
+            startVideo(false);
         };
 
         chatSocket.onerror = function (e) {
@@ -798,7 +795,15 @@
                 setStatus("Incoming Call...");
 
                 if (!localStream) {
-                    startVideo(false);
+                    log("Offer received but Camera not ready. Getting camera...");
+                    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                        .then(stream => {
+                            localStream = stream;
+                            document.getElementById('local-video').srcObject = stream;
+                            setupPeerConnection(false);
+                            processOffer(signal);
+                        })
+                        .catch(err => showError(true, window.location.hostname));
                 } else {
                     processOffer(signal);
                 }
