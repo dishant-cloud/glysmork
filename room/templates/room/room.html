@@ -788,6 +788,17 @@
                 video.srcObject = event.streams[0];
                 video.play().catch(e => {
                     console.error("Auto-play failed:", e);
+                    log("Auto-play failed: " + e.name);
+                    // Show a play button overlay if autoplay is blocked
+                    const btn = document.createElement('button');
+                    btn.innerText = "Click to Play Video";
+                    btn.style.position = "absolute";
+                    btn.style.zIndex = "100";
+                    btn.onclick = () => {
+                        video.play();
+                        btn.remove();
+                    };
+                    video.parentElement.appendChild(btn);
                 });
                 setStatus("Connected!");
             };
@@ -800,16 +811,25 @@
             };
 
             peerConnection.oniceconnectionstatechange = () => {
-                log("ICE State: " + peerConnection.iceConnectionState);
-                if (peerConnection.iceConnectionState === 'failed') {
-                    setStatus("Connection Failed");
-                }
-                if (peerConnection.iceConnectionState === 'disconnected') {
-                    setStatus("User Disconnected");
-                }
-                if (peerConnection.iceConnectionState === 'connected') {
+                const state = peerConnection.iceConnectionState;
+                log("ICE State: " + state);
+
+                // Show debug log automatically if things go wrong
+                if (state === 'failed' || state === 'disconnected') {
+                    if (state === 'failed') setStatus("Connection Failed (Check Firewall/Network)");
+                    if (state === 'disconnected') setStatus("User Disconnected");
+                    document.getElementById('debug-log').style.display = 'block';
+                } else if (state === 'connected') {
                     setStatus("Connected!");
                 }
+            };
+
+            peerConnection.onsignalingstatechange = () => {
+                log("Signaling State: " + peerConnection.signalingState);
+            };
+
+            peerConnection.onicegatheringstatechange = () => {
+                log("ICE Gathering State: " + peerConnection.iceGatheringState);
             };
 
             if (isInitiator) {

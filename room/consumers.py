@@ -61,12 +61,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         elif message_type == 'video_signal':
             # Forward video signals (offer, answer, ice candidates)
+            sender = self.channel_name
+            signal = data['signal']
+            print(f"DEBUG: RX Signal {signal.get('type')} from {self.scope['user'].username} ({sender})")
+            
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'video_signal',
-                    'signal': data['signal'],
-                    'sender': self.channel_name
+                    'signal': signal,
+                    'sender': sender
                 }
             )
 
