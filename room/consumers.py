@@ -4,13 +4,21 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
-        self.room_group_name = f'chat_{self.room_name}'
+        
+        # Sanitize room name for group usage
+        import re
+        safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', self.room_name)
+        self.room_group_name = f'chat_{safe_room_name}'
+        
+        print(f"DEBUG: CONNECTING - User: {self.scope['user']} | Room: {self.room_name} | Group: {self.room_group_name}", flush=True)
 
         # Join room group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
+        
+        print(f"DEBUG: GROUP ADDED - {self.channel_name} to {self.room_group_name}", flush=True)
 
         # Notify others that a new user has joined
         await self.channel_layer.group_send(
@@ -25,6 +33,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        print(f"DEBUG: DISCONNECT - Code: {close_code} | Channel: {self.channel_name}", flush=True)
         # Leave room group
         await self.channel_layer.group_discard(
             self.room_group_name,
