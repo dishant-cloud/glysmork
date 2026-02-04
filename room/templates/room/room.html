@@ -705,6 +705,7 @@
         let iceQueue = [];
 
         let gettingCamera = false;
+        let pendingInitiator = false;
 
         function startVideo(isInitiator) {
             log("Requesting Camera... (Initiator: " + isInitiator + ")");
@@ -719,9 +720,14 @@
 
             if (gettingCamera) {
                 log("Camera request already in progress. Ignoring.");
+                if (isInitiator) {
+                    log("Marking pending initiator = true");
+                    pendingInitiator = true;
+                }
                 return;
             }
             gettingCamera = true;
+            pendingInitiator = isInitiator; // Set initial state
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 gettingCamera = false;
@@ -739,7 +745,10 @@
                     document.getElementById('local-video').srcObject = stream;
 
                     // We only setup the peer connection, we don't necessarily offer yet.
-                    setupPeerConnection(isInitiator);
+                    // Check pendingInitiator to see if we became the caller while waiting
+                    const shouldInitiate = pendingInitiator;
+                    log("Proceeding to setup PeerConnection. Initiator: " + shouldInitiate);
+                    setupPeerConnection(shouldInitiate);
                 })
                 .catch(err => {
                     gettingCamera = false;
