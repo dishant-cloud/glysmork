@@ -431,12 +431,6 @@
             <div class="controls-bar">
                 <button class="btn-control btn-end" onclick="endCall()" title="End Call">📞</button>
             </div>
-
-            <!-- DEBUG LOG (Hidden) -->
-            <div id="debug-log">
-                <span onclick="this.parentElement.style.display='none'" style="float:right; cursor:pointer;">[X]</span>
-                Initializing...
-            </div>
         </div>
 
         <!-- CHAT AREA -->
@@ -489,8 +483,6 @@
 
         function log(msg) {
             console.log(msg);
-            const debugLog = document.getElementById('debug-log');
-            if (debugLog) debugLog.innerHTML += "<br>" + msg;
         }
 
         function setStatus(msg) {

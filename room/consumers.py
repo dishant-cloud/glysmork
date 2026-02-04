@@ -10,15 +10,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', self.room_name)
         self.room_group_name = f'chat_{safe_room_name}'
         
-        print(f"DEBUG: CONNECTING - User: {self.scope['user']} | Room: {self.room_name} | Group: {self.room_group_name}", flush=True)
-
         # Join room group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
-        
-        print(f"DEBUG: GROUP ADDED - {self.channel_name} to {self.room_group_name}", flush=True)
 
         # Notify others that a new user has joined
         await self.channel_layer.group_send(
@@ -33,7 +29,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
-        print(f"DEBUG: DISCONNECT - Code: {close_code} | Channel: {self.channel_name}", flush=True)
         # Leave room group
         await self.channel_layer.group_discard(
             self.room_group_name,
@@ -72,7 +67,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Forward video signals (offer, answer, ice candidates)
             sender = self.channel_name
             signal = data['signal']
-            print(f"DEBUG: RX Signal {signal.get('type')} from {self.scope['user'].username} ({sender})")
             
             await self.channel_layer.group_send(
                 self.room_group_name,
