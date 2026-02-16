@@ -1,164 +1,88 @@
-{% load static %}
-<!DOCTYPE html>
-<html>
+{% extends 'base.html' %}
 
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Diamond Chat</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            background: #f0f2f5;
-            margin-top: 50px;
-            margin-left: 10px;
-            margin-right: 10px;
-        }
+{% block title %}Dashboard{% endblock %}
 
-        .card {
-            background: white;
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            box-sizing: border-box;
-            /* Ensure padding doesn't overflow width */
-        }
-
-        .profile-img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 10px;
-        }
-
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
-        }
-
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            background: #e91e63;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            box-sizing: border-box;
-            /* Fix alignment by including padding in width */
-        }
-
-        .btn-edit {
-            background: #2196f3;
-        }
-
-        .logout {
-            color: #888;
-            text-decoration: none;
-            display: block;
-            margin-top: 10px;
-        }
-
-        .info {
-            text-align: left;
-            background: #fafafa;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="card">
-        {% if messages %}
-        <ul style="list-style:none; padding:0; margin-bottom:20px;">
-            {% for message in messages %}
-            <li style="padding:10px; border-radius:5px; margin-bottom:10px; 
-                {% if message.tags == 'error' %}background:#ffebee; color:#c62828;
-                {% elif message.tags == 'success' %}background:#e8f5e9; color:#2e7d32;
-                {% else %}background:#e3f2fd; color:#1565c0;{% endif %}">
-                {{ message }}
-            </li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        <h1>Welcome, {{ user.username }}!</h1>
-
-        <img src="{{ user.profile.image.url }}" class="profile-img">
-
-        <div class="stats">
-            <div>
-                <h3>💎 {{ user.profile.diamonds }}</h3>
-                <small>Diamonds</small>
-            </div>
-            <div>
-                <h3>{{ user.profile.age }}</h3>
-                <small>Age</small>
-            </div>
-            <div>
-                <h3 style="color:#4CAF50;">● {{ online_count }}</h3>
-                <small>Online Users</small>
-            </div>
-        </div>
-
-        <div class="info">
-            <p><strong>Gender:</strong> {{ user.profile.get_gender_display }}</p>
-            <p><strong>Location:</strong> {{ user.profile.state }}, {{ user.profile.country.name }}</p>
-            <p><strong>Bio:</strong> {{ user.profile.bio }}</p>
-            <p><strong>Call Price:</strong> 💎 {{ user.profile.call_price }}</p>
-        </div>
-
-        <div
-            style="margin: 15px 0; font-size: 14px; color: #666; background: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba;">
-            ℹ️ <strong>Tip:</strong> Please update your profile (photo, bio, location) in <em>Edit Profile</em> before
-            finding a match to get better connections! <br> <strong>Important:</strong> Set your gender in <em>Edit
-                Profile</em> to be found by others.
-        </div>
-
-        <a href="{% url 'find_match' %}" class="btn">Find Match (3💎)</a>
-        <a href="{% url 'user_directory' %}" class="btn" style="background:#2196f3">Discover Users</a>
-        <a href="{% url 'inbox' %}" class="btn" style="background:#9c27b0; position: relative;">
-            Inbox
-            {% if inbox_count > 0 %}
-            <span
-                style="position: absolute; top: -10px; right: -10px; background: red; color: white; border-radius: 50%; padding: 5px 10px; font-size: 12px; font-weight: bold;">{{
-                inbox_count }}</span>
-            {% endif %}
-        </a>
-        <a href="{% url 'profile' %}" class="btn btn-edit">Edit Profile</a>
-
-        <form method="post" action="{% url 'logout' %}" style="margin-top:20px;">
-            {% csrf_token %}
-            <button type="submit" class="logout"
-                style="background:none; border:none; width:100%; cursor:pointer;">Logout</button>
-        </form>
+{% block content %}
+<div style="text-align: center; margin-bottom: 30px;">
+    <div style="position: relative; width: 100px; height: 100px; margin: 0 auto 15px;">
+        <img src="{{ user.profile.image.url }}"
+            style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary);">
+        <a href="{% url 'profile' %}"
+            style="position: absolute; bottom: 0; right: 0; background: var(--bg-dark); color: white; padding: 6px; border-radius: 50%; border: 1px solid var(--border-glass); font-size: 12px;">✏️</a>
     </div>
+    <h2 style="margin: 0;">{{ user.username }}</h2>
+    <p style="color: var(--text-secondary); font-size: 14px; margin-top: 5px;">{{ user.profile.bio|default:"No bio set"
+        }}</p>
+</div>
 
-    <script>
-        // Check for accepted call requests every 2 seconds
-        // Check for accepted call requests every 2 seconds
-        let pollInterval = setInterval(function () {
-            fetch("/matchmaking/check-request-status/?t=" + new Date().getTime())
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Status Check:", data);
-                    if (data.status === 'accepted') {
-                        clearInterval(pollInterval);
-                        window.location.replace("/chat/" + data.room_name + "/");
-                    }
-                })
-                .catch(err => console.error("Polling Error:", err));
-        }, 2000);
-    </script>
-</body>
+<!-- STATS GRID -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 24px;">
+    <div class="glass-card" style="padding: 15px; text-align: center;">
+        <span style="font-size: 24px; display: block; margin-bottom: 5px;">💎</span>
+        <strong style="font-size: 18px;">{{ user.profile.diamonds }}</strong>
+        <div style="font-size: 12px; color: var(--text-secondary);">Diamonds</div>
+    </div>
+    <div class="glass-card" style="padding: 15px; text-align: center;">
+        <span style="font-size: 24px; display: block; margin-bottom: 5px; color: #4caf50;">●</span>
+        <strong style="font-size: 18px;">{{ online_count }}</strong>
+        <div style="font-size: 12px; color: var(--text-secondary);">Online Now</div>
+    </div>
+</div>
 
-</html>
+<!-- MAIN ACTION -->
+<a href="{% url 'find_match' %}" class="btn btn-primary" style="padding: 20px; font-size: 18px; margin-bottom: 24px;">
+    🎲 Find Random Match (3💎)
+</a>
+
+<!-- MENU GRID -->
+<div style="display: flex; flex-direction: column; gap: 12px;">
+    <a href="{% url 'user_directory' %}" class="glass-card"
+        style="display: flex; align-items: center; padding: 16px; color: white;">
+        <span style="font-size: 20px; margin-right: 15px;">🌍</span>
+        <div style="flex:1;">
+            <strong>Discover Users</strong>
+            <div style="font-size: 12px; color: var(--text-secondary);">Browse online people</div>
+        </div>
+        <span style="color: var(--text-secondary);">›</span>
+    </a>
+
+    <a href="{% url 'inbox' %}" class="glass-card"
+        style="display: flex; align-items: center; padding: 16px; color: white;">
+        <span style="font-size: 20px; margin-right: 15px;">📩</span>
+        <div style="flex:1;">
+            <strong>Inbox</strong>
+            <div style="font-size: 12px; color: var(--text-secondary);">Call requests</div>
+        </div>
+        {% if inbox_count > 0 %}
+        <span
+            style="background: var(--accent); color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold;">{{
+            inbox_count }}</span>
+        {% else %}
+        <span style="color: var(--text-secondary);">›</span>
+        {% endif %}
+    </a>
+</div>
+
+<!-- LOGOUT -->
+<form method="post" action="{% url 'logout' %}" style="margin-top: 40px; text-align: center;">
+    {% csrf_token %}
+    <button type="submit"
+        style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 14px;">Sign
+        Out</button>
+</form>
+
+<script>
+    // Polling for accepted requests
+    let pollInterval = setInterval(function () {
+        fetch("/matchmaking/check-request-status/?t=" + new Date().getTime())
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'accepted') {
+                    clearInterval(pollInterval);
+                    window.location.replace("/chat/" + data.room_name + "/");
+                }
+            })
+            .catch(err => console.error("Polling Error:", err));
+    }, 2000);
+</script>
+{% endblock %}

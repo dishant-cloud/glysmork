@@ -1,21 +1,120 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - Diamond Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
 </head>
 
-<body>
-    <div style="text-align: center; margin-top: 50px; padding: 20px;">
-        <h2>Login to Diamond Chat</h2>
-        <form method="POST">
+<body class="bg-black min-h-screen flex items-center justify-center bg-contain bg-center bg-no-repeat relative px-4"
+    style="background-image: url('{% static 'users/images/glysmork_signup.png' %}');">
+
+    <!-- Centered Content -->
+    <div class="w-full max-w-sm p-8 relative z-10">
+
+        <!-- Animated WELCOME Header -->
+        <div class="text-center mb-8 h-14 flex items-end justify-center">
+            <h1 class="text-3xl font-bold tracking-[0.2em] flex justify-center gap-1" id="welcome-text">
+                <!-- Javascript will populate this -->
+            </h1>
+        </div>
+
+        <form method="POST" class="space-y-6">
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit">Login</button>
+
+            {% if form.errors %}
+            <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded relative" role="alert">
+                <strong class="font-bold">Error!</strong>
+                <span class="block sm:inline">
+                    {% for field in form %}
+                    {% for error in field.errors %}
+                    {{ error }}
+                    {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+
+            <!-- Email (Username) Input -->
+            <!-- Note: Django's standard login uses 'username' field, typically mapped to email in custom auth or just username. 
+                 If your model uses email as username, input name='username' is correct for standard auth views. 
+                 If you use custom auth, check fields. assuming standard 'username' field name for login. -->
+            <div>
+                <label class="block text-base font-medium text-gray-400 mb-1">Username / Email</label>
+                <input type="text" name="username"
+                    class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
+                    placeholder="Username or Email" required>
+            </div>
+
+            <!-- Password Input -->
+            <div>
+                <label class="block text-base font-medium text-gray-400 mb-1">Password</label>
+                <input type="password" name="password"
+                    class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
+                    placeholder="••••••••" required>
+            </div>
+
+            <!-- Login Button -->
+            <div class="flex justify-center">
+                <button type="submit"
+                    class="bg-cyan-800/40 hover:bg-cyan-100/60 text-white font-bold py-2 px-8 rounded-full shadow-lg transition-all hover:scale-105 backdrop-blur-sm border border-cyan-500/30">
+                    Login
+                </button>
+            </div>
         </form>
-        <p>Need an account? <a href="{% url 'register' %}">Sign Up</a></p>
+
+        <!-- Sign Up Link -->
+        <div class="mt-6 text-center text-gray-300">
+            Don't have an account?
+            <a href="{% url 'register' %}" class="text-emerald-500 hover:text-emerald-400 font-medium hover:underline">
+                Sign up here
+            </a>
+        </div>
+
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const letters = ['W', 'E', 'L', 'C', 'O', 'M', 'E'];
+            const container = document.getElementById('welcome-text');
+            let activeIndex = 0;
+
+            // Create spans
+            letters.forEach((letter, index) => {
+                const span = document.createElement('span');
+                span.textContent = letter;
+                span.className = 'transition-all duration-300 inline-block text-gray-500';
+                span.dataset.index = index;
+                container.appendChild(span);
+            });
+
+            const spans = container.querySelectorAll('span');
+
+            setInterval(() => {
+                activeIndex = (activeIndex + 1) % letters.length;
+
+                spans.forEach((span, index) => {
+                    if (index === activeIndex) {
+                        span.className = 'transition-all duration-300 inline-block text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 text-4xl -translate-y-2';
+                    } else {
+                        span.className = 'transition-all duration-300 inline-block text-gray-500';
+                    }
+                });
+            }, 1000);
+        });
+    </script>
 </body>
 
 </html>
