@@ -32,8 +32,9 @@
             {% csrf_token %}
 
             {% if form.errors %}
-            <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded relative" role="alert">
-                <strong class="font-bold">Error!</strong>
+            <div class="bg-white/10 border border-white/20 text-white px-4 py-3 rounded-lg backdrop-blur-sm"
+                role="alert">
+                <strong class="font-bold text-red-400">Error!</strong>
                 <span class="block sm:inline">
                     {% for field in form %}
                     {% for error in field.errors %}
