@@ -1,0 +1,19 @@
+from rest_framework import serializers
+from matchmaking.models import Loop, CallRequest
+
+class LoopSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    
+    class Meta:
+        model = Loop
+        fields = ['id', 'user', 'username', 'gender', 'timestamp']
+        read_only_fields = ['timestamp']
+
+class CallRequestSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    receiver_username = serializers.CharField(source='receiver.username', read_only=True)
+    
+    class Meta:
+        model = CallRequest
+        fields = ['id', 'sender', 'sender_username', 'receiver', 'receiver_username', 'status', 'room_name', 'timestamp']
+        read_only_fields = ['status', 'room_name', 'timestamp']

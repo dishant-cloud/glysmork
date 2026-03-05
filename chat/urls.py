@@ -20,6 +20,13 @@ from django.contrib.auth import views as auth_views
 from users import views as user_views
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # New DRF API Endpoints
+    path('api/users/', include('users.api.urls')),
+    path('api/room/', include('room.api.urls')),
+    path('api/matchmaking/', include('matchmaking.api.urls')),
+    
+    # Legacy Endpoints (To be deprecated/removed as Next.js takes over)
     path('register/', user_views.register, name = 'register'), 
     path('verify-email/', user_views.verify_email, name='verify_email'),
     path('chat/', include('room.urls')), 
