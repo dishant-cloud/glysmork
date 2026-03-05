@@ -37,9 +37,9 @@ This file tracks the transformation of Glysmork into a **Universal Connection En
 ## ⏳ REMAINING WORK
 
 ### 🔗 Integration & Wiring
-- [ ] **Finish API Wiring:** Complete the connection between Next.js and Django for the Chat Room and Profile settings.
-- [ ] **Real-time Chat:** Ensure WebSockets (Django Channels) are fully synced with the new Next.js chat interface.
-- [ ] **Passive Trigger:** Set up a background worker (e.g., Celery) to trigger the `ChatAnalysisView` automatically after sessions end.
+- [x] **Finish API Wiring:** Complete the connection between Next.js and Django for the Chat Room and Profile settings.
+- [x] **Real-time Chat:** Ensure WebSockets (Django Channels) are fully synced with the new Next.js chat interface.
+- [x] **Passive Trigger:** Set up a background worker (e.g., Celery) to trigger the `ChatAnalysisView` automatically after sessions end.
 
 ### 🧪 Verification & Polish
 - [ ] **End-to-End Testing:** Verify a new user can go from Splash -> Onboarding -> Intent Search -> Chat without issues.

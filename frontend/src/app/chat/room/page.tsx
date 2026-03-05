@@ -1,19 +1,100 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MoreVertical, Trash2, Download, Check, CheckCheck } from 'lucide-react';
 import Logo from '@/components/Logo';
+import { fetchApi } from '@/lib/api';
+
+interface ChatMessage {
+    id: number;
+    sender: string;
+    text: string;
+    isRead: boolean;
+    deletedForEveryone: boolean;
+    timestamp?: string;
+}
 
 export default function ChatRoom() {
-    const [messages, setMessages] = useState([
-        { id: 1, sender: 'Nero', text: 'The analysis concluded we have an 89% match on dark triad traits.', isRead: true, deletedForEveryone: false },
-        { id: 2, sender: 'Match', text: 'I saw that. It noted my Machiavellianism perfectly complements your Narcissism. Intriguing.', isRead: true, deletedForEveryone: false },
-        { id: 3, sender: 'Nero', text: 'Indeed. Shall we verify if the AI was correct in reality?', isRead: false, deletedForEveryone: false }
-    ]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [activeMenu, setActiveMenu] = useState<number | null>(null);
+    const [roomId, setRoomId] = useState<string | null>(null);
+    const [currentUser, setCurrentUser] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Initialize Room Data
+    useEffect(() => {
+        const u = localStorage.getItem('user');
+        if (u) {
+            setCurrentUser(JSON.parse(u).username);
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const rm = params.get('id');
+        if (rm) {
+            setRoomId(rm);
+        }
+    }, []);
+
+    const fetchMessages = useCallback(async () => {
+        if (!roomId) return;
+        try {
+            const data = await fetchApi(`/room/${roomId}/messages/`);
+            setMessages(data);
+        } catch (error) {
+            console.error("Failed to fetch messages", error);
+        }
+    }, [roomId]);
+
+    // WebSocket and initial fetch setup
+    useEffect(() => {
+        if (!roomId || !currentUser) return;
+
+        fetchMessages(); // Initial fetch
+
+        const token = localStorage.getItem('access_token');
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).host : '127.0.0.1:8000';
+
+        const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat/${roomId}/?token=${token}`);
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'chat_message') {
+                setMessages(prev => {
+                    // Prevent duplicates if REST API was faster
+                    if (prev.some(m => m.id === data.id)) return prev;
+
+                    return [...prev, {
+                        id: data.id,
+                        sender: data.username,
+                        text: data.message,
+                        isRead: data.isRead,
+                        deletedForEveryone: data.deletedForEveryone,
+                        timestamp: data.timestamp
+                    }];
+                });
+            } else if (data.type === 'message_deleted') {
+                setMessages(prev => prev.map(m =>
+                    m.id === data.id ? { ...m, deletedForEveryone: true, text: "This message was deleted." } : m
+                ));
+            } else if (data.type === 'message_read') {
+                setMessages(prev => prev.map(m =>
+                    m.id === data.id ? { ...m, isRead: true } : m
+                ));
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed.");
+        };
+
+        return () => {
+            ws.close();
+        };
+    }, [roomId, currentUser, fetchMessages]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -23,45 +104,66 @@ export default function ChatRoom() {
         scrollToBottom();
     }, [messages]);
 
-    const handleSend = () => {
-        if (!inputText.trim()) return;
-
-        const newMsg = {
-            id: Date.now(),
-            sender: 'Nero',
-            text: inputText,
-            isRead: false,
-            deletedForEveryone: false
-        };
-
-        setMessages(prev => [...prev, newMsg]);
+    const handleSend = async () => {
+        if (!inputText.trim() || !roomId) return;
+        const text = inputText;
         setInputText('');
 
-        // Simulate other person reading it
-        setTimeout(() => {
-            setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, isRead: true } : m));
-        }, 3000);
-    };
-
-    const handleDelete = (id: number, forEveryone: boolean) => {
-        if (forEveryone) {
-            setMessages(prev => prev.map(m => m.id === id ? { ...m, deletedForEveryone: true, text: "This message was deleted." } : m));
-        } else {
-            setMessages(prev => prev.filter(m => m.id !== id));
+        try {
+            await fetchApi(`/room/${roomId}/messages/`, {
+                method: 'POST',
+                body: JSON.stringify({ text })
+            });
+            // State is updated via WebSocket 'chat_message' event
+        } catch (error) {
+            console.error("Failed to send message", error);
+            alert("Failed to send message.");
         }
-        setActiveMenu(null);
     };
 
-    const downloadTranscript = () => {
-        // In production, this points to: /api/room/[roomId]/transcript/
-        const transcriptText = messages.map(m => `[Time] ${m.sender}: ${m.text}`).join('\n');
-        const blob = new Blob([transcriptText], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Profound_Transcript_${Date.now()}.txt`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+    const handleDelete = async (id: number, forEveryone: boolean) => {
+        setActiveMenu(null);
+        try {
+            const action = forEveryone ? 'delete_for_everyone' : 'delete_for_me';
+            await fetchApi(`/messages/${id}/action/`, {
+                method: 'POST',
+                body: JSON.stringify({ action })
+            });
+
+            // If delete_for_me, the server doesn't broadcast to everyone, so we manually remove it locally
+            if (!forEveryone) {
+                setMessages(prev => prev.filter(m => m.id !== id));
+            }
+            // For delete_for_everyone, state is updated via WebSocket 'message_deleted' event
+
+        } catch (error) {
+            console.error("Failed to delete message", error);
+            alert("Failed to delete message.");
+        }
+    };
+
+    const downloadTranscript = async () => {
+        if (!roomId) return;
+        try {
+            const token = localStorage.getItem('access_token');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'}/room/${roomId}/transcript/`, { headers });
+
+            if (!res.ok) throw new Error("Failed to download");
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Glysmork_Transcript_${roomId}.txt`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to download transcript");
+        }
     };
 
     return (
@@ -74,7 +176,7 @@ export default function ChatRoom() {
                         M
                     </div>
                     <div>
-                        <h2 className="font-semibold text-white">Profound Match #892</h2>
+                        <h2 className="font-semibold text-white">Profound Match</h2>
                         <p className="text-xs text-green-400 font-mono tracking-wider">SECURE CONNECTION</p>
                     </div>
                 </div>
@@ -101,7 +203,7 @@ export default function ChatRoom() {
 
                 <AnimatePresence>
                     {messages.map((msg) => {
-                        const isMe = msg.sender === 'Nero';
+                        const isMe = currentUser ? msg.sender === currentUser : false;
 
                         return (
                             <motion.div

@@ -39,9 +39,9 @@ export default function Dashboard() {
                 body: JSON.stringify({ intent: finalIntent })
             });
 
-            if (response.match_found) {
+            if (response.match_found || response.room_name) {
                 // If match found immediately
-                window.location.href = '/chat/room';
+                window.location.href = `/chat/room?id=${response.room_name}`;
             } else {
                 // If added to loop, we can wait or show a message
                 // For now, we'll just alert that they are in the queue

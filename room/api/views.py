@@ -2,6 +2,8 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from room.models import Message, Room
 from .serializers import MessageSerializer
 from django.utils import timezone
@@ -31,11 +33,25 @@ class MessageActionView(APIView):
         if request.user not in message.room.users.all():
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
+        import re
+        safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', message.room.name)
+        channel_layer = get_channel_layer()
+
         if action == 'mark_read':
             if message.user != request.user and not message.is_read:
                 message.is_read = True
                 message.read_timestamp = timezone.now()
                 message.save()
+                
+                # Broadcast read receipt
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{safe_room_name}',
+                    {
+                        'type': 'message_read',
+                        'id': message.id
+                    }
+                )
+
             return Response({"status": "read"})
 
         elif action == 'delete_for_me':
@@ -49,6 +65,16 @@ class MessageActionView(APIView):
                 message.deleted_for_everyone = True
                 message.deleted_timestamp = timezone.now()
                 message.save()
+                
+                # Broadcast deletion
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{safe_room_name}',
+                    {
+                        'type': 'message_deleted',
+                        'id': message.id
+                    }
+                )
+
             return Response({"status": "deleted_for_everyone"})
 
         return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
@@ -96,9 +122,9 @@ class TranscriptDownloadView(APIView):
 class ChatAnalysisView(APIView):
     """
     Passive Chat Analysis Engine.
-    Analyzes recent messages in a room and updates both participants' profiles
-    with extracted interests, conversation topics, and behavioral patterns.
-    This can be triggered periodically or after a conversation ends.
+    Triggers the background Celery task to analyze recent messages in a room 
+    and update both participants' profiles.
+    Returns immediately.
     """
     permission_classes = [IsAuthenticated]
 
@@ -111,102 +137,96 @@ class ChatAnalysisView(APIView):
         if request.user not in room.users.all():
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Get recent messages (last 50 for token efficiency)
-        messages = Message.objects.filter(
-            room=room,
-            deleted_for_everyone=False
-        ).order_by('-date')[:50]
+        # Trigger Celery Task asynchronously
+        from room.tasks import generate_chat_analysis_task
+        generate_chat_analysis_task.delay(room_name)
 
-        if messages.count() < 5:
-            return Response({"message": "Not enough messages to analyze yet."}, status=status.HTTP_200_OK)
+        return Response({
+            "message": "Chat analysis started in the background."
+        }, status=status.HTTP_202_ACCEPTED)
 
-        # Build conversation text
-        conversation = []
-        for msg in reversed(list(messages)):
-            conversation.append(f"{msg.user.username}: {msg.value}")
 
-        conversation_text = "\n".join(conversation)
+class MessageListView(APIView):
+    """
+    GET: Retrieve recent messages for a room.
+    POST: Send a new message to the room.
+    """
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request, room_name):
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            room = Room.objects.get(name=room_name)
+        except Room.DoesNotExist:
+            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user not in room.users.all():
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        messages = Message.objects.filter(room=room).order_by('date')
+        
+        data = []
+        for msg in messages:
+            # Skip if deleted for this user
+            if msg.deleted_for_sender and msg.user == request.user:
+                continue
             
-            # Get all users in the room
-            room_users = list(room.users.all())
-            user_info = {}
-            for u in room_users:
-                user_info[u.username] = {
-                    "existing_interests": u.profile.interests or [],
-                    "existing_expertise": u.profile.expertise_areas or [],
-                    "existing_topics": u.profile.conversation_topics or [],
-                }
+            text = msg.value
+            if msg.deleted_for_everyone:
+                text = "This message was deleted."
 
-            prompt = f"""
-            You are a conversation analysis AI. Analyze this chat conversation and extract insights about each participant.
-            
-            PARTICIPANTS: {json.dumps(list(user_info.keys()))}
-            EXISTING DATA: {json.dumps(user_info)}
-            
-            CONVERSATION:
-            {conversation_text}
-            
-            For each participant, extract:
-            1. NEW interests revealed (topics they seem genuinely interested in)
-            2. NEW expertise revealed (things they demonstrate knowledge about)
-            3. Conversation topics discussed
-            4. Behavioral patterns (communication style, engagement level, emotional tone)
-            
-            Return ONLY valid JSON:
-            {{
-                "participants": {{
-                    "<username>": {{
-                        "new_interests": ["list of new interests"],
-                        "new_expertise": ["list of newly revealed expertise"],
-                        "topics_discussed": ["list of topics in this conversation"],
-                        "behavioral_notes": "brief note on how they communicate"
-                    }}
-                }}
-            }}
-            """
+            data.append({
+                "id": msg.id,
+                "sender": msg.user.username,
+                "text": text,
+                "isRead": msg.is_read,
+                "deletedForEveryone": msg.deleted_for_everyone,
+                "timestamp": msg.date.strftime("%I:%M %p")
+            })
 
-            response = model.generate_content(prompt)
-            response_text = response.text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:-3]
+        return Response(data, status=status.HTTP_200_OK)
 
-            analysis = json.loads(response_text)
-            participants_data = analysis.get("participants", {})
+    def post(self, request, room_name):
+        try:
+            room = Room.objects.get(name=room_name)
+        except Room.DoesNotExist:
+            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            updated_users = []
-            for u in room_users:
-                if u.username in participants_data:
-                    data = participants_data[u.username]
-                    profile = u.profile
+        if request.user not in room.users.all():
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
-                    # Merge new interests (no duplicates)
-                    existing_interests = set(profile.interests or [])
-                    existing_interests.update(data.get("new_interests", []))
-                    profile.interests = list(existing_interests)
+        text = request.data.get('text')
+        if not text:
+            return Response({"error": "Message text is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-                    # Merge expertise
-                    existing_expertise = set(profile.expertise_areas or [])
-                    existing_expertise.update(data.get("new_expertise", []))
-                    profile.expertise_areas = list(existing_expertise)
+        msg = Message.objects.create(
+            user=request.user,
+            room=room,
+            value=text
+        )
 
-                    # Append conversation topics (keep last 50)
-                    topics = list(profile.conversation_topics or [])
-                    topics.extend(data.get("topics_discussed", []))
-                    profile.conversation_topics = topics[-50:]
+        # Broadcast via Channels
+        import re
+        safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', room_name)
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'chat_{safe_room_name}',
+            {
+                'type': 'chat_message',
+                'id': msg.id,
+                'message': msg.value,
+                'username': msg.user.username,
+                'timestamp': msg.date.strftime("%I:%M %p"),
+                'isRead': msg.is_read,
+                'deletedForEveryone': msg.deleted_for_everyone
+            }
+        )
 
-                    profile.save(update_fields=['interests', 'expertise_areas', 'conversation_topics'])
-                    updated_users.append(u.username)
+        return Response({
+            "id": msg.id,
+            "sender": msg.user.username,
+            "text": msg.value,
+            "isRead": msg.is_read,
+            "deletedForEveryone": msg.deleted_for_everyone,
+            "timestamp": msg.date.strftime("%I:%M %p")
+        }, status=status.HTTP_201_CREATED)
 
-            return Response({
-                "message": "Conversation analyzed. Profiles updated.",
-                "updated_users": updated_users,
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response(
-                {"error": f"Chat analysis failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )

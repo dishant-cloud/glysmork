@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from matchmaking.models import Loop, CallRequest
 from users.models import Profile
+from room.models import Room
 from .serializers import LoopSerializer, CallRequestSerializer
 from django.db.models import Q
 import os
@@ -50,11 +51,19 @@ class JoinMatchmakingView(APIView):
                 receiver=match,
                 status='pending'
             )
+            
+            # Create a shared room for them
+            room_name = f"room_{min(user.id, match.id)}_{max(user.id, match.id)}"
+            room, created = Room.objects.get_or_create(name=room_name)
+            if created:
+                room.users.add(user, match)
+                
             return Response({
                 "status": "match_found", 
                 "message": "The system found exactly who you need.", 
                 "matched_user": match.username,
-                "request_id": call_req.id
+                "request_id": call_req.id,
+                "room_name": room_name
             })
             
         return Response({
