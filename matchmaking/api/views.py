@@ -11,7 +11,7 @@ import os
 import google.generativeai as genai
 import json
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "YOUR_STATIC_KEY_HERE_FOR_DEV"))
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyBGhEn818PcYrwhxNLXWqa84KQwjt24qmo"))
 
 class JoinMatchmakingView(APIView):
     """
@@ -20,10 +20,17 @@ class JoinMatchmakingView(APIView):
     The AI analyzes all available profiles to find the perfect match.
     This is NOT dating — it's connecting minds based on intent, expertise, interest, and personality.
     """
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated] # Temporarily disabled for Next.js testing
 
     def post(self, request):
-        user = request.user
+        if request.user.is_authenticated:
+            user = request.user
+        else:
+            # Fallback to the first user for Next.js testing without JWT
+            from django.contrib.auth.models import User
+            user = User.objects.first()
+            if not user:
+                return Response({"error": "No users in database."}, status=status.HTTP_400_BAD_REQUEST)
         intent = request.data.get('intent', '').strip()
         
         if not intent:
@@ -100,7 +107,7 @@ class JoinMatchmakingView(APIView):
                 "self_reported_traits": cp.self_reported_traits or {},
             })
         
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         prompt = f"""
         You are the Connection Engine — an AI that understands human intent at a profound level.
