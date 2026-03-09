@@ -11,7 +11,9 @@ import os
 import google.generativeai as genai
 import json
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+_GOOGLE_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+if _GOOGLE_API_KEY:
+    genai.configure(api_key=_GOOGLE_API_KEY)
 
 class JoinMatchmakingView(APIView):
     """
@@ -49,8 +51,41 @@ class JoinMatchmakingView(APIView):
             defaults={'gender': request.data.get('gender', user.profile.gender)}
         )
         
-        # Attempt to find a match based on the freeform intent
-        match = self.attempt_intent_match(user, intent)
+        # --- PHASE 3: RANDOM MATCHING FILTERS ---
+        match = None
+        if intent.lower() == "random opposite gender":
+            my_gender = loop.gender
+            target_gender = 'F' if my_gender == 'M' else 'M' if my_gender == 'F' else None
+            
+            if target_gender:
+                # Find someone of the opposite gender who ALSO wants a random opposite gender match
+                potential_match = Loop.objects.filter(
+                    gender=target_gender,
+                    user__profile__current_intent__iexact="random opposite gender"
+                ).exclude(user=user).order_by('?').first() # Random order
+                
+                if potential_match:
+                    match = potential_match.user
+                    # Remove both from loop
+                    Loop.objects.filter(user__in=[user, match]).delete()
+            else:
+                # If they are 'Other', just match them with anyone else wanting a random match
+                potential_match = Loop.objects.filter(
+                    user__profile__current_intent__iexact="random opposite gender"
+                ).exclude(user=user).order_by('?').first()
+                if potential_match:
+                    match = potential_match.user
+                    Loop.objects.filter(user__in=[user, match]).delete()
+        elif intent.lower() == "random connection":
+            # Pure random match with ANYONE else in the loop
+            potential_match = Loop.objects.exclude(user=user).order_by('?').first()
+            if potential_match:
+                match = potential_match.user
+                Loop.objects.filter(user__in=[user, match]).delete()
+        else:
+            # --- THE AI CONNECTION ENGINE ---
+            # Attempt to find a match based on the freeform profound intent
+            match = self.attempt_intent_match(user, intent)
         
         if match:
             call_req = CallRequest.objects.create(

@@ -1,12 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050511; /* Deep, rich space dark */
-  --foreground: #e2e8f0; /* Soft readable white */
-  --accent: #6d28d9; /* Deep violet */
-  --accent-light: #8b5cf6; 
+  --background: #f8fafc;
+  /* Light gray/white */
+  --foreground: #0f172a;
+  /* Dark slate */
+  --accent: #9333ea;
+  /* Vibrant purple */
+  --accent-light: #a855f7;
+  --glass: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --gradient-1: rgba(168, 85, 247, 0.1);
+  --gradient-2: rgba(34, 211, 238, 0.1);
+}
+
+.dark {
+  --background: #050511;
+  /* Deep, rich space dark */
+  --foreground: #e2e8f0;
+  /* Soft readable white */
+  --accent: #6d28d9;
+  /* Deep violet */
+  --accent-light: #8b5cf6;
   --glass: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.08);
+  --gradient-1: rgba(109, 40, 217, 0.15);
+  --gradient-2: rgba(30, 58, 138, 0.15);
 }
 
 @theme inline {
@@ -23,10 +42,11 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(109, 40, 217, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(30, 58, 138, 0.15) 0px, transparent 50%);
+  background-image:
+    radial-gradient(at 0% 0%, var(--gradient-1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, var(--gradient-2) 0px, transparent 50%);
   background-attachment: fixed;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Premium Glassmorphism Utilities */
@@ -43,13 +63,41 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* Unique Experimental Styles */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  mix-blend-mode: overlay;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
 }

@@ -25,3 +25,9 @@ ngrok.exe
 ngrok.log
 url.txt
 debug_match.txt
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+

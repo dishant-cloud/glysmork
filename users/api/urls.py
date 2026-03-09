@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView
+from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView
 
 urlpatterns = [
+    path('register/', RegisterView.as_view(), name='api-register'),
     path('login/', LoginView.as_view(), name='api-login'),
     path('profile/', ProfileDetailView.as_view(), name='api-profile-detail'),
     path('profile/<str:username>/', PublicProfileView.as_view(), name='api-public-profile'),

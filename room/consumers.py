@@ -2,6 +2,10 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.message_history = []
+
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         
@@ -22,7 +26,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             {
                 'type': 'user_joined',
                 'sender': self.channel_name,
-                'username': self.scope['user'].username
+                'username': self.scope['user'].username if self.scope['user'].is_authenticated else 'Anonymous'
             }
         )
 
@@ -51,9 +55,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if message_type == 'chat_message':
             message = data['message']
-            username = data['username']
+            username = data.get('username', 'Anonymous')
 
-            # Send message to room group
+            # Build rolling history for AI analysis
+            self.message_history.append(f"{username}: {message}")
+            if len(self.message_history) > 10:
+                self.message_history = self.message_history[-10:]
+
+            # Send message to room group immediately for real-time feel
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -62,6 +71,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'username': username
                 }
             )
+
+            # --- AI FRAUD / INTENT MONITORING ---
+            # Trigger analysis every 5 messages to avoid extreme API spam
+            if len(self.message_history) % 5 == 0:
+                import asyncio
+                # Run the sync Gemini call in a background thread so it doesn't block WebSockets
+                asyncio.create_task(self.analyze_chat_history(username))
         
         elif message_type == 'video_signal':
             # Forward video signals (offer, answer, ice candidates)
@@ -110,6 +126,82 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'sender': event['sender'],
                 'username': event.get('username', 'Unknown')
             }))
+
+    async def analyze_chat_history(self, recent_sender_username):
+        """
+        Sends the rolling 10-message chat history to Gemini to detect "cap", 
+        creepy behavior, or fraud. If found, generates an image and alerts the room.
+        """
+        if not self.message_history:
+            return
+
+        chat_log = "\n".join(self.message_history)
+        
+        # We must wrap the sync Gemini call in a thread
+        from asgiref.sync import sync_to_async
+        import google.generativeai as genai
+        import json
+        import urllib.parse
+        from django.utils import timezone
+        
+        @sync_to_async
+        def call_gemini():
+            try:
+                genai.configure(api_key=os.environ.get('GEMINI_API_KEY', ''))
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                prompt = f"""
+                You are a ruthless AI moderator monitoring a live chat between two people.
+                Read this transcript of the last 10 messages:
+                
+                {chat_log}
+                
+                Analyze the intent of '{recent_sender_username}'. Are they being manipulative, overly creepy, asking for money, or acting like a fraudster/bot?
+                
+                Respond ONLY in JSON.
+                {{
+                    "is_dangerous": boolean,
+                    "reason": "short explanation if dangerous, else null",
+                    "image_prompt": "If dangerous, write a 10 word visual prompt describing them as a monster or fraud, else null"
+                }}
+                """
+                response = model.generate_content(prompt)
+                
+                text = response.text.strip()
+                if text.startswith("```json"):
+                    text = text[7:-3]
+                
+                return json.loads(text)
+            except Exception as e:
+                return {"error": str(e)}
+
+        analysis = await call_gemini()
+        
+        if analysis and analysis.get("is_dangerous"):
+            # They failed the vibe check. Generate the warning image.
+            base_prompt = analysis.get("image_prompt", "An abstract digital monster representing deceit")
+            style_modifiers = ", dark glitch art, red warning neon, ominous, 4k"
+            encoded_prompt = urllib.parse.quote(base_prompt + style_modifiers)
+            pollinations_url = f"https://pollinations.ai/p/{encoded_prompt}?width=400&height=400&nologo=true&seed={timezone.now().microsecond}"
+            
+            # Broadcast the alert to the room!
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'analysis_alert',
+                    'username': recent_sender_username,
+                    'reason': analysis.get("reason"),
+                    'image_url': pollinations_url
+                }
+            )
+
+    async def analysis_alert(self, event):
+        """ Handles the broadcasted AI warning """
+        await self.send(text_data=json.dumps({
+            'type': 'analysis_alert',
+            'username': event['username'],
+            'reason': event['reason'],
+            'image_url': event['image_url']
+        }))
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):

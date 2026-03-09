@@ -8,7 +8,11 @@ export default function SignUp() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [gender, setGender] = useState('O');
+    const [age, setAge] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -17,13 +21,43 @@ export default function SignUp() {
         return () => clearInterval(interval);
     }, []);
 
-    const handleSignUp = (e: React.FormEvent) => {
+    const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Signing up with:', name, email, password);
-        // Note: Django API backend does not have a register endpoint yet.
-        // For now, redirect to login or onboarding
-        alert("Signup feature is linked to Django layout. Redirecting to onboarding for AI Analysis!");
-        router.push('/onboarding');
+        setErrorMsg('');
+        setIsSubmitting(true);
+
+        try {
+            const response = await fetch('http://localhost:8000/api/users/register/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: name,
+                    email: email,
+                    password: password,
+                    gender: gender,
+                    age: age ? parseInt(age) : 18
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Manually set access token to bypass fetchApi's login for now, or just trust the cookie
+                // The Register API doesn't return JWTs yet, but it does log the user in via session.
+                // For Next.js, we just save the user object so the frontend knows who is active.
+                localStorage.setItem('user', JSON.stringify(data.user));
+                router.push('/onboarding');
+            } else {
+                setErrorMsg(data.error || 'Registration failed.');
+                setIsSubmitting(false);
+            }
+        } catch (error) {
+            console.error("Signup error:", error);
+            setErrorMsg("Network error. Is the backend running?");
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -49,7 +83,11 @@ export default function SignUp() {
 
             <form onSubmit={handleSignUp} className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-6 bg-gradient-to-t from-black/90 to-transparent">
 
-
+                {errorMsg && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg text-sm mb-4 w-full max-w-2xl text-center">
+                        {errorMsg}
+                    </div>
+                )}
 
                 {/* Inputs Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
@@ -59,6 +97,7 @@ export default function SignUp() {
                         <label className="block text-base font-medium text-gray-400 mb-1">Username</label>
                         <input
                             type="text"
+                            required
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
@@ -71,6 +110,7 @@ export default function SignUp() {
                         <label className="block text-base font-medium text-gray-400 mb-1">Email</label>
                         <input
                             type="email"
+                            required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
@@ -83,6 +123,7 @@ export default function SignUp() {
                         <label className="block text-base font-medium text-gray-400 mb-1">Password</label>
                         <input
                             type="password"
+                            required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
@@ -93,17 +134,33 @@ export default function SignUp() {
                         </p>
                     </div>
 
-                    {/* Row 2, Col 2: Password Confirmation */}
-                    <div>
-                        <label className="block text-base font-medium text-gray-400 mb-1">Password Confirmation</label>
-                        <input
-                            type="password"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
-                            placeholder="••••••••"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
-                            Confirm verification.
-                        </p>
+                    {/* Row 2, Col 2: Demographics */}
+                    <div className="flex gap-4">
+                        <div className="flex-1">
+                            <label className="block text-base font-medium text-gray-400 mb-1">Gender</label>
+                            <select
+                                value={gender}
+                                onChange={(e) => setGender(e.target.value)}
+                                className="w-full px-3 py-2 h-[42px] bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all appearance-none"
+                            >
+                                <option value="M" className="bg-slate-900">Male</option>
+                                <option value="F" className="bg-slate-900">Female</option>
+                                <option value="O" className="bg-slate-900">Other</option>
+                            </select>
+                        </div>
+                        <div className="flex-[0.5]">
+                            <label className="block text-base font-medium text-gray-400 mb-1">Age</label>
+                            <input
+                                type="number"
+                                required
+                                min="18"
+                                max="100"
+                                value={age}
+                                onChange={(e) => setAge(e.target.value)}
+                                className="w-full px-3 py-2 h-[42px] bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm text-base text-white placeholder-gray-500 focus:border-cyan-400 focus:bg-white/20 focus:outline-none transition-all"
+                                placeholder="18"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -123,9 +180,10 @@ export default function SignUp() {
                 <div className="flex gap-4">
                     <button
                         type="submit"
-                        className="bg-gray-700/40 hover:bg-gray-600/60 text-white font-bold py-2 px-12 rounded-full shadow-lg transition-all hover:scale-105 backdrop-blur-sm border border-gray-500/30"
+                        disabled={isSubmitting}
+                        className={`bg-gray-700/40 hover:bg-gray-600/60 text-white font-bold py-2 px-12 rounded-full shadow-lg transition-all hover:scale-105 backdrop-blur-sm border border-gray-500/30 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        Sign Up
+                        {isSubmitting ? 'Connecting...' : 'Sign Up'}
                     </button>
                     <button
                         type="button"

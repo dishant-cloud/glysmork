@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ShieldAlert, Zap, Search, Brain, Network } from 'lucide-react';
+import { Zap, Search, Brain, Network, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
-import Logo from '@/components/Logo';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Home() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    if (localStorage.getItem('user')) {
+      setIsLoggedIn(true);
+    }
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % 8); // 8 is length of "GLYSMORK"
     }, 1000);
@@ -17,108 +21,195 @@ export default function Home() {
   }, []);
 
   return (
-    <main
-      className="min-h-screen relative flex flex-col items-center justify-center p-6 overflow-hidden bg-contain bg-center bg-no-repeat bg-black text-white"
-      style={{ backgroundImage: `url('/glysmork_signup.png')` }}
-    >
-      {/* Background Overlay for text readability if needed */}
-      <div className="absolute inset-0 bg-black/40 z-0" />
+    <main className="min-h-screen relative bg-slate-50 dark:bg-[#050511] text-slate-900 dark:text-white selection:bg-purple-500/30 overflow-hidden transition-colors duration-300">
 
-      {/* Hero Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="text-center z-10 max-w-4xl pt-20"
-      >
-        <div className="mb-6 h-20 flex items-end justify-center">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-[0.2em] flex justify-center gap-1 md:gap-2">
-            {['G', 'L', 'Y', 'S', 'M', 'O', 'R', 'K'].map((letter, index) => (
-              <span
-                key={index}
-                className={`transition-all duration-300 inline-block bg-clip-text text-transparent ${index === activeIndex
-                  ? 'bg-gradient-to-r from-cyan-300 via-green-400 to-purple-500 text-6xl md:text-7xl -translate-y-3 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]'
-                  : 'bg-gradient-to-r from-cyan-800 via-green-800 to-purple-800 opacity-80'
-                  }`}
+      {/* Texture Layer */}
+      <div className="bg-noise dark:opacity-5 opacity-20" />
+
+      {/* Abstract Gradient Orbs for depth */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/10 dark:bg-purple-900/20 blur-[120px] pointer-events-none transition-colors duration-500" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/20 blur-[100px] pointer-events-none transition-colors duration-500" />
+
+      {/* Navbar / Header area entirely deconstructed */}
+      <nav className="absolute top-0 w-full p-6 md:p-10 flex justify-between items-start z-40 pointer-events-none">
+        <div className="font-mono text-xs text-slate-500 dark:text-gray-500 tracking-widest uppercase flex flex-col gap-1">
+          <span>Sys.V.1.0.4</span>
+          <span className="text-cyan-600 dark:text-cyan-400 flex items-center gap-2">
+            <span className="w-2 h-2 bg-cyan-600 dark:bg-cyan-400 rounded-full animate-pulse transition-colors" />
+            Online
+          </span>
+        </div>
+        <div className="flex items-center gap-4 pointer-events-auto">
+          <ThemeToggle />
+          {isLoggedIn ? (
+            <div className="flex gap-2 hidden md:flex">
+              <Link href="/dashboard">
+                <button className="px-6 py-2 border border-cyan-500/50 rounded-full text-sm font-mono hover:bg-cyan-500/20 transition-all text-cyan-600 dark:text-cyan-400">
+                  Dashboard
+                </button>
+              </Link>
+              <button onClick={() => alert("Inbox feature coming soon!")} className="px-6 py-2 border border-purple-500/50 rounded-full text-sm font-mono hover:bg-purple-500/20 transition-all text-purple-600 dark:text-purple-400">
+                Inbox
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('user');
+                  localStorage.removeItem('access_token');
+                  localStorage.removeItem('refresh_token');
+                  setIsLoggedIn(false);
+                }}
+                className="px-6 py-2 border border-red-500/50 rounded-full text-sm font-mono hover:bg-red-500/20 transition-all text-red-500"
               >
-                {letter}
-              </span>
-            ))}
-          </h1>
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <Link href="/login">
+              <button className="px-6 py-2 border border-black/20 dark:border-white/20 rounded-full text-sm font-mono hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
+                Access Node
+              </button>
+            </Link>
+          )}
         </div>
+      </nav>
 
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          className="mb-8 inline-flex items-center gap-2 px-6 py-2 rounded-full bg-black/40 backdrop-blur-md text-sm text-purple-300 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-        >
-          <Sparkles className="w-4 h-4 text-purple-400" />
-          <span className="tracking-wide">The Universal Connection Engine</span>
-        </motion.div>
+      {/* Marquee Banner */}
+      <div className="absolute top-32 w-[200%] -left-[50%] -rotate-2 overflow-hidden bg-purple-100/50 dark:bg-purple-900/10 border-y border-purple-200 dark:border-purple-500/20 py-3 z-0 flex pointer-events-none transition-colors">
+        <div className="flex animate-marquee whitespace-nowrap">
+          {[...Array(8)].map((_, i) => (
+            <span key={i} className="text-xl md:text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-600 mx-8 uppercase">
+              • Universal Connection Engine • No Cap • Pure Intent
+            </span>
+          ))}
+        </div>
+      </div>
 
-        <h2 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-100 to-gray-400 drop-shadow-sm">
-          Find Exactly<br />Who You Need.
-        </h2>
+      <div className="relative z-10 w-full max-w-[1400px] mx-auto min-h-screen flex flex-col justify-center px-6 md:px-12 pt-40 pb-20 pointer-events-none">
 
-        <p className="text-lg md:text-xl text-gray-300 mb-12 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
-          Describe the kind of person you want to talk to — a topic, a mindset, a vibe, an expertise. Our AI analyzes everyone deeply, then connects you to the exact right human. Any purpose. Any conversation. Precise.
-        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center pointer-events-auto">
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-          <Link href="/onboarding">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold flex items-center gap-2 transition-all shadow-[0_0_30px_rgba(219,39,119,0.5)] border border-pink-400/50"
+          {/* Left Col: Massive Typography & CTA */}
+          <div className="lg:col-span-7 flex flex-col items-start mt-12 md:mt-0">
+
+            {/* The Animated Logo integrated as a pre-title */}
+            <div className="mb-8 flex items-end">
+              <h1 className="text-3xl md:text-4xl font-black tracking-[0.25em] flex gap-1">
+                {['G', 'L', 'Y', 'S', 'M', 'O', 'R', 'K'].map((letter, index) => (
+                  <span
+                    key={index}
+                    className={`transition-all duration-300 inline-block bg-clip-text text-transparent ${index === activeIndex
+                      ? 'bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 dark:from-cyan-300 dark:via-green-400 dark:to-purple-500 -translate-y-2 drop-shadow-[0_0_15px_rgba(168,85,247,0.4)] dark:drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]'
+                      : 'bg-gradient-to-r from-slate-400 to-slate-500 dark:from-gray-700 dark:to-gray-500'
+                      }`}
+                  >
+                    {letter}
+                  </span>
+                ))}
+              </h1>
+            </div>
+
+            <h2 className="text-6xl md:text-8xl lg:text-[110px] leading-[0.85] font-black tracking-tighter mb-10 text-slate-900 dark:text-white uppercase mix-blend-normal dark:mix-blend-difference transition-colors">
+              Find<br />Exactly<br />Who You<br />Need.
+            </h2>
+
+            <p className="text-lg md:text-xl text-slate-600 dark:text-gray-400 max-w-lg mb-12 font-mono leading-relaxed border-l-2 border-purple-500/50 pl-6 transition-colors">
+              Not an algorithm. Not a dating app.<br />Describe a topic, a mindset, or an expertise. The Neural Engine connects you to the exact human.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
+              {isLoggedIn ? (
+                <>
+                  <Link href="/dashboard" className="w-full sm:w-auto">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-cyan-500 text-black font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all shadow-[8px_8px_0px_rgba(34,211,238,0.5)] border border-cyan-400 hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_rgba(34,211,238,0.5)]"
+                    >
+                      Return to Hub
+                      <ArrowUpRight className="w-6 h-6" />
+                    </motion.button>
+                  </Link>
+                  <button onClick={() => alert("Discover phase loading...")} className="w-full sm:w-auto px-10 py-5 rounded-none bg-transparent text-slate-800 dark:text-white font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/30 hover:bg-white/5">
+                    Discover Users
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/signup" className="w-full sm:w-auto">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all shadow-[8px_8px_0px_rgba(168,85,247,0.5)] border border-black dark:border-white hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_rgba(168,85,247,0.5)]"
+                    >
+                      Initiate Protocol
+                      <ArrowUpRight className="w-6 h-6" />
+                    </motion.button>
+                  </Link>
+                  <Link href="/login" className="w-full sm:w-auto">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-transparent text-slate-800 dark:text-white font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/30 hover:bg-white/5"
+                    >
+                      Access Node
+                    </motion.button>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right Col: Asymmetrical Floating Cards */}
+          <div className="lg:col-span-5 relative mt-20 lg:mt-0 h-[600px] w-full hidden md:block border-slate-200">
+
+            {/* Card 1 */}
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="absolute top-10 right-0 w-72 bg-white/60 dark:bg-black/60 backdrop-blur-xl border border-black/10 dark:border-white/20 p-6 z-20 shadow-xl transition-colors"
             >
-              Start The Analysis
-              <Zap className="w-5 h-5 ml-2" />
-            </motion.button>
-          </Link>
-          <Link href="/login">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-10 py-4 rounded-full bg-black/50 backdrop-blur-md text-gray-200 font-bold hover:bg-white/10 hover:text-white transition-colors border border-white/20 shadow-lg"
+              <div className="flex justify-between items-start mb-12">
+                <Search className="text-cyan-600 dark:text-cyan-400 w-6 h-6 transition-colors" />
+                <span className="text-xs font-mono text-slate-400 dark:text-gray-500 transition-colors">01</span>
+              </div>
+              <h3 className="text-xl font-black mb-2 uppercase tracking-wide text-slate-800 dark:text-white transition-colors">Intent Map</h3>
+              <p className="text-sm text-slate-600 dark:text-gray-400 font-mono transition-colors">Specify who you need. The engine searches.</p>
+            </motion.div>
+
+            {/* Card 2 */}
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="absolute top-64 left-0 lg:-left-12 w-80 bg-purple-100/60 dark:bg-purple-900/30 backdrop-blur-xl border border-purple-300/40 dark:border-purple-500/40 p-6 z-30 shadow-2xl transition-colors"
             >
-              Login
-            </motion.button>
-          </Link>
-        </div>
-      </motion.div>
+              <div className="flex justify-between items-start mb-12">
+                <Brain className="text-purple-600 dark:text-purple-400 w-6 h-6 transition-colors" />
+                <span className="text-xs font-mono text-purple-400 dark:text-purple-300 transition-colors">02</span>
+              </div>
+              <h3 className="text-2xl font-black mb-2 text-purple-900 dark:text-purple-100 uppercase tracking-wider transition-colors">Deep Cortex</h3>
+              <p className="text-sm text-purple-700/80 dark:text-purple-200/70 font-mono leading-relaxed transition-colors">Every profile analyzed profoundly for pure conceptual compatibility and psychological resonance.</p>
+            </motion.div>
 
-      {/* Features Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.8 }}
-        className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full z-10 pb-20"
-      >
-        <div className="bg-black/40 backdrop-blur-md p-8 rounded-2xl border border-white/10 hover:-translate-y-2 transition-transform duration-300 shadow-xl">
-          <div className="w-14 h-14 rounded-xl bg-cyan-500/20 flex items-center justify-center mb-6 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
-            <Search className="w-7 h-7 text-cyan-400" />
-          </div>
-          <h3 className="text-xl font-bold mb-3 text-white">Intent-Driven Matching</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">Tell us what you need — a startup co-founder, someone who understands grief, a quantum physics nerd, or just a chill person to vent to. We find them.</p>
-        </div>
+            {/* Card 3 */}
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="absolute bottom-10 right-10 w-64 bg-slate-50/80 dark:bg-black/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-6 z-10 shadow-lg transition-colors"
+            >
+              <div className="flex justify-between items-start mb-8">
+                <Network className="text-slate-500 dark:text-gray-500 w-6 h-6 transition-colors" />
+                <span className="text-xs font-mono text-slate-400 dark:text-gray-600 transition-colors">03</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-slate-800 dark:text-gray-300 uppercase transition-colors">The Link</h3>
+              <p className="text-xs text-slate-500 dark:text-gray-500 font-mono transition-colors">Instant routing to target node.</p>
+            </motion.div>
 
-        <div className="bg-black/40 backdrop-blur-md p-8 rounded-2xl border border-white/10 hover:-translate-y-2 transition-transform duration-300 shadow-xl">
-          <div className="w-14 h-14 rounded-xl bg-green-500/20 flex items-center justify-center mb-6 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
-            <Brain className="w-7 h-7 text-green-400" />
           </div>
-          <h3 className="text-xl font-bold mb-3 text-white">Deep Profile Analysis</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">Every user is profoundly analyzed — psychology, interests, expertise, conversation patterns. The AI knows them better than they know themselves.</p>
         </div>
-
-        <div className="bg-black/40 backdrop-blur-md p-8 rounded-2xl border border-white/10 hover:-translate-y-2 transition-transform duration-300 shadow-xl">
-          <div className="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center mb-6 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-            <Network className="w-7 h-7 text-purple-400" />
-          </div>
-          <h3 className="text-xl font-bold mb-3 text-white">The Right Connection</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">Not random. Not algorithmic swipes. You describe who you need, and the system delivers exactly that person from the network.</p>
-        </div>
-      </motion.div>
+      </div>
     </main>
   );
 }

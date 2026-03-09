@@ -42,6 +42,11 @@ class Profile(models.Model):
     conversation_topics = models.JSONField(default=list, blank=True, help_text="AI-extracted topics from past conversations")
     current_intent = models.TextField(blank=True, help_text="Freeform: what the user wants to talk about right now")
     
+    # Phase 3: AI Visual Assets & Trust Core
+    persona_image_url = models.URLField(max_length=500, blank=True, null=True, help_text="AI generated conceptual avatar")
+    chat_status_image_url = models.URLField(max_length=500, blank=True, null=True, help_text="Live AI generated status/warning image during chat")
+    trust_score = models.IntegerField(default=100, help_text="Dynamic AI-adjusted trust score based on chat intent (0-100)")
+    
     # Privacy Settings
     is_profile_public = models.BooleanField(default=True)
     show_ai_analysis = models.BooleanField(default=True)
