@@ -11,7 +11,7 @@ import os
 import google.generativeai as genai
 import json
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyBGhEn818PcYrwhxNLXWqa84KQwjt24qmo"))
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 class JoinMatchmakingView(APIView):
     """
