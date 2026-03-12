@@ -4,8 +4,8 @@ from .models import Loop, CallRequest
 
 @admin.register(Loop)
 class LoopAdmin(admin.ModelAdmin):
-    list_display = ['user', 'gender', 'timestamp']
-    list_filter = ['gender', 'timestamp']
+    list_display = ['user', 'gender', 'last_seen']
+    list_filter = ['gender', 'last_seen']
     search_fields = ['user__username']
 
 

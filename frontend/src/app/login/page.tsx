@@ -12,6 +12,13 @@ export default function Login() {
     const router = useRouter();
 
     useEffect(() => {
+        // If already logged in, skip login page and go to dashboard
+        const existingUser = localStorage.getItem('user');
+        if (existingUser) {
+            router.replace('/dashboard');
+            return;
+        }
+
         const interval = setInterval(() => {
             setActiveIndex((prev) => (prev + 1) % 7); // 7 is length of "WELCOME"
         }, 1000);

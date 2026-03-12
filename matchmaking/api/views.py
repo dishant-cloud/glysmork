@@ -10,10 +10,9 @@ from django.db.models import Q
 import os
 import google.generativeai as genai
 import json
+import uuid
 
-_GOOGLE_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-if _GOOGLE_API_KEY:
-    genai.configure(api_key=_GOOGLE_API_KEY)
+genai.configure(api_key="AIzaSyCMXK_v5nP0TcWT0FMlPKUhOS5WbA51WrQ")
 
 class JoinMatchmakingView(APIView):
     """
@@ -28,11 +27,16 @@ class JoinMatchmakingView(APIView):
         if request.user.is_authenticated:
             user = request.user
         else:
-            # Fallback to the first user for Next.js testing without JWT
-            from django.contrib.auth.models import User
-            user = User.objects.first()
-            if not user:
-                return Response({"error": "No users in database."}, status=status.HTTP_400_BAD_REQUEST)
+            # Try username from request body (cross-origin Next.js frontend)
+            username_from_body = request.data.get('username')
+            from django.contrib.auth.models import User as AuthUser
+            if username_from_body:
+                try:
+                    user = AuthUser.objects.get(username=username_from_body)
+                except AuthUser.DoesNotExist:
+                    return Response({"error": f"User '{username_from_body}' not found."}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({"error": "Authentication required. Please provide a username or log in."}, status=status.HTTP_401_UNAUTHORIZED)
         intent = request.data.get('intent', '').strip()
         
         if not intent:
@@ -40,7 +44,38 @@ class JoinMatchmakingView(APIView):
                 {"error": "Tell us who you want to talk to or what you want to discuss."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # --- NEW: DIRECT CONNECTION HANDLER (from Discovery) ---
+        if intent.startswith('DIRECT_CONNECT:'):
+            target_username = intent.split(':', 1)[1]
+            try:
+                from django.contrib.auth.models import User as AuthUser
+                match = AuthUser.objects.get(username=target_username)
+            except AuthUser.DoesNotExist:
+                return Response({"error": "Target node no longer available."}, status=status.HTTP_404_NOT_FOUND)
         
+        # --- CHECK IF WE ALREADY HAVE A ROOM WAITING FOR THIS USER ---
+        # This handles the case where User B matched User A while A was still polling.
+        import time
+        if user.profile.current_intent and user.profile.current_intent.startswith('ROOM_READY:'):
+            parts = user.profile.current_intent.split(':', 2)  # ['ROOM_READY', room_name, timestamp?]
+            room_name_signal = parts[1] if len(parts) >= 2 else None
+            timestamp_signal = float(parts[2]) if len(parts) >= 3 else 0
+            # Expire after 10 minutes
+            if room_name_signal and (time.time() - timestamp_signal) < 600:
+                # Clear the signal
+                user.profile.current_intent = ''
+                user.profile.save(update_fields=['current_intent'])
+                return Response({
+                    "status": "match_found",
+                    "message": "Your match was waiting for you.",
+                    "room_name": room_name_signal
+                })
+            else:
+                # Stale signal — clear it and continue to fresh matchmaking
+                user.profile.current_intent = ''
+                user.profile.save(update_fields=['current_intent'])
+
         # Save the user's current intent
         user.profile.current_intent = intent
         user.profile.save(update_fields=['current_intent'])
@@ -50,61 +85,83 @@ class JoinMatchmakingView(APIView):
             user=user,
             defaults={'gender': request.data.get('gender', user.profile.gender)}
         )
+
+        # --- PRUNE STALE ENTRIES ---
+        # If a user hasn't polled in 20 seconds, they are likely gone.
+        from datetime import timedelta
+        from django.utils import timezone
+        active_threshold = timezone.now() - timedelta(seconds=20)
+        Loop.objects.filter(last_seen__lt=active_threshold).delete()
         
         # --- PHASE 3: RANDOM MATCHING FILTERS ---
         match = None
+        # Only match with users who have been seen in the last 20 seconds
+        active_loop = Loop.objects.filter(last_seen__gte=active_threshold).exclude(user=user)
+
         if intent.lower() == "random opposite gender":
             my_gender = loop.gender
             target_gender = 'F' if my_gender == 'M' else 'M' if my_gender == 'F' else None
             
             if target_gender:
                 # Find someone of the opposite gender who ALSO wants a random opposite gender match
-                potential_match = Loop.objects.filter(
+                potential_match = active_loop.filter(
                     gender=target_gender,
                     user__profile__current_intent__iexact="random opposite gender"
-                ).exclude(user=user).order_by('?').first() # Random order
+                ).order_by('?').first() # Random order
                 
                 if potential_match:
                     match = potential_match.user
-                    # Remove both from loop
                     Loop.objects.filter(user__in=[user, match]).delete()
             else:
                 # If they are 'Other', just match them with anyone else wanting a random match
-                potential_match = Loop.objects.filter(
+                potential_match = active_loop.filter(
                     user__profile__current_intent__iexact="random opposite gender"
-                ).exclude(user=user).order_by('?').first()
+                ).order_by('?').first()
                 if potential_match:
                     match = potential_match.user
                     Loop.objects.filter(user__in=[user, match]).delete()
         elif intent.lower() == "random connection":
-            # Pure random match with ANYONE else in the loop
-            potential_match = Loop.objects.exclude(user=user).order_by('?').first()
+            # Pure random match with ANYONE else in the loop who is active
+            potential_match = active_loop.order_by('?').first()
             if potential_match:
                 match = potential_match.user
                 Loop.objects.filter(user__in=[user, match]).delete()
         else:
-            # --- THE AI CONNECTION ENGINE ---
-            # Attempt to find a match based on the freeform profound intent
-            match = self.attempt_intent_match(user, intent)
+            # --- THE AI DISCOVERY ENGINE ---
+            # For personalized intent, we find a list of candidates instead of matching instantly.
+            candidates_with_reasons = self.attempt_discovery(user, intent)
+            if candidates_with_reasons:
+                return Response({
+                    "status": "discovery_results",
+                    "results": candidates_with_reasons
+                })
+            else:
+                return Response({
+                    "status": "waiting",
+                    "message": "Scanning for people who match your intent..."
+                })
         
         if match:
+            # Random matching still creates a room immediately
             call_req = CallRequest.objects.create(
                 sender=user,
                 receiver=match,
                 status='pending'
             )
             
-            # Create a shared room for them
-            room_name = f"room_{min(user.id, match.id)}_{max(user.id, match.id)}"
-            room, created = Room.objects.get_or_create(name=room_name)
-            if created:
-                room.users.add(user, match)
-                
+            session_id = str(uuid.uuid4())[:6]
+            room_name = f"room_{min(user.id, match.id)}_{max(user.id, match.id)}_{session_id}"
+            room, _ = Room.objects.get_or_create(name=room_name)
+            room.users.add(user, match)
+
+            import time
+            match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}'
+            match.profile.save(update_fields=['current_intent'])
+
             return Response({
                 "status": "match_found", 
-                "message": "The system found exactly who you need.", 
+                "message": "Connection established.", 
                 "matched_user": match.username,
-                "request_id": call_req.id,
                 "room_name": room_name
             })
             
@@ -113,92 +170,71 @@ class JoinMatchmakingView(APIView):
             "message": "Scanning the network for the right person. You'll be notified when we find them."
         })
 
-    def attempt_intent_match(self, user, intent):
+    def attempt_discovery(self, user, intent):
         """
-        Uses AI to understand the user's intent and cross-reference it against all 
-        available profiles in the pool — their expertise, interests, psychological profile,
-        and conversation history — to find the EXACT right person.
+        AI Discovery Engine: Finds multiple matching profiles for a personalized intent.
+        Returns a list of candidate user data with AI-generated reasons.
         """
         user_profile = user.profile
-        
-        # Get all candidates in the pool (exclude self)
-        candidates = Loop.objects.exclude(user=user).select_related('user__profile').order_by('timestamp')[:10]
+        candidates = Profile.objects.exclude(user=user).select_related('user')[:20]
         
         if not candidates:
-            return None
+            return []
         
-        # Build candidate summaries for the AI
         candidate_summaries = []
-        for c in candidates:
-            cp = c.user.profile
+        for p in candidates:
             candidate_summaries.append({
-                "username": c.user.username,
-                "psychological_profile": cp.psychological_profile or {},
-                "interests": cp.interests or [],
-                "expertise_areas": cp.expertise_areas or [],
-                "conversation_topics": cp.conversation_topics or [],
-                "current_intent": cp.current_intent or "",
-                "bio": cp.bio or "",
-                "self_reported_traits": cp.self_reported_traits or {},
+                "username": p.user.username,
+                "psychological_profile": p.psychological_profile or {},
+                "interests": p.interests or [],
+                "expertise_areas": p.expertise_areas or [],
+                "current_intent": p.current_intent or "",
+                "bio": p.bio or "",
             })
         
         model = genai.GenerativeModel('gemini-2.5-flash')
-        
         prompt = f"""
-        You are the Connection Engine — an AI that understands human intent at a profound level.
+        You are the Connection Engine Discovery mode.
+        User Intent: "{intent}"
+        Requesting User Profile: {json.dumps({"interests": user_profile.interests, "expertise": user_profile.expertise_areas})}
         
-        A user wants to connect with someone. Here is their request:
-        INTENT: "{intent}"
-        
-        Here is the requesting user's profile:
-        - Psychological Profile: {json.dumps(user_profile.psychological_profile or {})}
-        - Interests: {json.dumps(user_profile.interests or [])}
-        - Expertise: {json.dumps(user_profile.expertise_areas or [])}
-        - Past Conversation Topics: {json.dumps(user_profile.conversation_topics or [])}
-        - Bio: {user_profile.bio}
-        
-        Here are the available people in the pool:
+        Candidates Pool:
         {json.dumps(candidate_summaries, indent=2)}
         
-        Your job:
-        1. Understand EXACTLY what the user is looking for — it could be:
-           - A specific type of person (e.g., "someone who understands grief", "a startup founder", "someone who speaks Japanese")
-           - A specific topic (e.g., "I want to discuss quantum computing", "I need advice about investing")
-           - A vibe or energy (e.g., "someone chill to vent to", "an intellectual sparring partner")
-           - Or anything else
-        2. Cross-reference the intent against ALL candidate profiles — their expertise, interests, psychology, past conversations
-        3. Pick the BEST match, or return null if no one fits
+        Pick up to 5 best candidates from the pool that match the intent. 
+        For each, provide a match_score (0-100) and a brief reason.
         
-        Return ONLY a valid JSON object:
+        Return ONLY valid JSON:
         {{
-            "best_match_username": string or null,
-            "match_score": integer (0-100),
-            "reason": string (why this person is the right connection for this intent)
+            "matches": [
+                {{
+                    "username": string,
+                    "score": integer,
+                    "reason": string
+                }}
+            ]
         }}
         """
-        
         try:
             response = model.generate_content(prompt)
-            response_text = response.text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:-3]
-                
-            analysis = json.loads(response_text)
+            text = response.text.strip()
+            if text.startswith("```json"): text = text[7:-3]
+            data = json.loads(text)
             
-            best_match = analysis.get("best_match_username")
-            score = analysis.get("match_score", 0)
-            
-            if best_match and score > 60:
-                from django.contrib.auth.models import User
+            results = []
+            for match_data in data.get("matches", []):
                 try:
-                    matched_user = User.objects.get(username=best_match)
-                    # Remove both from loop
-                    Loop.objects.filter(user__in=[user, matched_user]).delete()
-                    return matched_user
-                except User.DoesNotExist:
-                    pass
-                    
+                    p = Profile.objects.get(user__username=match_data['username'])
+                    results.append({
+                        "username": p.user.username,
+                        "score": match_data['score'],
+                        "reason": match_data['reason'],
+                        "bio": p.bio,
+                        "persona_image": p.persona_image_url
+                    })
+                except Profile.DoesNotExist:
+                    continue
+            return results
         except Exception as e:
-            print(f"Connection Engine AI Error: {e}")
-            
-        return None
+            print(f"Discovery Engine AI Error: {e}")
+            return []

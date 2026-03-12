@@ -22,25 +22,44 @@ export default function ProfilePage() {
         loadProfile();
     }, []);
 
-    const loadProfile = async () => {
+    const getUsername = (): string | null => {
         try {
-            const data = await fetchApi('/users/profile/');
+            const u = localStorage.getItem('user');
+            if (!u) return null;
+            return JSON.parse(u)?.username || null;
+        } catch { return null; }
+    };
+
+    const loadProfile = async () => {
+        const storedUsername = getUsername();
+        if (!storedUsername) {
+            setError('Not logged in. Please log in first.');
+            setLoading(false);
+            return;
+        }
+        try {
+            // Use public profile endpoint — no session cookie needed
+            const response = await fetch(`http://127.0.0.1:8000/api/users/profile/${storedUsername}/`);
+            if (!response.ok) throw new Error(`${response.status}`);
+            const data = await response.json();
             setProfileData(data);
             setEditBio(data.bio || '');
             setEditGender(data.gender || 'O');
             setEditAge(data.age || '18');
         } catch (err) {
             console.error("Failed to load profile", err);
-            setError("Could not load neural profile data.");
+            setError('Could not load neural profile data.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleSave = async () => {
+        const storedUsername = getUsername();
+        if (!storedUsername) return;
         setSaving(true);
         try {
-            const data = await fetchApi('/users/profile/', {
+            const data = await fetchApi(`/users/profile/${storedUsername}/`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     bio: editBio,
@@ -52,7 +71,7 @@ export default function ProfilePage() {
             setIsEditing(false);
         } catch (err) {
             console.error(err);
-            alert("Failed to update profile.");
+            alert('Failed to update profile. Make sure you are logged in.');
         } finally {
             setSaving(false);
         }

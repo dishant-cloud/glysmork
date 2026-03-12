@@ -19,6 +19,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        print(f"DEBUG: User {self.scope['user']} JOINED group {self.room_group_name} (Channel: {self.channel_name})")
 
         # Notify others that a new user has joined
         await self.channel_layer.group_send(
@@ -38,6 +39,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        print(f"DEBUG: User {self.scope['user']} LEFT group {self.room_group_name}")
         
         # Notify others
         await self.channel_layer.group_send(
@@ -92,6 +94,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'sender': sender
                 }
             )
+        
+        elif message_type == 'force_exit':
+            print(f"DEBUG: Received force_exit from {self.scope['user']} in {self.room_group_name}")
+            # Broadcast to everyone in the room that the session is terminated
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'force_exit',
+                    'sender': self.channel_name
+                }
+            )
 
     # Receive message from room group
     async def chat_message(self, event):
@@ -112,6 +125,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'type': 'video_signal',
                 'signal': event['signal']
             }))
+
+    async def force_exit(self, event):
+        """ Signal both users to exit the room """
+        print(f"DEBUG: Broadcasting force_exit to client in {self.room_group_name}")
+        await self.send(text_data=json.dumps({
+            'type': 'force_exit'
+        }))
 
     async def user_left(self, event):
         await self.send(text_data=json.dumps({
@@ -147,7 +167,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         @sync_to_async
         def call_gemini():
             try:
-                genai.configure(api_key=os.environ.get('GEMINI_API_KEY', ''))
+                genai.configure(api_key="AIzaSyCMXK_v5nP0TcWT0FMlPKUhOS5WbA51WrQ")
                 model = genai.GenerativeModel('gemini-2.5-flash')
                 prompt = f"""
                 You are a ruthless AI moderator monitoring a live chat between two people.

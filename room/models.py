@@ -5,6 +5,7 @@ class Room(models.Model):
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     users = models.ManyToManyField(User, related_name="rooms")
+    is_active = models.BooleanField(default=True)
 
 class Message(models.Model):
     value = models.CharField(max_length=1000000)

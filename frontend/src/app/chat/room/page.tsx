@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MoreVertical, Trash2, Download, Check, CheckCheck, Video, VideoOff, AlertTriangle } from 'lucide-react';
+import { Send, MoreVertical, Trash2, Download, Check, CheckCheck, Video, VideoOff, AlertTriangle, LogOut } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { fetchApi } from '@/lib/api';
 import Peer from 'simple-peer';
@@ -28,7 +28,9 @@ export default function ChatRoom() {
     const [activeMenu, setActiveMenu] = useState<number | null>(null);
     const [roomId, setRoomId] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<string | null>(null);
+    const [partnerUsername, setPartnerUsername] = useState<string | null>(null);
     const [alert, setAlert] = useState<AnalysisAlert | null>(null);
+    const [showExitModal, setShowExitModal] = useState(false);
 
     // Video State
     const [isVideoActive, setIsVideoActive] = useState(false);
@@ -40,29 +42,57 @@ export default function ChatRoom() {
     const myVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
+    // Initial State & Back Button Interception
+    useEffect(() => {
+        // Push current state to history to enable back button interception
+        window.history.pushState(null, '', window.location.href);
+
+        const handlePopState = (e: PopStateEvent) => {
+            // Re-push state so the user stays on the page
+            window.history.pushState(null, '', window.location.href);
+            setShowExitModal(true);
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
     // Initialize Room Data
     useEffect(() => {
         const u = localStorage.getItem('user');
-        if (u) {
-            setCurrentUser(JSON.parse(u).username);
+        if (!u) {
+            window.location.href = '/login';
+            return;
         }
+        const me = u ? JSON.parse(u).username : null;
+        if (me) setCurrentUser(me);
 
         const params = new URLSearchParams(window.location.search);
         const rm = params.get('id');
         if (rm) {
             setRoomId(rm);
+            // Fetch who else is in this room
+            fetch(`http://127.0.0.1:8000/api/room/${rm}/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.users) {
+                        const partner = data.users.find((u: string) => u !== me);
+                        setPartnerUsername(partner || null);
+                    }
+                })
+                .catch(() => { });
         }
     }, []);
 
     const fetchMessages = useCallback(async () => {
-        if (!roomId) return;
+        if (!roomId || !currentUser) return;
         try {
-            const data = await fetchApi(`/room/${roomId}/messages/`);
+            const data = await fetchApi(`/room/${roomId}/messages/?username=${encodeURIComponent(currentUser)}`);
             setMessages(data);
-        } catch (error) {
-            console.error("Failed to fetch messages", error);
+        } catch {
+            // Silently ignore — room may not exist yet or network blip
         }
-    }, [roomId]);
+    }, [roomId, currentUser]);
 
     // WebSocket and initial fetch setup
     useEffect(() => {
@@ -70,76 +100,129 @@ export default function ChatRoom() {
 
         fetchMessages();
 
-        const token = localStorage.getItem('access_token');
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsHost = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).host : '127.0.0.1:8000';
 
-        const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat/${roomId}/?token=${token}`);
-        wsRef.current = ws;
+        // Always poll messages every 3s as a reliable fallback (works even without WebSocket/Redis)
+        const pollInterval = setInterval(fetchMessages, 3000);
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+        // Try WebSocket for real-time (optional — won't break chat if unavailable)
+        try {
+            const token = localStorage.getItem('access_token');
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).host : '127.0.0.1:8000';
+            const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat/${roomId}/?token=${token}`);
+            wsRef.current = ws;
 
-            if (data.type === 'chat_message') {
-                setMessages(prev => {
-                    if (prev.some(m => m.id === data.id)) return prev;
-                    return [...prev, {
-                        id: data.id || Date.now(),
-                        sender: data.username,
-                        text: data.message,
-                        isRead: data.isRead || false,
-                        deletedForEveryone: data.deletedForEveryone || false,
-                        timestamp: data.timestamp
-                    }];
-                });
-            } else if (data.type === 'analysis_alert') {
-                // Trigger the massive visual alert
-                setAlert({
-                    username: data.username,
-                    reason: data.reason,
-                    image_url: data.image_url
-                });
-            } else if (data.type === 'video_signal') {
-                // Incoming WebRTC Signal
-                if (data.signal.type === 'offer') {
-                    handleReceiveOffer(data.signal);
-                } else if (peerRef.current) {
-                    peerRef.current.signal(data.signal);
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'chat_message') {
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === data.id)) return prev;
+                        return [...prev, {
+                            id: data.id || Date.now(),
+                            sender: data.username,
+                            text: data.message,
+                            isRead: data.isRead || false,
+                            deletedForEveryone: data.deletedForEveryone || false,
+                            timestamp: data.timestamp
+                        }];
+                    });
+                } else if (data.type === 'analysis_alert') {
+                    setAlert({
+                        username: data.username,
+                        reason: data.reason,
+                        image_url: data.image_url
+                    });
+                } else if (data.type === 'video_signal') {
+                    if (data.signal.type === 'offer') {
+                        handleReceiveOffer(data.signal);
+                    } else if (peerRef.current) {
+                        peerRef.current.signal(data.signal);
+                    }
+                } else if (data.type === 'force_exit') {
+                    console.log("DEBUG: Received force_exit from server");
+                    // Partner exited - we must follow
+                    window.location.href = '/dashboard?exit=partner';
+                } else if (data.type === 'user_left') {
+                    console.log("DEBUG: Received user_left from server", data.sender);
+                    // Connection lost or partner left
+                    window.location.href = '/dashboard?exit=partner';
                 }
+            };
+            ws.onopen = () => console.log("DEBUG: WebSocket connected to", roomId);
+            ws.onerror = (e) => console.log("DEBUG: WebSocket error", e);
+            ws.onclose = (e) => console.log("DEBUG: WebSocket closed", e.code, e.reason);
+        } catch (e) {
+            console.log("DEBUG: WebSocket connection failed", e);
+        }
+
+        // --- BACKUP POLLING: Check for messages AND room active status ---
+        const pollInt = setInterval(async () => {
+            try {
+                // 1. Check if room is still active (robust exit fallback)
+                const statusRes = await fetchApi(`/room/${roomId}/status/`);
+                if (statusRes.is_active === false) {
+                    console.log("DEBUG: Room status is inactive, redirecting...");
+                    window.location.href = '/dashboard?exit=partner';
+                    return;
+                }
+
+                // 2. Fetch new messages
+                const res = await fetchApi(`/room/${roomId}/messages/?username=${encodeURIComponent(currentUser || '')}`);
+                if (Array.isArray(res)) setMessages(res);
+            } catch (e) {
+                console.error("Polling failed", e);
             }
-        };
+        }, 3000);
 
         return () => {
-            ws.close();
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
+            if (wsRef.current) wsRef.current.close();
+            clearInterval(pollInt);
+            if (stream) stream.getTracks().forEach(track => track.stop());
         };
-    }, [roomId, currentUser, fetchMessages]);
+    }, [roomId, currentUser, stream, fetchMessages]);
+
+    const performExit = async () => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'force_exit' }));
+        }
+
+        // --- BUFFALO FIX: Explicitly mark room as closed on backend ---
+        try {
+            await fetchApi(`/room/${roomId}/close/`, { method: 'POST' });
+        } catch (e) {
+            console.error("Failed to close room on server", e);
+        }
+
+        // Short delay to let the WS message broadcast before we leave
+        setTimeout(() => {
+            window.location.href = '/dashboard';
+        }, 150);
+    };
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     const handleSend = async () => {
-        if (!inputText.trim() || !roomId || !wsRef.current) return;
+        // Allow send via REST even if WebSocket is not connected
+        if (!inputText.trim() || !roomId) return;
         const text = inputText;
         setInputText('');
 
         try {
-            // We still hit the REST API to persist, but the Consumer might eventually handle all persistence.
-            // For now, keep REST as truth, and let WebSocket do immediate UI updates if you refactor later.
-            // Sending via websocket directly for the backend AI Analyzer to catch it
-            wsRef.current.send(JSON.stringify({
-                type: 'chat_message',
-                message: text,
-                username: currentUser
-            }));
+            // Send via WebSocket for real-time (if connected)
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                    type: 'chat_message',
+                    message: text,
+                    username: currentUser
+                }));
+            }
 
-            // Optional: fallback to persist manually if the backend consumer doesn't save to DB
+            // Always persist via REST API
             await fetchApi(`/room/${roomId}/messages/`, {
                 method: 'POST',
-                body: JSON.stringify({ text })
+                body: JSON.stringify({ text, username: currentUser })
             });
 
         } catch (error) {
@@ -194,7 +277,7 @@ export default function ChatRoom() {
 
             } catch (err) {
                 console.error("Failed to get media devices", err);
-                alert("Camera/Mic access denied.");
+                window.alert("Camera/Mic access denied.");
             }
         }
     };
@@ -288,16 +371,28 @@ export default function ChatRoom() {
 
             {/* Header */}
             <header className="h-16 bg-white/50 dark:bg-black/40 backdrop-blur-md border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-6 z-10 shrink-0">
-                <div className="flex items-center gap-4">
-                    <Logo size="sm" showText={false} />
-                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold">
-                        {currentUser?.[0]?.toUpperCase()}
+                <div className="flex items-center gap-6">
+                    <div className="font-mono text-[10px] text-slate-500 dark:text-gray-500 tracking-widest uppercase hidden lg:flex flex-col gap-0.5 border-r border-slate-200 dark:border-white/10 pr-6">
+                        <span>Sys.V.1.0.4</span>
+                        <span className="text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-cyan-600 dark:bg-cyan-400 rounded-full animate-pulse" />
+                            Connected
+                        </span>
                     </div>
-                    <div>
-                        <h2 className="font-semibold text-slate-800 dark:text-white">
-                            Profound Match <span className="text-purple-500 font-mono ml-2 text-sm uppercase">[{currentUser || 'Anonymous'}]</span>
-                        </h2>
-                        <p className="text-xs text-green-600 dark:text-green-400 font-mono tracking-wider">SECURE CONNECTION</p>
+
+                    <div className="flex items-center gap-4 border-l border-slate-200 dark:border-white/10 lg:pl-6">
+                        <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0 border border-purple-400/30">
+                            {partnerUsername?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                                {partnerUsername
+                                    ? <><span className="text-purple-500 font-mono uppercase tracking-widest text-sm">{partnerUsername}</span><span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal opacity-70">· matched node</span></>
+                                    : <span className="text-slate-400 font-mono text-sm">Syncing Node...</span>
+                                }
+                            </h2>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono uppercase tracking-tighter">Auth: <span className="text-cyan-400">{currentUser || '...'}</span></p>
+                        </div>
                     </div>
                 </div>
 
@@ -314,12 +409,7 @@ export default function ChatRoom() {
                         <span className="hidden sm:inline">{isVideoActive ? 'End Link' : 'Establish Visual'}</span>
                     </button>
                     <button
-                        onClick={() => {
-                            localStorage.removeItem('user');
-                            localStorage.removeItem('access_token');
-                            localStorage.removeItem('refresh_token');
-                            window.location.href = '/login';
-                        }}
+                        onClick={() => setShowExitModal(true)}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-bold shadow-sm bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 text-red-500 dark:text-red-400 border border-transparent hover:border-red-500/30"
                         title="Disconnect from Node"
                     >
@@ -327,6 +417,46 @@ export default function ChatRoom() {
                     </button>
                 </div>
             </header>
+
+            {/* Exit Confirmation Modal */}
+            <AnimatePresence>
+                {showExitModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            className="bg-white dark:bg-[#0a0a1a] border border-slate-200 dark:border-white/10 rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center"
+                        >
+                            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <LogOut className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 dark:text-white">Terminate Link?</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 font-mono">
+                                Severing this connection will redirect both nodes back to the dashboard.
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={performExit}
+                                    className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors uppercase tracking-widest text-xs"
+                                >
+                                    Confirm Severance
+                                </button>
+                                <button
+                                    onClick={() => setShowExitModal(false)}
+                                    className="w-full py-3 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 font-bold rounded-xl transition-colors uppercase tracking-widest text-xs"
+                                >
+                                    Maintain Connection
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Video Streams Container */}
             <AnimatePresence>

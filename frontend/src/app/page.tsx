@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Zap, Search, Brain, Network, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import Header from '@/components/Header';
 
 export default function Home() {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -30,48 +31,8 @@ export default function Home() {
       <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/10 dark:bg-purple-900/20 blur-[120px] pointer-events-none transition-colors duration-500" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/20 blur-[100px] pointer-events-none transition-colors duration-500" />
 
-      {/* Navbar / Header area entirely deconstructed */}
-      <nav className="absolute top-0 w-full p-6 md:p-10 flex justify-between items-start z-40 pointer-events-none">
-        <div className="font-mono text-xs text-slate-500 dark:text-gray-500 tracking-widest uppercase flex flex-col gap-1">
-          <span>Sys.V.1.0.4</span>
-          <span className="text-cyan-600 dark:text-cyan-400 flex items-center gap-2">
-            <span className="w-2 h-2 bg-cyan-600 dark:bg-cyan-400 rounded-full animate-pulse transition-colors" />
-            Online
-          </span>
-        </div>
-        <div className="flex items-center gap-4 pointer-events-auto">
-          <ThemeToggle />
-          {isLoggedIn ? (
-            <div className="flex gap-2 hidden md:flex">
-              <Link href="/dashboard">
-                <button className="px-6 py-2 border border-cyan-500/50 rounded-full text-sm font-mono hover:bg-cyan-500/20 transition-all text-cyan-600 dark:text-cyan-400">
-                  Dashboard
-                </button>
-              </Link>
-              <button onClick={() => alert("Inbox feature coming soon!")} className="px-6 py-2 border border-purple-500/50 rounded-full text-sm font-mono hover:bg-purple-500/20 transition-all text-purple-600 dark:text-purple-400">
-                Inbox
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('user');
-                  localStorage.removeItem('access_token');
-                  localStorage.removeItem('refresh_token');
-                  setIsLoggedIn(false);
-                }}
-                className="px-6 py-2 border border-red-500/50 rounded-full text-sm font-mono hover:bg-red-500/20 transition-all text-red-500"
-              >
-                Disconnect
-              </button>
-            </div>
-          ) : (
-            <Link href="/login">
-              <button className="px-6 py-2 border border-black/20 dark:border-white/20 rounded-full text-sm font-mono hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
-                Access Node
-              </button>
-            </Link>
-          )}
-        </div>
-      </nav>
+      {/* Shared Header */}
+      <Header />
 
       {/* Marquee Banner */}
       <div className="absolute top-32 w-[200%] -left-[50%] -rotate-2 overflow-hidden bg-purple-100/50 dark:bg-purple-900/10 border-y border-purple-200 dark:border-purple-500/20 py-3 z-0 flex pointer-events-none transition-colors">

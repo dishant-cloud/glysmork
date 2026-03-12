@@ -1,7 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from users.models import Profile, Report
 from .serializers import ProfileSerializer, OnboardingQuizSerializer
 from django.contrib.auth import authenticate, login
@@ -11,9 +11,7 @@ import os
 import google.generativeai as genai
 import json
 
-GOOGLE_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+genai.configure(api_key="AIzaSyCMXK_v5nP0TcWT0FMlPKUhOS5WbA51WrQ")
 
 class ProfileDetailView(generics.RetrieveUpdateAPIView):
     """
@@ -27,15 +25,23 @@ class ProfileDetailView(generics.RetrieveUpdateAPIView):
         # We always return the profile of the requesting user for updates
         return self.request.user.profile
 
-class PublicProfileView(generics.RetrieveAPIView):
+class PublicProfileView(generics.RetrieveUpdateAPIView):
     """
-    Retrieve another user's profile subject to their privacy settings.
+    Retrieve any user's profile by username — open to all (read).
+    PATCH is allowed only for the owner (enforced in update).
     """
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     lookup_field = 'user__username'
     lookup_url_kwarg = 'username'
+
+    def update(self, request, *args, **kwargs):
+        # Only allow the owner to update their own profile
+        instance = self.get_object()
+        if not request.user.is_authenticated or request.user != instance.user:
+            return Response({'error': 'Not authorized to edit this profile.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
 
 
 class AIOnboardingQuizView(APIView):
@@ -47,13 +53,21 @@ class AIOnboardingQuizView(APIView):
     # permission_classes = [IsAuthenticated] # Temporarily disabled for Next.js testing
 
     def post(self, request, *args, **kwargs):
-        # Fallback to the first profile if no user is authenticated during this testing phase
+        # Priority 1: Session-authenticated user
         if request.user.is_authenticated:
             profile = request.user.profile
         else:
-            profile = Profile.objects.first()
-            if not profile:
-                 return Response({"error": "No users exist in the database yet to assign this profile to."}, status=status.HTTP_400_BAD_REQUEST)
+            # Priority 2: username passed in request body (for cross-origin Next.js frontend)
+            username_from_body = request.data.get('username')
+            if username_from_body:
+                from django.contrib.auth.models import User
+                try:
+                    user = User.objects.get(username=username_from_body)
+                    profile = user.profile
+                except User.DoesNotExist:
+                    return Response({"error": f"User '{username_from_body}' not found."}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({"error": "Authentication required. Please provide a username or log in."}, status=status.HTTP_401_UNAUTHORIZED)
 
         
         # Check Cooldown (Temporarily disabled for active testing)

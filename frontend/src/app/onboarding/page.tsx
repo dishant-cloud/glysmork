@@ -42,10 +42,17 @@ export default function OnboardingQuiz() {
         setCapDetected(null);
 
         try {
+            // Get stored username so backend saves to the right profile (session may not cross origins)
+            let storedUsername = null;
+            try {
+                const u = localStorage.getItem('user');
+                if (u) storedUsername = JSON.parse(u)?.username;
+            } catch { }
+
             // Send answers to the exact endpoint configured in Django
             const response = await fetchApi('/users/onboarding/analyze/', {
                 method: 'POST',
-                body: JSON.stringify({ answers })
+                body: JSON.stringify({ answers, username: storedUsername })
             });
 
             // If we get here, the response was 200 OK (no cap detected)

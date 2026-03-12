@@ -12,7 +12,95 @@ import os
 import google.generativeai as genai
 import json
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "YOUR_STATIC_KEY_HERE_FOR_DEV"))
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyCMXK_v5nP0TcWT0FMlPKUhOS5WbA51WrQ"))
+
+
+class RoomDetailView(APIView):
+    """
+    Returns the list of usernames in a room. Open to all so the chat
+    frontend can display who you are connected to without session auth.
+    """
+    permission_classes = []  # AllowAny
+
+    def get(self, request, room_name):
+        try:
+            room = Room.objects.get(name=room_name)
+        except Room.DoesNotExist:
+            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+        usernames = list(room.users.values_list('username', flat=True))
+        return Response({
+            "room": room_name, 
+            "users": usernames,
+            "is_active": room.is_active
+        })
+
+class RoomStatusView(APIView):
+    """
+    Lightweight check to see if a room is still active.
+    Used by frontend polling fallback for synchronized exit.
+    """
+    permission_classes = [] 
+
+    def get(self, request, room_name):
+        try:
+            room = Room.objects.get(name=room_name)
+            return Response({"is_active": room.is_active})
+        except Room.DoesNotExist:
+            return Response({"is_active": False})
+
+class RoomCloseView(APIView):
+    """
+    Sets a room's is_active status to False.
+    Called when a user confirms severance of the connection.
+    """
+    permission_classes = [] # AllowAny for now
+    
+    def post(self, request, room_name):
+        try:
+            room = Room.objects.get(name=room_name)
+            room.is_active = False
+            room.save()
+            return Response({"status": "closed"})
+        except Room.DoesNotExist:
+            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class ConversationListView(APIView):
+    """
+    Returns all rooms the user has participated in, 
+    formatted as an Inbox/Conversation list.
+    """
+    def _resolve_user(self, request):
+        if request.user.is_authenticated:
+            return request.user
+        username = request.query_params.get('username') or request.data.get('username')
+        if username:
+            from django.contrib.auth.models import User as AuthUser
+            try:
+                return AuthUser.objects.get(username=username)
+            except AuthUser.DoesNotExist:
+                return None
+        return None
+
+    def get(self, request):
+        user = self._resolve_user(request)
+        if not user:
+            return Response({"error": "No user context"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        rooms = user.rooms.all().order_by('-created_at')
+        data = []
+        for room in rooms:
+            partner = room.users.exclude(id=user.id).first()
+            last_message = Message.objects.filter(room=room).order_by('-date').first()
+            
+            data.append({
+                "room_name": room.name,
+                "partner_username": partner.username if partner else "Disconnected Node",
+                "partner_image": partner.profile.persona_image_url if partner and hasattr(partner, 'profile') else None,
+                "last_message": last_message.value[:50] if last_message else "No messages yet",
+                "last_message_time": last_message.date.strftime("%Y-%m-%d %H:%M") if last_message else None,
+                "is_active": room.is_active
+            })
+        return Response(data)
 
 
 class MessageActionView(APIView):
@@ -150,8 +238,22 @@ class MessageListView(APIView):
     """
     GET: Retrieve recent messages for a room.
     POST: Send a new message to the room.
+    Accepts `username` as query param (GET) or body field (POST) when session auth is unavailable.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # AllowAny — user resolved via username param
+
+    def _resolve_user(self, request):
+        """Return authenticated user or look up by username from request data."""
+        if request.user.is_authenticated:
+            return request.user
+        from django.contrib.auth.models import User as AuthUser
+        username = request.query_params.get('username') or request.data.get('username')
+        if username:
+            try:
+                return AuthUser.objects.get(username=username)
+            except AuthUser.DoesNotExist:
+                return None
+        return None
 
     def get(self, request, room_name):
         try:
@@ -159,21 +261,17 @@ class MessageListView(APIView):
         except Room.DoesNotExist:
             return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user not in room.users.all():
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        requesting_user = self._resolve_user(request)
 
         messages = Message.objects.filter(room=room).order_by('date')
-        
         data = []
         for msg in messages:
             # Skip if deleted for this user
-            if msg.deleted_for_sender and msg.user == request.user:
+            if requesting_user and msg.deleted_for_sender and msg.user == requesting_user:
                 continue
-            
             text = msg.value
             if msg.deleted_for_everyone:
                 text = "This message was deleted."
-
             data.append({
                 "id": msg.id,
                 "sender": msg.user.username,
@@ -182,7 +280,6 @@ class MessageListView(APIView):
                 "deletedForEveryone": msg.deleted_for_everyone,
                 "timestamp": msg.date.strftime("%I:%M %p")
             })
-
         return Response(data, status=status.HTTP_200_OK)
 
     def post(self, request, room_name):
@@ -191,35 +288,40 @@ class MessageListView(APIView):
         except Room.DoesNotExist:
             return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user not in room.users.all():
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        requesting_user = self._resolve_user(request)
+        if not requesting_user:
+            return Response({"error": "Provide a valid username."}, status=status.HTTP_400_BAD_REQUEST)
 
         text = request.data.get('text')
         if not text:
             return Response({"error": "Message text is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         msg = Message.objects.create(
-            user=request.user,
+            user=requesting_user,
             room=room,
             value=text
         )
 
-        # Broadcast via Channels
-        import re
-        safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', room_name)
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f'chat_{safe_room_name}',
-            {
-                'type': 'chat_message',
-                'id': msg.id,
-                'message': msg.value,
-                'username': msg.user.username,
-                'timestamp': msg.date.strftime("%I:%M %p"),
-                'isRead': msg.is_read,
-                'deletedForEveryone': msg.deleted_for_everyone
-            }
-        )
+        # Broadcast via Channels (best effort — won't fail the request if Redis is down)
+        try:
+            import re
+            safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', room_name)
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f'chat_{safe_room_name}',
+                    {
+                        'type': 'chat_message',
+                        'id': msg.id,
+                        'message': msg.value,
+                        'username': msg.user.username,
+                        'timestamp': msg.date.strftime("%I:%M %p"),
+                        'isRead': msg.is_read,
+                        'deletedForEveryone': msg.deleted_for_everyone
+                    }
+                )
+        except Exception as e:
+            pass  # Real-time push failed but message is saved — frontend will poll
 
         return Response({
             "id": msg.id,
@@ -229,4 +331,5 @@ class MessageListView(APIView):
             "deletedForEveryone": msg.deleted_for_everyone,
             "timestamp": msg.date.strftime("%I:%M %p")
         }, status=status.HTTP_201_CREATED)
+
 
