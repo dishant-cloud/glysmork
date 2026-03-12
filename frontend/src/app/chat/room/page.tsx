@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MoreVertical, Trash2, Download, Check, CheckCheck, Video, VideoOff, AlertTriangle, LogOut } from 'lucide-react';
+import { Send, MoreVertical, Trash2, Download, Check, CheckCheck, Video, VideoOff, AlertTriangle, LogOut, UserPlus, Phone } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { fetchApi } from '@/lib/api';
 import Peer from 'simple-peer';
@@ -31,6 +31,7 @@ export default function ChatRoom() {
     const [partnerUsername, setPartnerUsername] = useState<string | null>(null);
     const [alert, setAlert] = useState<AnalysisAlert | null>(null);
     const [showExitModal, setShowExitModal] = useState(false);
+    const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted'>('none');
 
     // Video State
     const [isVideoActive, setIsVideoActive] = useState(false);
@@ -78,11 +79,35 @@ export default function ChatRoom() {
                     if (data.users) {
                         const partner = data.users.find((u: string) => u !== me);
                         setPartnerUsername(partner || null);
+                        if (partner) checkFriendship(me, partner);
                     }
                 })
                 .catch(() => { });
         }
     }, []);
+
+    const checkFriendship = async (me: string, partner: string) => {
+        try {
+            const data = await fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(me)}`);
+            if (data.friends.includes(partner)) setFriendStatus('accepted');
+            else if (data.sent.includes(partner)) setFriendStatus('pending');
+        } catch (e) { console.error(e); }
+    };
+
+    const handleAddFriend = async () => {
+        if (!currentUser || !partnerUsername) return;
+        try {
+            const res = await fetchApi('/matchmaking/friends/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: currentUser,
+                    target_username: partnerUsername,
+                    action: 'request'
+                })
+            });
+            if (res.status === 'requested') setFriendStatus('pending');
+        } catch (e) { console.error(e); }
+    };
 
     const fetchMessages = useCallback(async () => {
         if (!roomId || !currentUser) return;
@@ -181,6 +206,19 @@ export default function ChatRoom() {
         };
     }, [roomId, currentUser, stream, fetchMessages]);
 
+    // Auto-trigger video/voice if mode is set
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode');
+        if ((mode === 'video' || mode === 'voice') && !isVideoActive && partnerUsername) {
+            // Give it a small delay for components to mount
+            const timer = setTimeout(() => {
+                toggleVideo();
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [partnerUsername]);
+
     const performExit = async () => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: 'force_exit' }));
@@ -230,8 +268,8 @@ export default function ChatRoom() {
         }
     };
 
-    // --- WebRTC Video Logic ---
-    const toggleVideo = async () => {
+    // --- WebRTC Video/Voice Logic ---
+    const toggleVideo = async (forceMode?: 'video' | 'voice') => {
         if (isVideoActive) {
             // Turn off
             if (stream) stream.getTracks().forEach(track => track.stop());
@@ -244,11 +282,19 @@ export default function ChatRoom() {
         } else {
             // Turn on & Initiate call
             try {
-                const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const params = new URLSearchParams(window.location.search);
+                const mode = forceMode || params.get('mode') || 'video';
+
+                const constraints = {
+                    video: mode === 'video',
+                    audio: true
+                };
+
+                const currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 setStream(currentStream);
                 setIsVideoActive(true);
 
-                if (myVideoRef.current) {
+                if (myVideoRef.current && mode === 'video') {
                     myVideoRef.current.srcObject = currentStream;
                 }
 
@@ -258,7 +304,7 @@ export default function ChatRoom() {
                     stream: currentStream
                 });
 
-                peer.on('signal', (signal) => {
+                peer.on('signal', (signal: any) => {
                     if (wsRef.current) {
                         wsRef.current.send(JSON.stringify({
                             type: 'video_signal',
@@ -267,7 +313,7 @@ export default function ChatRoom() {
                     }
                 });
 
-                peer.on('stream', (remoteStream) => {
+                peer.on('stream', (remoteStream: MediaStream) => {
                     if (remoteVideoRef.current) {
                         remoteVideoRef.current.srcObject = remoteStream;
                     }
@@ -283,13 +329,18 @@ export default function ChatRoom() {
     };
 
     const handleReceiveOffer = async (incomingSignal: any) => {
-        // Automatically accept or prompt? Let's auto-answer if they initiate.
         try {
-            const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode') || 'video';
+
+            const currentStream = await navigator.mediaDevices.getUserMedia({
+                video: mode === 'video',
+                audio: true
+            });
             setStream(currentStream);
             setIsVideoActive(true);
 
-            if (myVideoRef.current) {
+            if (myVideoRef.current && mode === 'video') {
                 myVideoRef.current.srcObject = currentStream;
             }
 
@@ -299,7 +350,7 @@ export default function ChatRoom() {
                 stream: currentStream
             });
 
-            peer.on('signal', (signal) => {
+            peer.on('signal', (signal: any) => {
                 if (wsRef.current) {
                     wsRef.current.send(JSON.stringify({
                         type: 'video_signal',
@@ -308,7 +359,7 @@ export default function ChatRoom() {
                 }
             });
 
-            peer.on('stream', (remoteStream) => {
+            peer.on('stream', (remoteStream: MediaStream) => {
                 if (remoteVideoRef.current) {
                     remoteVideoRef.current.srcObject = remoteStream;
                 }
@@ -397,8 +448,25 @@ export default function ChatRoom() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {partnerUsername && (
+                        <button
+                            onClick={handleAddFriend}
+                            disabled={friendStatus !== 'none'}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-bold border ${friendStatus === 'accepted'
+                                ? 'bg-green-500/10 border-green-500/50 text-green-500'
+                                : friendStatus === 'pending'
+                                    ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-500 opacity-70'
+                                    : 'bg-white/5 border-white/10 hover:border-cyan-500/50 text-slate-700 dark:text-gray-300'
+                                }`}
+                        >
+                            {friendStatus === 'accepted' ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                            <span className="hidden sm:inline">
+                                {friendStatus === 'accepted' ? 'Friends' : friendStatus === 'pending' ? 'Requested' : 'Add Friend'}
+                            </span>
+                        </button>
+                    )}
                     <button
-                        onClick={toggleVideo}
+                        onClick={() => toggleVideo()}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-bold shadow-sm ${isVideoActive
                             ? 'bg-red-500 hover:bg-red-600 text-white'
                             : 'bg-purple-600 hover:bg-purple-700 text-white'

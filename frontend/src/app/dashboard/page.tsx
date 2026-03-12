@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { fetchApi } from '@/lib/api';
-import { Zap, Shuffle, ArrowUpRight, User, LogOut, AlertTriangle } from 'lucide-react';
+import { Zap, Shuffle, ArrowUpRight, User, LogOut, AlertTriangle, MessageSquare, Phone, Video } from 'lucide-react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from '@/components/Header';
@@ -234,16 +234,48 @@ export default function Dashboard() {
                                         "{result.reason}"
                                     </p>
 
-                                    <div className="mt-auto pt-6 border-t border-white/5">
+                                    <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[
+                                                { icon: MessageSquare, mode: 'chat', label: 'Chat' },
+                                                { icon: Phone, mode: 'voice', label: 'Voice' },
+                                                { icon: Video, mode: 'video', label: 'Video' }
+                                            ].map((btn) => (
+                                                <button
+                                                    key={btn.mode}
+                                                    onClick={() => {
+                                                        const createAndChat = async () => {
+                                                            try {
+                                                                const res = await fetchApi('/matchmaking/join/', {
+                                                                    method: 'POST',
+                                                                    body: JSON.stringify({
+                                                                        intent: `DIRECT_CONNECT:${result.username}:${btn.mode}`,
+                                                                        username: getUsername()
+                                                                    })
+                                                                });
+                                                                if (res.room_name) {
+                                                                    window.location.href = `/chat/room?id=${res.room_name}&mode=${btn.mode}`;
+                                                                }
+                                                            } catch (e) { console.error(e); }
+                                                        };
+                                                        createAndChat();
+                                                    }}
+                                                    className="flex flex-col items-center justify-center py-4 bg-white/5 hover:bg-cyan-500 hover:text-black border border-white/10 hover:border-cyan-400 transition-all group/btn"
+                                                    title={btn.label}
+                                                >
+                                                    <btn.icon className="w-5 h-5 mb-1 opacity-60 group-hover/btn:opacity-100" />
+                                                    <span className="text-[8px] font-black uppercase tracking-widest">{btn.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                         <button
                                             onClick={() => {
-                                                // Create a room with this person
                                                 const createAndChat = async () => {
                                                     try {
                                                         const res = await fetchApi('/matchmaking/join/', {
                                                             method: 'POST',
                                                             body: JSON.stringify({
-                                                                intent: `DIRECT_CONNECT:${result.username}`,
+                                                                intent: `DIRECT_CONNECT:${result.username}:chat`,
                                                                 username: getUsername()
                                                             })
                                                         });
@@ -254,9 +286,9 @@ export default function Dashboard() {
                                                 };
                                                 createAndChat();
                                             }}
-                                            className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase text-[10px] tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                            className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-black uppercase text-[10px] tracking-[0.2em] transition-all"
                                         >
-                                            Connect Node
+                                            Instant Link
                                         </button>
                                     </div>
                                 </motion.div>

@@ -2,7 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from matchmaking.models import Loop, CallRequest
+from matchmaking.models import Loop, CallRequest, Friendship
 from users.models import Profile
 from room.models import Room
 from .serializers import LoopSerializer, CallRequestSerializer
@@ -47,7 +47,9 @@ class JoinMatchmakingView(APIView):
 
         # --- NEW: DIRECT CONNECTION HANDLER (from Discovery) ---
         if intent.startswith('DIRECT_CONNECT:'):
-            target_username = intent.split(':', 1)[1]
+            parts = intent.split(':')
+            target_username = parts[1]
+            mode = parts[2] if len(parts) >= 3 else 'chat'
             try:
                 from django.contrib.auth.models import User as AuthUser
                 match = AuthUser.objects.get(username=target_username)
@@ -176,7 +178,14 @@ class JoinMatchmakingView(APIView):
         Returns a list of candidate user data with AI-generated reasons.
         """
         user_profile = user.profile
-        candidates = Profile.objects.exclude(user=user).select_related('user')[:20]
+        # Only show people who were seen in the last 60 seconds (Online)
+        from django.utils import timezone
+        from datetime import timedelta
+        online_threshold = timezone.now() - timedelta(seconds=60)
+        
+        candidates = Profile.objects.filter(
+            last_seen__gte=online_threshold
+        ).exclude(user=user).select_related('user')[:20]
         
         if not candidates:
             return []
@@ -238,3 +247,85 @@ class JoinMatchmakingView(APIView):
         except Exception as e:
             print(f"Discovery Engine AI Error: {e}")
             return []
+
+class FriendshipActionView(APIView):
+    """
+    Handles social actions: request, accept, decline, remove.
+    """
+    def _resolve_user(self, request):
+        if request.user.is_authenticated:
+            return request.user
+        username = request.data.get('username')
+        if username:
+            from django.contrib.auth.models import User as AuthUser
+            try:
+                return AuthUser.objects.get(username=username)
+            except AuthUser.DoesNotExist:
+                return None
+        return None
+
+    def post(self, request):
+        user = self._resolve_user(request)
+        if not user:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        action = request.data.get('action')
+        target_username = request.data.get('target_username')
+        
+        if not target_username or not action:
+            return Response({"error": "Action and target_username required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from django.contrib.auth.models import User as AuthUser
+        try:
+            target_user = AuthUser.objects.get(username=target_username)
+        except AuthUser.DoesNotExist:
+            return Response({"error": "Target user not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if action == 'request':
+            friendship, created = Friendship.objects.get_or_create(
+                from_user=user, 
+                to_user=target_user
+            )
+            return Response({"status": "requested", "created": created})
+        
+        elif action == 'accept':
+            try:
+                friendship = Friendship.objects.get(from_user=target_user, to_user=user)
+                friendship.status = 'accepted'
+                friendship.save()
+                # Create reciprocal accepted friendship
+                Friendship.objects.get_or_create(from_user=user, to_user=target_user, status='accepted')
+                return Response({"status": "accepted"})
+            except Friendship.DoesNotExist:
+                return Response({"error": "Request not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        elif action == 'decline' or action == 'cancel':
+            Friendship.objects.filter(
+                Q(from_user=user, to_user=target_user) | 
+                Q(from_user=target_user, to_user=user)
+            ).delete()
+            return Response({"status": "cleared"})
+            
+        elif action == 'remove':
+            Friendship.objects.filter(
+                Q(from_user=user, to_user=target_user) | 
+                Q(from_user=target_user, to_user=user)
+            ).delete()
+            return Response({"status": "removed"})
+
+        return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        user = self._resolve_user(request)
+        if not user:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        friends = Friendship.objects.filter(from_user=user, status='accepted')
+        requests_received = Friendship.objects.filter(to_user=user, status='pending')
+        requests_sent = Friendship.objects.filter(from_user=user, status='pending')
+        
+        return Response({
+            "friends": [f.to_user.username for f in friends],
+            "received": [r.from_user.username for r in requests_received],
+            "sent": [s.to_user.username for s in requests_sent]
+        })
