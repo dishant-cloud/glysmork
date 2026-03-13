@@ -12,7 +12,7 @@ import os
 import google.generativeai as genai
 import json
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyCMXK_v5nP0TcWT0FMlPKUhOS5WbA51WrQ"))
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU"))
 
 
 class RoomDetailView(APIView):
@@ -26,7 +26,20 @@ class RoomDetailView(APIView):
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
-            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+            if room_name.startswith('direct_'):
+                room = Room.objects.create(name=room_name)
+                parts = room_name.split('_')
+                if len(parts) == 3:
+                    from django.contrib.auth.models import User
+                    try:
+                        u1 = User.objects.get(username=parts[1])
+                        u2 = User.objects.get(username=parts[2])
+                        room.users.add(u1, u2)
+                    except User.DoesNotExist:
+                        pass
+            else:
+                return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+        
         usernames = list(room.users.values_list('username', flat=True))
         return Response({
             "room": room_name, 
@@ -46,6 +59,8 @@ class RoomStatusView(APIView):
             room = Room.objects.get(name=room_name)
             return Response({"is_active": room.is_active})
         except Room.DoesNotExist:
+            if room_name.startswith('direct_'):
+                return Response({"is_active": True}) # It will be created on detail
             return Response({"is_active": False})
 
 class RoomCloseView(APIView):
@@ -259,6 +274,8 @@ class MessageListView(APIView):
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
+            if room_name.startswith('direct_'):
+                return Response([], status=status.HTTP_200_OK)
             return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
 
         requesting_user = self._resolve_user(request)
@@ -286,7 +303,19 @@ class MessageListView(APIView):
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
-            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+            if room_name.startswith('direct_'):
+                room = Room.objects.create(name=room_name)
+                parts = room_name.split('_')
+                if len(parts) == 3:
+                    from django.contrib.auth.models import User
+                    try:
+                        u1 = User.objects.get(username=parts[1])
+                        u2 = User.objects.get(username=parts[2])
+                        room.users.add(u1, u2)
+                    except User.DoesNotExist:
+                        pass
+            else:
+                return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
 
         requesting_user = self._resolve_user(request)
         if not requesting_user:

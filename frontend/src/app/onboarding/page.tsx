@@ -1,196 +1,326 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ShieldAlert, Loader2, ChevronRight } from 'lucide-react';
-import Logo from '@/components/Logo';
+import { ArrowRight, Loader2, ShieldAlert, Phone } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 
-const QUESTIONS = [
-    { id: 'q1', category: 'Psychology', text: "What is a truth about yourself you rarely admit to others?" },
-    { id: 'q2', category: 'Psychology', text: "Describe a scenario where you justified a morally ambiguous action." },
-    { id: 'q3', category: 'Interests', text: "What topics can you talk about for hours without getting bored?" },
-    { id: 'q4', category: 'Expertise', text: "What do people come to YOU for advice about? What are you genuinely good at?" },
-    { id: 'q5', category: 'Goals', text: "What is the one thing you are most trying to achieve or figure out right now?" },
-    { id: 'q6', category: 'Connection', text: "Describe the kind of conversations that energize you vs. drain you." },
-];
+type Message = { role: 'model' | 'user'; text: string; isCrisis?: boolean };
 
-export default function OnboardingQuiz() {
-    const [currentStep, setCurrentStep] = useState(0);
-    const [answers, setAnswers] = useState<Record<string, string>>({});
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [capDetected, setCapDetected] = useState<{ message: string } | null>(null);
-    const [activeIndex, setActiveIndex] = useState(0);
+export default function OnboardingChat() {
+    const [messages, setMessages]           = useState<Message[]>([]);
+    const [input, setInput]                 = useState('');
+    const [step, setStep]                   = useState(0);
+    const [loading, setLoading]             = useState(false);
+    const [inCrisis, setInCrisis]           = useState(false);
+    const [finalQuestion, setFinalQuestion] = useState<string | null>(null);
+    const [isAnalyzing, setIsAnalyzing]     = useState(false);
+    const [capDetected, setCapDetected]     = useState<string | null>(null);
+    const [activeIndex, setActiveIndex]     = useState(0);
+    const bottomRef                         = useRef<HTMLDivElement | null>(null);
+    const didInit                           = useRef(false); // prevent React StrictMode double-call
 
+    // GLYSMORK letter animation
     useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveIndex((prev) => (prev + 1) % 8); // 8 is length of "GLYSMORK"
-        }, 1000);
+        const interval = setInterval(() => setActiveIndex(p => (p + 1) % 8), 1000);
         return () => clearInterval(interval);
     }, []);
 
-    const handleNext = async () => {
-        if (currentStep < QUESTIONS.length - 1) {
-            setCurrentStep(prev => prev + 1);
-        } else {
-            await submitAnalysis();
+    // Auto-scroll
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, loading]);
+
+    // Guard: if user already completed onboarding, skip to dashboard
+    useEffect(() => {
+        const username = getUsername();
+        if (!username) return;
+        fetch(`http://127.0.0.1:8001/api/users/profile/${username}/`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data?.psychological_profile && Object.keys(data.psychological_profile).length > 0) {
+                    // Profile already built — no need to redo onboarding
+                    window.location.href = '/dashboard';
+                } else {
+                    // Not done yet — kick off the AI chat
+                    if (didInit.current) return;
+                    didInit.current = true;
+                    askAI('', []);
+                }
+            })
+            .catch(() => {
+                // On error just start the chat normally
+                if (didInit.current) return;
+                didInit.current = true;
+                askAI('', []);
+            });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const getUsername = () => {
+        try { return JSON.parse(localStorage.getItem('user') || '{}')?.username ?? null; }
+        catch { return null; }
+    };
+
+    const askAI = async (userMsg: string, currentMsgs: Message[]) => {
+        setLoading(true);
+        try {
+            const res = await fetchApi('/users/onboarding/chat/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: getUsername(),
+                    message: userMsg,
+                    history: currentMsgs.map(m => ({ role: m.role, text: m.text })),
+                    step,
+                }),
+            });
+
+            // ===== CRISIS RESPONSE =====
+            if (res.crisis) {
+                const crisisMsg: Message = { role: 'model', text: res.question, isCrisis: true };
+                setMessages(prev => [...prev, crisisMsg]);
+                setInCrisis(true);
+                return;
+            }
+            // ===========================
+
+            if (res.done) {
+                const closing = res.final_question || "That's everything. Let me build your profile now.";
+                setFinalQuestion(closing);
+                const withClosing: Message[] = [...currentMsgs, { role: 'model', text: closing }];
+                setMessages(withClosing);
+                setTimeout(() => buildProfile(withClosing, res.profile_summary), 1200);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: res.question }]);
+            }
+        } catch {
+            setMessages(prev => [...prev, { role: 'model', text: "What made you want to join GLYSMORK today?" }]);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const submitAnalysis = async () => {
+    const handleSend = async () => {
+        if (!input.trim() || loading) return;
+        const userText = input.trim();
+        setInput('');
+        setInCrisis(false); // allow them to respond after crisis message
+
+        const userMsg: Message = { role: 'user', text: userText };
+        const newMsgs = [...messages, userMsg];
+        setMessages(newMsgs);
+        const newStep = step + 1;
+        setStep(newStep);
+
+        await askAI(userText, newMsgs);
+    };
+
+    const buildProfile = async (msgs: Message[], profileSummary: any) => {
         setIsAnalyzing(true);
         setCapDetected(null);
-
         try {
-            // Get stored username so backend saves to the right profile (session may not cross origins)
-            let storedUsername = null;
-            try {
-                const u = localStorage.getItem('user');
-                if (u) storedUsername = JSON.parse(u)?.username;
-            } catch { }
-
-            // Send answers to the exact endpoint configured in Django
-            const response = await fetchApi('/users/onboarding/analyze/', {
-                method: 'POST',
-                body: JSON.stringify({ answers, username: storedUsername })
+            const answers: Record<string, string> = {};
+            let qIdx = 0;
+            msgs.forEach(m => {
+                if (m.role === 'user') { answers[`q${qIdx + 1}`] = m.text; qIdx++; }
             });
 
-            // If we get here, the response was 200 OK (no cap detected)
+            await fetchApi('/users/onboarding/analyze/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: getUsername(),
+                    answers: { ...answers, _ai_summary: JSON.stringify(profileSummary) },
+                    interests: profileSummary?.interests || [],
+                    expertise: [],
+                    connection_preferences: {
+                        style: profileSummary?.connection_style,
+                        vibe: profileSummary?.one_word_vibe,
+                    },
+                }),
+            });
             window.location.href = '/dashboard';
-        } catch (error: any) {
-            console.error(error);
-            const errString = error.toString();
-
-            // Check if the backend detected "cap" (406 Not Acceptable throws an Error object containing the JSON response string)
-            if (errString.includes("cap_detected") || errString.includes("Not Acceptable")) {
-                setCapDetected({ message: "Analysis detects high probability of surface-level answers. Be specific. Give real examples." });
-            } else if (errString.includes("once a week") || errString.includes("Too Many Requests")) {
-                setCapDetected({ message: "You can only take the deep analysis quiz once a week. Your profile is already building based on your interactions." });
+        } catch (err: any) {
+            const s = err?.toString() || '';
+            if (s.includes('cap_detected') || s.includes('Not Acceptable')) {
+                setCapDetected("Your answers need more depth. Be specific and real.");
             } else {
-                setCapDetected({ message: "An error occurred during neural analysis. Please try again." });
+                window.location.href = '/dashboard';
             }
         } finally {
             setIsAnalyzing(false);
         }
     };
 
+    const totalSteps = 6;
+    const progressPct = Math.min(100, Math.round((step / totalSteps) * 100));
+
     return (
         <div
-            className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-contain bg-center bg-no-repeat bg-black text-white"
-            style={{ backgroundImage: `url('/glysmork_signup.png')` }}
+            className="min-h-screen flex flex-col items-center justify-between bg-black text-white relative overflow-hidden"
+            style={{ backgroundImage: `url('/glysmork_signup.png')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         >
-            <div className="w-full max-w-2xl z-10">
-                {/* Logo */}
-                <div className="mb-8 h-14 flex items-end justify-center">
-                    <h1 className="text-3xl font-bold tracking-[0.2em] flex justify-center gap-1">
-                        {['G', 'L', 'Y', 'S', 'M', 'O', 'R', 'K'].map((letter, index) => (
-                            <span
-                                key={index}
-                                className={`transition-all duration-300 inline-block ${index === activeIndex
-                                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 text-4xl -translate-y-2'
-                                    : 'text-gray-500'
-                                    }`}
-                            >
-                                {letter}
-                            </span>
-                        ))}
-                    </h1>
-                </div>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-                {/* Progress Bar */}
-                <div className="w-full h-1 bg-white/10 rounded-full mb-8 overflow-hidden backdrop-blur-sm">
+            {/* Header */}
+            <div className="relative z-10 w-full max-w-2xl px-4 pt-8 pb-4 flex flex-col items-center">
+                <h1 className="text-2xl font-bold tracking-[0.2em] flex gap-1 mb-4">
+                    {['G','L','Y','S','M','O','R','K'].map((l, i) => (
+                        <span key={i} className={`transition-all duration-300 inline-block ${
+                            i === activeIndex
+                                ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 text-3xl -translate-y-2'
+                                : 'text-gray-500'
+                        }`}>{l}</span>
+                    ))}
+                </h1>
+                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
-                        className="h-full bg-cyan-400"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${((currentStep + 1) / QUESTIONS.length) * 100}%` }}
-                        transition={{ duration: 0.5 }}
+                        className="h-full bg-gradient-to-r from-cyan-400 to-purple-500"
+                        animate={{ width: `${progressPct}%` }}
+                        transition={{ duration: 0.6 }}
                     />
                 </div>
-
-                <AnimatePresence mode="wait">
-                    {!isAnalyzing && !capDetected ? (
-                        <motion.div
-                            key={currentStep}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.4 }}
-                            className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl p-8 md:p-12 mb-8"
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <span className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
-                                    {QUESTIONS[currentStep].category}
-                                </span>
-                                <ChevronRight className="w-3 h-3 text-gray-400" />
-                                <span className="text-xs font-mono text-gray-500 tracking-widest">
-                                    {currentStep + 1} / {QUESTIONS.length}
-                                </span>
-                            </div>
-
-                            <h1 className="text-2xl md:text-3xl font-medium mb-8 leading-tight">
-                                {QUESTIONS[currentStep].text}
-                            </h1>
-
-                            <textarea
-                                className="w-full bg-white/10 border border-white/20 rounded-xl p-4 text-lg text-white focus:outline-none focus:border-cyan-400 focus:bg-white/20 transition-all min-h-[150px] resize-none placeholder-gray-500"
-                                placeholder="Be honest and specific — generic answers get flagged..."
-                                value={answers[QUESTIONS[currentStep].id] || ''}
-                                onChange={e => setAnswers({ ...answers, [QUESTIONS[currentStep].id]: e.target.value })}
-                                autoFocus
-                            />
-
-                            <div className="mt-8 flex justify-between items-center">
-                                <span className="text-xs text-gray-400 font-mono">
-                                    {(answers[QUESTIONS[currentStep].id] || '').length < 10
-                                        ? `${10 - (answers[QUESTIONS[currentStep].id] || '').length} chars needed`
-                                        : '✓ Good to go'
-                                    }
-                                </span>
-                                <button
-                                    onClick={handleNext}
-                                    disabled={!answers[QUESTIONS[currentStep].id] || answers[QUESTIONS[currentStep].id].length < 10}
-                                    className="px-6 py-3 bg-cyan-800/40 hover:bg-cyan-100/60 border border-cyan-500/30 text-white font-bold rounded-full shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105"
-                                >
-                                    {currentStep === QUESTIONS.length - 1 ? 'Initiate Analysis' : 'Next'}
-                                    <ArrowRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </motion.div>
-                    ) : isAnalyzing ? (
-                        <motion.div
-                            key="analyzing"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl p-8 md:p-12 flex flex-col items-center justify-center py-20"
-                        >
-                            <Loader2 className="w-16 h-16 text-cyan-400 animate-spin mb-6" />
-                            <h2 className="text-3xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 mb-2">Analyzing Cortex...</h2>
-                            <p className="text-gray-400 mt-2 font-mono text-sm max-w-sm text-center">Mapping intents, validating psychology, bypassing generic firewalls.</p>
-                        </motion.div>
-                    ) : capDetected ? (
-                        <motion.div
-                            key="cap"
-                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                            className="bg-black/60 backdrop-blur-md rounded-2xl border border-red-500/30 shadow-2xl p-8 md:p-12 text-center"
-                        >
-                            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <ShieldAlert className="w-10 h-10 text-red-400" />
-                            </div>
-                            <h2 className="text-4xl font-bold mb-4 text-white">CAP DETECTED.</h2>
-                            <p className="text-gray-400 mb-8 leading-relaxed max-w-md mx-auto text-lg">{capDetected?.message}</p>
-
-                            <button
-                                onClick={() => {
-                                    setCapDetected(null);
-                                    setCurrentStep(0);
-                                }}
-                                className="px-8 py-4 bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 text-white font-bold rounded-full transition-all hover:scale-105 shadow-[0_0_15px_rgba(239,68,68,0.3)]"
-                            >
-                                Re-initialize Protocol. Be Real.
-                            </button>
-                        </motion.div>
-                    ) : null}
-                </AnimatePresence>
+                <p className="text-xs font-mono text-gray-500 mt-1 self-end">{step}/{totalSteps} answered</p>
             </div>
+
+            {/* Chat */}
+            <div className="relative z-10 flex-1 w-full max-w-2xl px-4 py-4 flex flex-col gap-3 overflow-y-auto">
+                <AnimatePresence initial={false}>
+                    {messages.map((msg, idx) => (
+                        <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                            {msg.role === 'model' && (
+                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-base mr-2 mt-1 flex-shrink-0 ${
+                                    msg.isCrisis
+                                        ? 'bg-red-500/20 border-red-400/40 text-red-400'
+                                        : 'bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border-cyan-400/30'
+                                }`}>
+                                    {msg.isCrisis ? '🆘' : '✦'}
+                                </div>
+                            )}
+                            <div className={`max-w-[80%] px-5 py-3 text-sm leading-relaxed font-light whitespace-pre-line ${
+                                msg.role === 'user'
+                                    ? 'bg-white/10 border border-white/15 text-white rounded-l-2xl rounded-tr-2xl rounded-br-sm backdrop-blur-md'
+                                    : msg.isCrisis
+                                        ? 'bg-red-500/10 border border-red-400/30 text-red-100 rounded-r-2xl rounded-tl-2xl rounded-bl-sm backdrop-blur-md'
+                                        : 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-400/20 text-gray-100 rounded-r-2xl rounded-tl-2xl rounded-bl-sm backdrop-blur-md'
+                            }`}>
+                                {msg.text}
+                            </div>
+                        </motion.div>
+                    ))}
+
+                    {/* Typing indicator */}
+                    {loading && !isAnalyzing && (
+                        <motion.div
+                            key="typing"
+                            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                            className="flex justify-start items-center gap-2"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border border-cyan-400/30 flex items-center justify-center text-base flex-shrink-0">✦</div>
+                            <div className="flex gap-1.5 px-4 py-3 bg-cyan-500/10 border border-cyan-400/20 rounded-r-2xl rounded-tl-2xl">
+                                {[0,1,2].map(i => (
+                                    <motion.span key={i} className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+                                        animate={{ y: [0, -5, 0] }}
+                                        transition={{ duration: 0.5, delay: i * 0.15, repeat: Infinity }}
+                                    />
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* ===== CRISIS CTA BUTTONS ===== */}
+                {inCrisis && !loading && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                        className="flex flex-col sm:flex-row gap-3 mt-2 px-2"
+                    >
+                        <a
+                            href="tel:9152987821"
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500/20 border border-red-400/40 text-red-300 rounded-xl font-mono text-sm hover:bg-red-500/30 transition-all"
+                        >
+                            <Phone className="w-4 h-4" /> Call iCall: 9152987821
+                        </a>
+                        <button
+                            onClick={() => { setInCrisis(false); window.location.href = '/dashboard?support=1'; }}
+                            className="flex-1 py-3 bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 rounded-xl font-mono text-sm hover:bg-indigo-500/30 transition-all"
+                        >
+                            💙 Talk to a real person on GLYSMORK
+                        </button>
+                    </motion.div>
+                )}
+                {/* ============================= */}
+
+                {/* Analyzing screen */}
+                <AnimatePresence>
+                    {isAnalyzing && (
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="flex flex-col items-center justify-center py-16 gap-4"
+                        >
+                            <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
+                            <h2 className="text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-400 to-purple-500">
+                                Mapping Your Neural Node...
+                            </h2>
+                            <p className="text-gray-400 font-mono text-xs text-center max-w-xs">
+                                Generating your soul image and psychological profile.
+                            </p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Cap detected */}
+                {capDetected && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                        className="bg-red-900/30 border border-red-500/40 rounded-2xl p-6 text-center"
+                    >
+                        <ShieldAlert className="w-10 h-10 text-red-400 mx-auto mb-3" />
+                        <h2 className="text-2xl font-bold text-white mb-2">CAP DETECTED.</h2>
+                        <p className="text-gray-400 text-sm mb-4">{capDetected}</p>
+                        <button
+                            onClick={() => { setCapDetected(null); setMessages([]); setStep(0); setInCrisis(false); didInit.current = false; setTimeout(() => { didInit.current = true; askAI('', []); }, 0); }}
+                            className="px-6 py-3 bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 text-white font-bold rounded-full transition-all"
+                        >
+                            Be Real. Start Over.
+                        </button>
+                    </motion.div>
+                )}
+
+                <div ref={bottomRef} />
+            </div>
+
+            {/* Input bar — hidden during analyzing or after final question */}
+            {!isAnalyzing && !capDetected && !finalQuestion && (
+                <div className="relative z-10 w-full max-w-2xl px-4 pb-8">
+                    <div className="flex gap-3 bg-white/5 border border-white/15 backdrop-blur-xl rounded-2xl p-2">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSend()}
+                            placeholder={inCrisis ? "You can still type how you're feeling..." : "Type your answer..."}
+                            disabled={loading}
+                            autoFocus
+                            className="flex-1 bg-transparent text-white placeholder-gray-500 font-light text-sm px-3 focus:outline-none disabled:opacity-40"
+                        />
+                        <motion.button
+                            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                            onClick={handleSend}
+                            disabled={!input.trim() || loading}
+                            className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                        >
+                            <ArrowRight className="w-4 h-4 text-white" />
+                        </motion.button>
+                    </div>
+                    <p className="text-center text-[10px] text-gray-600 font-mono mt-2">Press Enter or → to answer</p>
+                </div>
+            )}
         </div>
     );
 }

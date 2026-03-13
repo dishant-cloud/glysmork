@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LogOut, User, Mail } from 'lucide-react';
+import { LogOut, User, Mail, Users } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { AnimatePresence, motion } from 'framer-motion'; // Assuming framer-motion is installed
 
@@ -45,6 +45,13 @@ export default function Header() {
                             animate={{ opacity: 1, x: 0 }}
                             className="flex items-center gap-4"
                         >
+                            <Link
+                                href="/messages?view=friends"
+                                title="Friends"
+                                className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-gray-400 hover:text-purple-400"
+                            >
+                                <Users size={18} />
+                            </Link>
                             <Link
                                 href="/messages"
                                 title="Messages"

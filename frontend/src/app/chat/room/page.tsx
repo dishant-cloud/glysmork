@@ -32,6 +32,7 @@ export default function ChatRoom() {
     const [alert, setAlert] = useState<AnalysisAlert | null>(null);
     const [showExitModal, setShowExitModal] = useState(false);
     const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted'>('none');
+    const [showToast, setShowToast] = useState<string | null>(null);
 
     // Video State
     const [isVideoActive, setIsVideoActive] = useState(false);
@@ -72,6 +73,16 @@ export default function ChatRoom() {
         const rm = params.get('id');
         if (rm) {
             setRoomId(rm);
+
+            // Check room status IMMEDIATELY to prevent "opening and closing" bug
+            fetchApi(`/room/${rm}/status/`)
+                .then(statusRes => {
+                    if (statusRes.is_active === false && !rm.startsWith('direct_')) {
+                        window.location.replace('/dashboard?exit=partner');
+                    }
+                })
+                .catch(() => { });
+
             // Fetch who else is in this room
             fetch(`http://127.0.0.1:8000/api/room/${rm}/`)
                 .then(r => r.json())
@@ -105,8 +116,16 @@ export default function ChatRoom() {
                     action: 'request'
                 })
             });
-            if (res.status === 'requested') setFriendStatus('pending');
-        } catch (e) { console.error(e); }
+            if (res.status === 'requested') {
+                setFriendStatus('pending');
+                setShowToast(`Neural Link Request Sent to ${partnerUsername}`);
+                setTimeout(() => setShowToast(null), 3000);
+            }
+        } catch (e) {
+            console.error(e);
+            setShowToast("Synchronization Error");
+            setTimeout(() => setShowToast(null), 3000);
+        }
     };
 
     const fetchMessages = useCallback(async () => {
@@ -165,12 +184,24 @@ export default function ChatRoom() {
                     }
                 } else if (data.type === 'force_exit') {
                     console.log("DEBUG: Received force_exit from server");
-                    // Partner exited - we must follow
-                    window.location.href = '/dashboard?exit=partner';
+                    if (!roomId.startsWith('direct_')) {
+                        // Partner exited - we must follow (only for random matchmaking rooms)
+                        window.location.replace('/dashboard?exit=partner');
+                    } else {
+                        // For DMs, do not kick the user out, just terminate the video call if active
+                        if (peerRef.current) {
+                            peerRef.current.destroy();
+                            peerRef.current = null;
+                        }
+                        setIsVideoActive(false); // Can be stale but setting it to false is safe
+                        // Try to stop tracks from the 'stream' variable which is in the dependencies array
+                        if (stream) stream.getTracks().forEach(track => track.stop());
+                        setStream(null);
+                    }
                 } else if (data.type === 'user_left') {
                     console.log("DEBUG: Received user_left from server", data.sender);
                     // Connection lost or partner left
-                    window.location.href = '/dashboard?exit=partner';
+                    window.location.replace('/dashboard?exit=partner');
                 }
             };
             ws.onopen = () => console.log("DEBUG: WebSocket connected to", roomId);
@@ -185,9 +216,9 @@ export default function ChatRoom() {
             try {
                 // 1. Check if room is still active (robust exit fallback)
                 const statusRes = await fetchApi(`/room/${roomId}/status/`);
-                if (statusRes.is_active === false) {
+                if (statusRes.is_active === false && !roomId.startsWith('direct_')) {
                     console.log("DEBUG: Room status is inactive, redirecting...");
-                    window.location.href = '/dashboard?exit=partner';
+                    window.location.replace('/dashboard?exit=partner');
                     return;
                 }
 
@@ -233,7 +264,7 @@ export default function ChatRoom() {
 
         // Short delay to let the WS message broadcast before we leave
         setTimeout(() => {
-            window.location.href = '/dashboard';
+            window.location.replace('/dashboard');
         }, 150);
     };
 
@@ -375,6 +406,20 @@ export default function ChatRoom() {
 
     return (
         <div className="flex flex-col h-screen bg-slate-50 dark:bg-[#050511] text-slate-900 dark:text-gray-100 transition-colors duration-300">
+            {/* Toast Notification */}
+            <AnimatePresence>
+                {showToast && (
+                    <motion.div
+                        initial={{ y: -50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -50, opacity: 0 }}
+                        className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-cyan-500 text-black font-black uppercase text-[10px] tracking-widest shadow-[0_0_20px_rgba(34,211,238,0.5)] border border-cyan-400"
+                    >
+                        {showToast}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* AI Alert Modal Overlay */}
             <AnimatePresence>
                 {alert && (

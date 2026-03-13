@@ -167,7 +167,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         @sync_to_async
         def call_gemini():
             try:
-                genai.configure(api_key="AIzaSyCMXK_v5nP0TcWT0FMlPKUhOS5WbA51WrQ")
+                genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU"))
                 model = genai.GenerativeModel('gemini-2.5-flash')
                 prompt = f"""
                 You are a ruthless AI moderator monitoring a live chat between two people.
@@ -238,20 +238,113 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+        from django.core.cache import cache
+        # Mark as online instantly when connecting (valid for 60 seconds)
+        cache.set(f'user_online_{self.user.id}', True, timeout=60)
+
         await self.accept()
 
     async def disconnect(self, close_code):
         # Leave user group
         if self.user.is_authenticated:
-             await self.channel_layer.group_discard(
+            # Note: We let the Redis key expire naturally to handle brief reconnects seamlessly
+            # But we should update the last_seen DB timestamp on disconnect just in case
+            from django.utils import timezone
+            if hasattr(self.user, 'profile'):
+                self.user.profile.last_seen = timezone.now()
+                self.user.profile.save(update_fields=['last_seen'])
+                
+            await self.channel_layer.group_discard(
                 self.group_name,
                 self.channel_name
             )
 
-    # Receive message from room group
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+            msg_type = data.get('type')
+
+            if msg_type == 'ping':
+                # Heartbeat to keep online status active
+                from django.core.cache import cache
+                from django.utils import timezone
+                cache.set(f'user_online_{self.user.id}', True, timeout=60)
+                
+                # Also update last_seen in database periodically
+                if hasattr(self.user, 'profile'):
+                    self.user.profile.last_seen = timezone.now()
+                    self.user.profile.save(update_fields=['last_seen'])
+                    
+            elif msg_type == 'initiate_call':
+                target_user_id = data.get('target_user_id')
+                room_id = data.get('room_id')
+                mode = data.get('mode', 'video')
+                caller_username = self.user.username
+                
+                # Retrieve caller profile for extra info if desired, or just send username
+                await self.channel_layer.group_send(
+                    f"user_{target_user_id}",
+                    {
+                        'type': 'incoming_call',
+                        'caller_username': caller_username,
+                        'room_id': room_id,
+                        'mode': mode
+                    }
+                )
+                
+            elif msg_type == 'accept_call':
+                caller_username = data.get('caller_username')
+                room_id = data.get('room_id')
+                
+                # We need the user ID of the caller to notify them that it was accepted.
+                # Easiest way is for the client to just wait in the room, or we can send a signal back.
+                # However, if the caller is waiting in the dashboard, we should signal their user group.
+                # We'll expect the frontend caller to just listen for 'call_accepted'.
+                caller_id = data.get('caller_id') 
+                if caller_id:
+                    await self.channel_layer.group_send(
+                        f"user_{caller_id}",
+                        {
+                            'type': 'call_accepted',
+                            'room_id': room_id
+                        }
+                    )
+                    
+            elif msg_type == 'decline_call':
+                caller_id = data.get('caller_id')
+                if caller_id:
+                    await self.channel_layer.group_send(
+                        f"user_{caller_id}",
+                        {
+                            'type': 'call_declined'
+                        }
+                    )
+
+        except json.JSONDecodeError:
+            pass
+
+    # Receive messages sent to this channel group
     async def notification_message(self, event):
-        # Send message to WebSocket
         await self.send(text_data=json.dumps({
             'type': 'notification',
             'message': event['message']
+        }))
+
+    async def incoming_call(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'incoming_call',
+            'caller_username': event['caller_username'],
+            'room_id': event['room_id'],
+            'mode': event['mode']
+        }))
+
+    async def call_accepted(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'call_accepted',
+            'room_id': event['room_id']
+        }))
+
+    async def call_declined(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'call_declined'
         }))

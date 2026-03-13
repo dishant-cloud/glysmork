@@ -6,7 +6,7 @@ from room.models import Room, Message
 from users.models import Profile
 from django.db import transaction
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "YOUR_STATIC_KEY_HERE_FOR_DEV"))
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU"))
 
 @shared_task
 def generate_chat_analysis_task(room_name):

@@ -68,6 +68,11 @@ class Profile(models.Model):
         return f'{self.user.username}'
     
     def is_online(self):
+        from django.core.cache import cache
+        # Check high-performance Redis cache first (updated by NotificationConsumer)
+        if cache.get(f'user_online_{self.user.id}'):
+            return True
+        # Fallback to database last_seen
         return timezone.now() - self.last_seen < timezone.timedelta(minutes = 5)
 
     def save(self, *args, **kwargs):

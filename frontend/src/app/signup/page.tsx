@@ -27,11 +27,9 @@ export default function SignUp() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/users/register/', {
+            const data = await fetch('http://localhost:8001/api/users/register/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     username: name,
                     email: email,
@@ -39,25 +37,19 @@ export default function SignUp() {
                     gender: gender,
                     age: age ? parseInt(age) : 18
                 })
+            }).then(async r => {
+                const json = await r.json();
+                if (!r.ok) throw new Error(json.error || 'Registration failed.');
+                return json;
             });
 
-            const data = await response.json();
-
-            if (response.ok) {
-                // Manually set access token to bypass fetchApi's login for now, or just trust the cookie
-                // The Register API doesn't return JWTs yet, but it does log the user in via session.
-                // For Next.js, we just save the user object so the frontend knows who is active.
-                localStorage.setItem('user', JSON.stringify(data.user));
-                router.push('/onboarding');
-            } else {
-                setErrorMsg(data.error || 'Registration failed.');
-                setIsSubmitting(false);
-            }
-        } catch (error) {
-            console.error("Signup error:", error);
-            setErrorMsg("Network error. Is the backend running?");
+            localStorage.setItem('user', JSON.stringify(data.user));
+            router.push('/onboarding');
+        } catch (error: any) {
+            setErrorMsg(error?.message || "Network error. Is the backend running?");
             setIsSubmitting(false);
         }
+
     };
 
     return (

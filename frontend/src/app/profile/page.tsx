@@ -3,14 +3,18 @@
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, User, Activity, Edit3 } from 'lucide-react';
+import { ArrowLeft, User, Activity, Edit3, Phone, Video } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNotification } from '@/components/NotificationProvider';
 
 export default function ProfilePage() {
     const [profileData, setProfileData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isEditing, setIsEditing] = useState(false);
+    const [friends, setFriends] = useState<any[]>([]);
+    const [ringingUsername, setRingingUsername] = useState<string | null>(null);
+    const { sendSignal } = useNotification();
 
     // Editable fields
     const [editBio, setEditBio] = useState('');
@@ -20,6 +24,26 @@ export default function ProfilePage() {
 
     useEffect(() => {
         loadProfile();
+        loadFriends();
+
+        const handleCallAccepted = (e: any) => {
+            if (e.detail) {
+                window.location.href = `/chat/room?id=${e.detail}`;
+            }
+        };
+
+        const handleCallDeclined = () => {
+            setRingingUsername(null);
+            alert("The node declined your connection request.");
+        };
+
+        window.addEventListener('call_accepted', handleCallAccepted);
+        window.addEventListener('call_declined', handleCallDeclined);
+
+        return () => {
+            window.removeEventListener('call_accepted', handleCallAccepted);
+            window.removeEventListener('call_declined', handleCallDeclined);
+        };
     }, []);
 
     const getUsername = (): string | null => {
@@ -39,7 +63,8 @@ export default function ProfilePage() {
         }
         try {
             // Use public profile endpoint — no session cookie needed
-            const response = await fetch(`http://127.0.0.1:8000/api/users/profile/${storedUsername}/`);
+            const response = await fetch(`http://127.0.0.1:8001/api/users/profile/${storedUsername}/`);
+
             if (!response.ok) throw new Error(`${response.status}`);
             const data = await response.json();
             setProfileData(data);
@@ -51,6 +76,17 @@ export default function ProfilePage() {
             setError('Could not load neural profile data.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadFriends = async () => {
+        try {
+            const data = await fetchApi('/matchmaking/friends/');
+            if (data.friends) {
+                setFriends(data.friends);
+            }
+        } catch (err) {
+            console.error("Failed to load friends", err);
         }
     };
 
@@ -293,6 +329,94 @@ export default function ProfilePage() {
                                     <Link href="/onboarding" className="text-cyan-500 hover:text-cyan-400 underline decoration-cyan-900 text-sm">
                                         INITIATE ONBOARDING SEQUENCE to generate psychological model.
                                     </Link>
+                                </div>
+                            )}
+                        </motion.div>
+
+                        {/* Network Connections (Friends) */}
+                        <motion.div
+                            initial={{ y: 40, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="bg-black/40 border border-slate-800 p-8 shadow-2xl relative"
+                        >
+                            <h3 className="text-sm font-bold font-mono text-slate-400 tracking-[0.2em] mb-6 pb-4 border-b border-slate-800 flex justify-between">
+                                <span>VERIFIED NETWORK LINKS</span>
+                                <span className="opacity-50 font-normal">[{friends.length}]</span>
+                            </h3>
+
+                            {friends.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {friends.map((friend) => {
+                                        const isOffline = !friend.is_online;
+                                        const isRinging = ringingUsername === friend.username;
+
+                                        return (
+                                            <div key={friend.id} className="bg-white/5 border border-white/10 p-4 flex flex-col justify-between group">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h4 className="text-white font-black uppercase text-lg">{friend.username}</h4>
+                                                        <span className={`text-[10px] font-mono uppercase mt-1 block ${friend.is_online ? 'text-green-400' : 'text-slate-500'}`}>
+                                                            {friend.is_online ? '● Online' : '○ Offline'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2 mt-auto">
+                                                    {[
+                                                        { icon: Phone, mode: 'voice', label: 'Voice' },
+                                                        { icon: Video, mode: 'video', label: 'Video' }
+                                                    ].map((btn) => (
+                                                        <button
+                                                            key={btn.mode}
+                                                            disabled={isOffline || isRinging}
+                                                            onClick={() => {
+                                                                const initiateCall = async () => {
+                                                                    try {
+                                                                        setRingingUsername(friend.username);
+                                                                        const res = await fetchApi('/matchmaking/join/', {
+                                                                            method: 'POST',
+                                                                            body: JSON.stringify({
+                                                                                intent: `DIRECT_CONNECT:${friend.username}:${btn.mode}`,
+                                                                                username: getUsername()
+                                                                            })
+                                                                        });
+                                                                        if (res.room_name) {
+                                                                            sendSignal('initiate_call', {
+                                                                                target_user_id: friend.id,
+                                                                                room_id: res.room_name,
+                                                                                mode: btn.mode
+                                                                            });
+                                                                        }
+                                                                    } catch (e) {
+                                                                        console.error(e);
+                                                                        setRingingUsername(null);
+                                                                    }
+                                                                };
+                                                                initiateCall();
+                                                            }}
+                                                            className={`flex flex-col items-center justify-center py-2 bg-black/40 border border-slate-700 transition-all ${isOffline
+                                                                    ? 'opacity-30 cursor-not-allowed'
+                                                                    : isRinging
+                                                                        ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
+                                                                        : 'hover:bg-cyan-500 hover:text-black hover:border-cyan-400 text-slate-400 group-hover:text-white'
+                                                                }`}
+                                                            title={isOffline ? 'Node offline' : btn.label}
+                                                        >
+                                                            <btn.icon className={`w-4 h-4 mb-1 ${isRinging ? 'opacity-100' : 'opacity-60'}`} />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">
+                                                                {isRinging ? 'Ringing...' : btn.label}
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 font-mono text-slate-600 border border-dashed border-slate-800 text-sm">
+                                    No direct links established yet.
                                 </div>
                             )}
                         </motion.div>
