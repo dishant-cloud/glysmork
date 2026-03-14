@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { fetchApi } from '@/lib/api';
-import { Zap, Shuffle, ArrowUpRight, User, LogOut, AlertTriangle, MessageSquare, Phone, Video } from 'lucide-react';
+import { Zap, Shuffle, ArrowUpRight, User, LogOut, AlertTriangle, MessageSquare, Phone, Video, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from '@/components/Header';
@@ -26,6 +26,10 @@ export default function Dashboard() {
     const chatEndRef = useRef<HTMLDivElement | null>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { sendSignal } = useNotification();
+    const [onlineCount, setOnlineCount] = useState<number>(0);
+    const [totalUsers, setTotalUsers] = useState<number>(0);
+    const [friendRequested, setFriendRequested] = useState<Set<string>>(new Set());
+    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
 
     useEffect(() => {
         const u = localStorage.getItem('user');
@@ -54,6 +58,59 @@ export default function Dashboard() {
             setActiveIndex((prev) => (prev + 1) % 8);
         }, 1000);
 
+        // Fetch online count
+        const fetchOnline = async () => {
+            try {
+                const res = await fetch('http://127.0.0.1:8001/api/users/online-count/');
+                if (res.ok) {
+                    const data = await res.json();
+                    setOnlineCount(data.online_count);
+                    setTotalUsers(data.total_users);
+                }
+            } catch {}
+            // Send heartbeat to keep this user's last_seen fresh
+            const u = getUsername();
+            if (u) {
+                try {
+                    await fetch('http://127.0.0.1:8001/api/users/heartbeat/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: u }),
+                    });
+                } catch {}
+            }
+        };
+        fetchOnline();
+        const onlineInterval = setInterval(fetchOnline, 15000);
+
+        // Poll for chat notifications
+        const fetchNotifs = async () => {
+            const u = getUsername();
+            if (!u) return;
+            try {
+                const res = await fetch(`http://127.0.0.1:8001/api/matchmaking/notifications/?username=${encodeURIComponent(u)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.notifications?.length > 0) {
+                        setChatNotifs(data.notifications);
+                        const ids = data.notifications.map((n: any) => n.id);
+                        setTimeout(async () => {
+                            try {
+                                await fetch('http://127.0.0.1:8001/api/matchmaking/notifications/', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                setChatNotifs([]);
+                            } catch {}
+                        }, 8000);
+                    }
+                }
+            } catch {}
+        };
+        fetchNotifs();
+        const notifInterval = setInterval(fetchNotifs, 5000);
+
         const handleCallAccepted = (e: any) => {
             if (e.detail) {
                 window.location.href = `/chat/room?id=${e.detail}`;
@@ -70,6 +127,8 @@ export default function Dashboard() {
 
         return () => {
             clearInterval(interval);
+            clearInterval(onlineInterval);
+            clearInterval(notifInterval);
             window.removeEventListener('call_accepted', handleCallAccepted);
             window.removeEventListener('call_declined', handleCallDeclined);
         };
@@ -398,6 +457,65 @@ export default function Dashboard() {
                 )}
             </AnimatePresence>
 
+            {/* ===== CHAT NOTIFICATION TOASTS ===== */}
+            <div className="fixed top-28 right-6 z-[60] flex flex-col gap-3 max-w-sm w-80">
+                <AnimatePresence>
+                    {chatNotifs.map((notif) => (
+                        <motion.div
+                            key={notif.id}
+                            initial={{ x: 120, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: 120, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 20 }}
+                            className="bg-[#111118] border border-cyan-500/30 rounded-xl px-4 py-4 shadow-[0_0_30px_rgba(34,211,238,0.15)]"
+                        >
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center font-black text-white text-sm flex-shrink-0 shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+                                    {notif.sender.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white text-sm font-bold truncate">{notif.sender}</p>
+                                    <p className="text-gray-400 text-xs font-mono">wants to chat with you!</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Link
+                                    href={`/messages/${notif.sender}`}
+                                    className="flex-1 py-2 text-center bg-cyan-500 text-black font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-cyan-400 transition-colors shadow-[0_0_10px_rgba(34,211,238,0.3)]"
+                                >
+                                    💬 Reply
+                                </Link>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await fetchApi('/matchmaking/friends/', {
+                                                method: 'POST',
+                                                body: JSON.stringify({
+                                                    username: getUsername(),
+                                                    target_username: notif.sender,
+                                                    action: 'request',
+                                                }),
+                                            });
+                                            // Mark this notif as read so it fades away
+                                            await fetch('http://127.0.0.1:8001/api/matchmaking/notifications/', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ ids: [notif.id] }),
+                                            });
+                                            setChatNotifs(prev => prev.filter(n => n.id !== notif.id));
+                                        } catch {}
+                                    }}
+                                    className="flex-1 py-2 text-center bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-purple-500 hover:text-white transition-colors"
+                                >
+                                    ➕ Add Friend
+                                </button>
+                            </div>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
+
+
             {/* ===== SCANNING NETWORK OVERLAY ===== */}
             {searchingIntent && (
                 <motion.div
@@ -526,64 +644,96 @@ export default function Dashboard() {
                                     </div>
 
                                     <div className="mt-auto pt-4 border-t border-white/10 space-y-2">
-                                        <div className="grid grid-cols-3 gap-2">
+                                        {/* Row 1: Chat (instant) + Add Friend */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    // Fire notification to target, then go directly to DM
+                                                    fetch('http://127.0.0.1:8001/api/matchmaking/notify/', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            sender: getUsername(),
+                                                            receiver: result.username,
+                                                            room_name: `direct_${[getUsername(), result.username].sort().join('_')}`,
+                                                        }),
+                                                    }).catch(() => {});
+                                                    window.location.href = `/messages/${result.username}`;
+                                                }}
+                                                className="flex items-center justify-center gap-2 py-3 bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all font-mono text-[10px] uppercase tracking-widest"
+                                            >
+                                                <MessageSquare className="w-4 h-4" />
+                                                Message
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    if (friendRequested.has(result.username)) return;
+                                                    try {
+                                                        await fetchApi('/matchmaking/friends/', {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({
+                                                                username: getUsername(),
+                                                                target_username: result.username,
+                                                                action: 'request',
+                                                            }),
+                                                        });
+                                                        setFriendRequested(prev => new Set([...prev, result.username]));
+                                                    } catch {}
+                                                }}
+                                                className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${
+                                                    friendRequested.has(result.username)
+                                                        ? 'bg-green-500/10 border-green-500/40 text-green-400 cursor-default'
+                                                        : 'bg-purple-500/10 border-purple-500/40 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-purple-400'
+                                                }`}
+                                            >
+                                                <User className="w-4 h-4" />
+                                                {friendRequested.has(result.username) ? 'Requested ✓' : 'Add Friend'}
+                                            </button>
+                                        </div>
+                                        {/* Row 2: Voice + Video (online only) */}
+                                        <div className="grid grid-cols-2 gap-2">
                                             {[
-                                                { icon: MessageSquare, mode: 'chat', label: 'Chat' },
                                                 { icon: Phone, mode: 'voice', label: 'Voice' },
-                                                { icon: Video, mode: 'video', label: 'Video' }
+                                                { icon: Video, mode: 'video', label: 'Video' },
                                             ].map((btn) => {
-                                                const isOfflineRestriction = !result.is_online && btn.mode !== 'chat';
-                                                const isRinging = ringingUsername === result.username && btn.mode !== 'chat';
-
+                                                const isOffline = !result.is_online;
+                                                const isRinging = ringingUsername === result.username;
                                                 return (
                                                     <button
                                                         key={btn.mode}
-                                                        disabled={isOfflineRestriction || isRinging}
-                                                        onClick={() => {
-                                                            const createAndChat = async () => {
-                                                                try {
-                                                                    if (btn.mode !== 'chat') setRingingUsername(result.username);
-
-                                                                    const res = await fetchApi('/matchmaking/join/', {
-                                                                        method: 'POST',
-                                                                        body: JSON.stringify({
-                                                                            intent: `DIRECT_CONNECT:${result.username}:${btn.mode}`,
-                                                                            username: getUsername()
-                                                                        })
+                                                        disabled={isOffline || isRinging}
+                                                        onClick={async () => {
+                                                            try {
+                                                                setRingingUsername(result.username);
+                                                                const res = await fetchApi('/matchmaking/join/', {
+                                                                    method: 'POST',
+                                                                    body: JSON.stringify({
+                                                                        intent: `DIRECT_CONNECT:${result.username}:${btn.mode}`,
+                                                                        username: getUsername(),
+                                                                    }),
+                                                                });
+                                                                if (res.room_name) {
+                                                                    sendSignal('initiate_call', {
+                                                                        target_user_id: result.id,
+                                                                        room_id: res.room_name,
+                                                                        mode: btn.mode,
                                                                     });
-                                                                    if (res.room_name) {
-                                                                        if (btn.mode === 'chat') {
-                                                                            window.location.href = `/chat/room?id=${res.room_name}&mode=${btn.mode}`;
-                                                                        } else {
-                                                                            // Ping the user via WS
-                                                                            sendSignal('initiate_call', {
-                                                                                target_user_id: result.id,
-                                                                                room_id: res.room_name,
-                                                                                mode: btn.mode
-                                                                            });
-                                                                        }
-                                                                    }
-                                                                } catch (e) {
-                                                                    console.error(e);
-                                                                    setRingingUsername(null);
                                                                 }
-                                                            };
-                                                            createAndChat();
+                                                            } catch { setRingingUsername(null); }
                                                         }}
-                                                        className={`flex flex-col items-center justify-center py-4 bg-white/5 border border-white/10 transition-all group/btn ${isOfflineRestriction
-                                                            ? 'opacity-30 cursor-not-allowed'
-                                                            : isRinging
-                                                                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
-                                                                : 'hover:bg-cyan-500 hover:text-black hover:border-cyan-400'
-                                                            }`}
-                                                        title={isOfflineRestriction ? 'Hardware offline' : btn.label}
+                                                        className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${
+                                                            isOffline
+                                                                ? 'opacity-25 cursor-not-allowed border-white/10 text-gray-600'
+                                                                : isRinging
+                                                                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
+                                                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-cyan-500 hover:text-black hover:border-cyan-400'
+                                                        }`}
+                                                        title={isOffline ? 'User offline' : btn.label}
                                                     >
-                                                        <btn.icon className={`w-5 h-5 mb-1 ${isRinging ? 'opacity-100' : 'opacity-60 group-hover/btn:opacity-100'}`} />
-                                                        <span className="text-[8px] font-black uppercase tracking-widest">
-                                                            {isRinging ? 'Ringing...' : btn.label}
-                                                        </span>
+                                                        <btn.icon className="w-4 h-4" />
+                                                        {isRinging ? 'Ringing...' : btn.label}
                                                     </button>
-                                                )
+                                                );
                                             })}
                                         </div>
                                     </div>
@@ -650,6 +800,19 @@ export default function Dashboard() {
                                 : <>Describe your intent. The Neural Engine finds the exact human.</>
                             }
                         </p>
+
+                        {/* Online Count Badge */}
+                        <div className="flex items-center gap-3 mb-10 font-mono text-sm">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
+                                <span className="relative flex h-2.5 w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                                </span>
+                                <span className="text-green-400 font-bold">{onlineCount}</span>
+                                <span className="text-gray-500">nodes active now</span>
+                            </div>
+                            <span className="text-gray-600 text-xs">/ {totalUsers} total</span>
+                        </div>
 
                         {/* Mode 1: Intent Matchmaking Section */}
                         <div className="w-full max-w-xl space-y-4 mb-10">

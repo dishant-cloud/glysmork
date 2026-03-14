@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, AIOnboardingChatView, ImprovementBotView, LoginView, RegisterView
+from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, AIOnboardingChatView, ImprovementBotView, LoginView, RegisterView, OnlineCountView, HeartbeatView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='api-register'),
@@ -9,4 +9,7 @@ urlpatterns = [
     path('onboarding/analyze/', AIOnboardingQuizView.as_view(), name='api-onboarding-analyze'),
     path('onboarding/chat/', AIOnboardingChatView.as_view(), name='api-onboarding-chat'),
     path('improvement-bot/', ImprovementBotView.as_view(), name='api-improvement-bot'),
+    path('online-count/', OnlineCountView.as_view(), name='api-online-count'),
+    path('heartbeat/', HeartbeatView.as_view(), name='api-heartbeat'),
 ]
+

@@ -341,6 +341,36 @@ class RegisterView(APIView):
             return Response({"error": f"Registration failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class OnlineCountView(APIView):
+    """Returns the count of currently online users."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        profiles = Profile.objects.select_related('user').all()
+        online = sum(1 for p in profiles if p.is_online())
+        return Response({
+            "online_count": online,
+            "total_users": profiles.count(),
+        })
+
+
+class HeartbeatView(APIView):
+    """Frontend pings this every 30s to keep last_seen fresh."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        if not username:
+            return Response({'error': 'username required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            profile = Profile.objects.get(user__username=username)
+            profile.last_seen = timezone.now()
+            profile.save(update_fields=['last_seen'])
+            return Response({'status': 'ok'})
+        except Profile.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
 class AIOnboardingChatView(APIView):
     """
     AI-driven dynamic onboarding conversation.

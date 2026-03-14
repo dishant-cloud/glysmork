@@ -43,3 +43,16 @@ class Friendship(models.Model):
 
     def __str__(self):
         return f'{self.from_user.username} -> {self.to_user.username} ({self.status})'
+
+
+class ChatNotification(models.Model):
+    """Notification sent when someone initiates a chat."""
+    sender = models.ForeignKey(User, related_name='chat_notifs_sent', on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, related_name='chat_notifs_received', on_delete=models.CASCADE)
+    room_name = models.CharField(max_length=200, blank=True)
+    message = models.CharField(max_length=500, default='wants to chat with you')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.sender.username} → {self.receiver.username} ({"read" if self.is_read else "unread"})'

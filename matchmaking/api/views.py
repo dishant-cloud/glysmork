@@ -2,7 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from matchmaking.models import Loop, CallRequest, Friendship
+from matchmaking.models import Loop, CallRequest, Friendship, ChatNotification
 from users.models import Profile
 from room.models import Room
 from .serializers import LoopSerializer, CallRequestSerializer
@@ -481,6 +481,14 @@ class FriendshipActionView(APIView):
                 "is_online": f.to_user.profile.is_online() if hasattr(f.to_user, 'profile') else False
             })
 
+        received_data = [{"id": f.from_user.id, "username": f.from_user.username} for f in requests_received]
+        sent_data = [{"id": f.to_user.id, "username": f.to_user.username} for f in requests_sent]
+
+        return Response({
+            "friends": friends_data,
+            "received": received_data,
+            "sent": sent_data,
+        })
 
 class SupportChatView(APIView):
     """
@@ -571,3 +579,72 @@ class SupportChatView(APIView):
                 "reply": "I am here for you. Sometimes words are hard to find - take your time. What is on your mind?",
                 "ready_to_connect": False
             })
+
+
+class SendChatNotificationView(APIView):
+    """Send a notification to a user that someone wants to chat."""
+    permission_classes = []
+
+    def post(self, request):
+        from django.contrib.auth.models import User
+
+        sender_username = request.data.get('sender')
+        receiver_username = request.data.get('receiver')
+        room_name = request.data.get('room_name', '')
+
+        if not sender_username or not receiver_username:
+            return Response({'error': 'sender and receiver required'}, status=status.HTTP_400_BAD_REQUEST)
+        if sender_username == receiver_username:
+            return Response({'error': 'cannot notify yourself'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            sender = User.objects.get(username=sender_username)
+            receiver = User.objects.get(username=receiver_username)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Don't spam — only create if no unread notif from same sender exists
+        existing = ChatNotification.objects.filter(
+            sender=sender, receiver=receiver, is_read=False
+        ).first()
+        if existing:
+            return Response({'status': 'already_notified'})
+
+        ChatNotification.objects.create(
+            sender=sender,
+            receiver=receiver,
+            room_name=room_name,
+            message=f'{sender_username} wants to chat with you!'
+        )
+        return Response({'status': 'sent'}, status=status.HTTP_201_CREATED)
+
+
+class GetNotificationsView(APIView):
+    """Poll for unread chat notifications."""
+    permission_classes = []
+
+    def get(self, request):
+        username = request.query_params.get('username')
+        if not username:
+            return Response({'error': 'username required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        notifs = ChatNotification.objects.filter(
+            receiver__username=username,
+            is_read=False
+        ).order_by('-created_at')[:10]
+
+        data = [{
+            'id': n.id,
+            'sender': n.sender.username,
+            'message': n.message,
+            'room_name': n.room_name,
+            'created_at': n.created_at.strftime('%H:%M'),
+        } for n in notifs]
+        return Response({'notifications': data})
+
+    def post(self, request):
+        """Mark notifications as read."""
+        notif_ids = request.data.get('ids', [])
+        if notif_ids:
+            ChatNotification.objects.filter(id__in=notif_ids).update(is_read=True)
+        return Response({'status': 'ok'})

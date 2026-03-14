@@ -91,7 +91,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'video_signal',
                     'signal': signal,
-                    'sender': sender
+                    'sender': sender,
+                    'username': data.get('username'),
+                    'mode': data.get('mode')
+                }
+            )
+
+        elif message_type == 'end_call':
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'end_call',
+                    'sender': self.channel_name,
+                    'username': data.get('username')
                 }
             )
         
@@ -123,7 +135,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.channel_name != event['sender']:
             await self.send(text_data=json.dumps({
                 'type': 'video_signal',
-                'signal': event['signal']
+                'signal': event['signal'],
+                'username': event.get('username'),
+                'mode': event.get('mode')
+            }))
+
+    async def end_call(self, event):
+        if self.channel_name != event['sender']:
+            await self.send(text_data=json.dumps({
+                'type': 'end_call',
+                'username': event.get('username')
             }))
 
     async def force_exit(self, event):

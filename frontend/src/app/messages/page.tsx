@@ -166,12 +166,13 @@ export default function InboxPage() {
 
                                                 <div className="grid grid-cols-3 gap-2 mt-auto">
                                                     <Link
-                                                        href={`/chat/room?id=direct_${[username, f.username].sort().join('_')}`}
+                                                        href={`/messages/${f.username}`}
                                                         className="flex flex-col items-center justify-center py-2 border border-cyan-500/50 text-cyan-400 font-mono text-[9px] uppercase tracking-widest hover:bg-cyan-500 hover:text-black transition-all"
                                                     >
                                                         <MessageSquare className="w-4 h-4 mb-1 opacity-60" />
                                                         Chat
                                                     </Link>
+
                                                     {[
                                                         { icon: Phone, mode: 'voice', label: 'Voice' },
                                                         { icon: Video, mode: 'video', label: 'Video' }
