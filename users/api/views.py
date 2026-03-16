@@ -10,8 +10,12 @@ from datetime import timedelta
 import os
 import google.generativeai as genai
 import json
+from dotenv import load_dotenv
 
-genai.configure(api_key="AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU")
+load_dotenv()
+
+_gemini_key = os.environ.get("GEMINI_API_KEY")
+genai.configure(api_key=_gemini_key)
 
 class ProfileDetailView(generics.RetrieveUpdateAPIView):
     """
@@ -88,6 +92,8 @@ class AIOnboardingQuizView(APIView):
 
             # --- AI LIE DETECTOR & ANALYSIS ("The Cap Test") ---
             try:
+                # Re-configure with fresh key at request time
+                genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
                 model = genai.GenerativeModel('gemini-2.5-flash')
                 prompt = f"""
                 You are a ruthless, highly intelligent psychological analyzer assessing a user for a profound matchmaking platform.

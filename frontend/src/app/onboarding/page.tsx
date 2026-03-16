@@ -47,10 +47,14 @@ export default function OnboardingChat() {
             return;
         }
 
+        // Allow retake if ?retake=true is in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const isRetake = urlParams.get('retake') === 'true';
+
         fetch(`http://127.0.0.1:8000/api/users/profile/${username}/`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
-                if (data?.psychological_profile && Object.keys(data.psychological_profile).length > 0) {
+                if (!isRetake && data?.psychological_profile && Object.keys(data.psychological_profile).length > 0) {
                     // Profile already built — no need to redo onboarding
                     window.location.href = '/dashboard';
                 } else {
@@ -131,15 +135,49 @@ export default function OnboardingChat() {
         setIsAnalyzing(true);
         setCapDetected(null);
         try {
-            // STEP 3: Extraction and saving to the DB
-            await fetch('http://localhost:8081/onboarding/extract', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: 1, // Fallback user_id for test
-                    full_conversation_history: msgs.map(m => ({ role: m.role, content: m.text }))
-                })
-            });
+            // STEP 3: Extraction and saving to the FastAPI matchmaking DB
+            try {
+                await fetch('http://localhost:8081/onboarding/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 1, // Fallback user_id for test
+                        full_conversation_history: msgs.map(m => ({ role: m.role, content: m.text }))
+                    })
+                });
+            } catch (extractErr) {
+                console.error('FastAPI extraction failed (non-blocking):', extractErr);
+            }
+
+            // STEP 4: Generate psychological profile & persona image in the Django DB
+            // This populates the profile page with core_traits, attachment_style, etc.
+            const username = getUsername();
+            if (username) {
+                const conversationAnswers: Record<string, string> = {};
+                msgs.forEach((m, idx) => {
+                    if (m.role === 'user') {
+                        conversationAnswers[`q${idx}`] = m.text;
+                    }
+                });
+
+                try {
+                    await fetch('http://127.0.0.1:8000/api/users/onboarding/analyze/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            username: username,
+                            answers: conversationAnswers,
+                            connection_preferences: {},
+                            interests: [],
+                            expertise: []
+                        })
+                    });
+                } catch (analyzeErr) {
+                    console.error('Django profile analysis failed:', analyzeErr);
+                }
+            }
+
             window.location.href = '/dashboard';
         } catch (err: any) {
              window.location.href = '/dashboard';
@@ -147,6 +185,7 @@ export default function OnboardingChat() {
             setIsAnalyzing(false);
         }
     };
+
 
     const totalSteps = 6;
     const progressPct = Math.min(100, Math.round((step / totalSteps) * 100));

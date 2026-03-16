@@ -27,7 +27,7 @@ export default function SignUp() {
         setIsSubmitting(true);
 
         try {
-            const data = await fetch('http://localhost:8001/api/users/register/', {
+            const data = await fetch('http://localhost:8000/api/users/register/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

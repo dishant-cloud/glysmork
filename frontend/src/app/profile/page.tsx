@@ -63,7 +63,7 @@ export default function ProfilePage() {
         }
         try {
             // Use public profile endpoint — no session cookie needed
-            const response = await fetch(`http://127.0.0.1:8001/api/users/profile/${storedUsername}/`);
+            const response = await fetch(`http://127.0.0.1:8000/api/users/profile/${storedUsername}/`);
 
             if (!response.ok) throw new Error(`${response.status}`);
             const data = await response.json();
@@ -322,6 +322,15 @@ export default function ProfilePage() {
                                             </div>
                                         </div>
                                     )}
+
+                                    <div className="pt-6 border-t border-cyan-900/30 mt-4">
+                                        <Link
+                                            href="/onboarding?retake=true"
+                                            className="inline-block px-6 py-2.5 bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-700/50 hover:border-cyan-500 text-cyan-300 hover:text-cyan-100 font-mono text-xs tracking-widest transition-all duration-300"
+                                        >
+                                            ↻ RETAKE_ANALYSIS
+                                        </Link>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="text-center py-20 font-mono text-slate-500 border border-dashed border-slate-800">
