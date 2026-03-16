@@ -35,7 +35,7 @@ export default function OnboardingChat() {
     useEffect(() => {
         const username = getUsername();
         if (!username) return;
-        fetch(`http://127.0.0.1:8001/api/users/profile/${username}/`)
+        fetch(`http://127.0.0.1:8000/api/users/profile/${username}/`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (data?.psychological_profile && Object.keys(data.psychological_profile).length > 0) {
@@ -65,33 +65,41 @@ export default function OnboardingChat() {
     const askAI = async (userMsg: string, currentMsgs: Message[]) => {
         setLoading(true);
         try {
-            const res = await fetchApi('/users/onboarding/chat/', {
-                method: 'POST',
-                body: JSON.stringify({
-                    username: getUsername(),
-                    message: userMsg,
-                    history: currentMsgs.map(m => ({ role: m.role, text: m.text })),
-                    step,
-                }),
-            });
-
-            // ===== CRISIS RESPONSE =====
-            if (res.crisis) {
-                const crisisMsg: Message = { role: 'model', text: res.question, isCrisis: true };
-                setMessages(prev => [...prev, crisisMsg]);
-                setInCrisis(true);
-                return;
+            // STEP 1: If it's the very first message
+            if (step === 1 && userMsg) {
+                const res = await fetch('http://localhost:8081/onboarding/identify-buckets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 1, // Fallback ID for testing until auth passes real IDs
+                        opening_answer: userMsg
+                    })
+                });
+                const data = await res.json();
+                console.log("Bucket Identification:", data);
+                // We'll let the chat endpoint use default rules for now to keep things simple
             }
-            // ===========================
 
-            if (res.done) {
-                const closing = res.final_question || "That's everything. Let me build your profile now.";
+            // STEP 2: The Chat Conversation
+            const res = await fetch('http://localhost:8081/onboarding/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: 1, // Fallback ID
+                    message: userMsg,
+                    conversation_history: currentMsgs.map(m => ({ role: m.role, content: m.text })),
+                })
+            });
+            const data = await res.json();
+            
+            if (data.is_complete) {
+                const closing = "Thanks for being so open. I have everything I need to build your profile now.";
                 setFinalQuestion(closing);
                 const withClosing: Message[] = [...currentMsgs, { role: 'model', text: closing }];
                 setMessages(withClosing);
-                setTimeout(() => buildProfile(withClosing, res.profile_summary), 1200);
+                setTimeout(() => buildProfile(withClosing), 1200);
             } else {
-                setMessages(prev => [...prev, { role: 'model', text: res.question }]);
+                setMessages(prev => [...prev, { role: 'model', text: data.reply }]);
             }
         } catch {
             setMessages(prev => [...prev, { role: 'model', text: "What made you want to join GLYSMORK today?" }]);
@@ -104,7 +112,7 @@ export default function OnboardingChat() {
         if (!input.trim() || loading) return;
         const userText = input.trim();
         setInput('');
-        setInCrisis(false); // allow them to respond after crisis message
+        setInCrisis(false); 
 
         const userMsg: Message = { role: 'user', text: userText };
         const newMsgs = [...messages, userMsg];
@@ -115,37 +123,22 @@ export default function OnboardingChat() {
         await askAI(userText, newMsgs);
     };
 
-    const buildProfile = async (msgs: Message[], profileSummary: any) => {
+    const buildProfile = async (msgs: Message[]) => {
         setIsAnalyzing(true);
         setCapDetected(null);
         try {
-            const answers: Record<string, string> = {};
-            let qIdx = 0;
-            msgs.forEach(m => {
-                if (m.role === 'user') { answers[`q${qIdx + 1}`] = m.text; qIdx++; }
-            });
-
-            await fetchApi('/users/onboarding/analyze/', {
+            // STEP 3: Extraction and saving to the DB
+            await fetch('http://localhost:8081/onboarding/extract', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    username: getUsername(),
-                    answers: { ...answers, _ai_summary: JSON.stringify(profileSummary) },
-                    interests: profileSummary?.interests || [],
-                    expertise: [],
-                    connection_preferences: {
-                        style: profileSummary?.connection_style,
-                        vibe: profileSummary?.one_word_vibe,
-                    },
-                }),
+                    user_id: 1, // Fallback user_id for test
+                    full_conversation_history: msgs.map(m => ({ role: m.role, content: m.text }))
+                })
             });
             window.location.href = '/dashboard';
         } catch (err: any) {
-            const s = err?.toString() || '';
-            if (s.includes('cap_detected') || s.includes('Not Acceptable')) {
-                setCapDetected("Your answers need more depth. Be specific and real.");
-            } else {
-                window.location.href = '/dashboard';
-            }
+             window.location.href = '/dashboard';
         } finally {
             setIsAnalyzing(false);
         }

@@ -12,10 +12,20 @@ from onboarding_service.config import DEFAULT_BUCKETS
 from onboarding_service.llm import identify_buckets, get_chat_response, extract_structured_data
 from onboarding_service.pipeline import process_pipeline
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # Create DB tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Glysmork Matchmaking Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Startup Event to seed buckets ---
 @app.on_event("startup")
