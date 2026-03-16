@@ -93,11 +93,15 @@ def api_identify_buckets(req: IdentifyBucketsRequest, db: Session = Depends(get_
 def api_chat(req: ChatRequest, db: Session = Depends(get_db)):
     """Part 4 - The Onboarding Conversation"""
     
-    # Here we simulate fetching the user's matched buckets rules. 
-    # In a full app, you'd store the user's current matched buckets in Redis or an intermediate table.
-    # For this endpoint, we'll assume the LLM will just use generic guidelines if we don't pass them in the request.
-    # To strictly follow part 4, we need them injected. We'll pass generic for now.
-    user_buckets = db.query(Bucket).filter(Bucket.is_default == True).limit(2).all()
+    # Handle the opening question (empty message = user just arrived)
+    if not req.message.strip():
+        opening_question = "What brings you here today? Tell us a little about what you're looking for — there's no right or wrong answer."
+        return {
+            "reply": opening_question,
+            "is_complete": False
+        }
+    
+    user_buckets = db.query(Bucket).filter(Bucket.is_default == True).limit(3).all()
     guidelines = [b.guidelines for b in user_buckets]
     
     reply = get_chat_response(req.message, req.conversation_history, guidelines)

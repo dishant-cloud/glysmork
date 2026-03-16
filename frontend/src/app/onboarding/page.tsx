@@ -31,10 +31,22 @@ export default function OnboardingChat() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, loading]);
 
-    // Guard: if user already completed onboarding, skip to dashboard
+    // Guard: if user already completed onboarding, skip to dashboard. Otherwise fire opening question.
     useEffect(() => {
         const username = getUsername();
-        if (!username) return;
+
+        const fireOpener = () => {
+            if (didInit.current) return;
+            didInit.current = true;
+            askAI('', []);
+        };
+
+        if (!username) {
+            // No username in storage — just fire the opening question
+            fireOpener();
+            return;
+        }
+
         fetch(`http://127.0.0.1:8000/api/users/profile/${username}/`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
@@ -42,18 +54,10 @@ export default function OnboardingChat() {
                     // Profile already built — no need to redo onboarding
                     window.location.href = '/dashboard';
                 } else {
-                    // Not done yet — kick off the AI chat
-                    if (didInit.current) return;
-                    didInit.current = true;
-                    askAI('', []);
+                    fireOpener();
                 }
             })
-            .catch(() => {
-                // On error just start the chat normally
-                if (didInit.current) return;
-                didInit.current = true;
-                askAI('', []);
-            });
+            .catch(() => fireOpener());
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
