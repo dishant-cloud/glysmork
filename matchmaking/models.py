@@ -56,3 +56,33 @@ class ChatNotification(models.Model):
 
     def __str__(self):
         return f'{self.sender.username} → {self.receiver.username} ({"read" if self.is_read else "unread"})'
+
+class MatchHistory(models.Model):
+    """Logs history between users to prevent repeat matches."""
+    user1 = models.ForeignKey(User, related_name='history_as_user1', on_delete=models.CASCADE)
+    user2 = models.ForeignKey(User, related_name='history_as_user2', on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user1', 'user2']),
+        ]
+
+    def __str__(self):
+        return f'{self.user1.username} & {self.user2.username} matched at {self.timestamp}'
+
+
+class OfflineSearch(models.Model):
+    """Tracking node for users seeking matches while offline."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    intent = models.TextField()
+    mode = models.CharField(max_length=10, default='chat') # chat or video
+    gender_filter = models.CharField(max_length=1, default='A') # M(ale), F(emale), A(ny)
+    location_filter = models.CharField(max_length=100, blank=True)
+    
+    daily_refresh_timestamp = models.DateTimeField(auto_now=True)
+    matches_found = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f'Offline Search: {self.user.username} (Matches: {self.matches_found}/4)'

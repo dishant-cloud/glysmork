@@ -20,9 +20,13 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
 
     const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
     };
+
+    // Only set application/json if not sending FormData
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     // Include CSRF token for state-changing requests
     if (isMutation) {

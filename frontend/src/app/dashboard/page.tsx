@@ -23,13 +23,21 @@ export default function Dashboard() {
     const [supportInput, setSupportInput] = useState('');
     const [supportLoading, setSupportLoading] = useState(false);
     const [readyToConnect, setReadyToConnect] = useState(false);
+    const [selectedPersona, setSelectedPersona] = useState("Warm Companion");
+    const [personaSelectorOpen, setPersonaSelectorOpen] = useState(false);
     const chatEndRef = useRef<HTMLDivElement | null>(null);
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [pollRef, setPollRef] = useState<ReturnType<typeof setInterval> | null>(null);
     const { sendSignal } = useNotification();
     const [onlineCount, setOnlineCount] = useState<number>(0);
     const [totalUsers, setTotalUsers] = useState<number>(0);
     const [friendRequested, setFriendRequested] = useState<Set<string>>(new Set());
     const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
+
+    // Matchmaking Filters & Modes
+    const [isOffline, setIsOffline] = useState(false);
+    const [modePref, setModePref] = useState<'chat' | 'video'>('chat');
+    const [genderFilter, setGenderFilter] = useState<'A' | 'M' | 'F'>('A');
+    const [locationFilter, setLocationFilter] = useState('');
 
     useEffect(() => {
         const u = localStorage.getItem('user');
@@ -142,8 +150,8 @@ export default function Dashboard() {
     };
 
     const stopPolling = () => {
-        if (pollRef.current) clearInterval(pollRef.current);
-        pollRef.current = null;
+        if (pollRef) clearInterval(pollRef);
+        setPollRef(null);
         setSearchingIntent(null);
         setIsMatching(false);
     };
@@ -153,24 +161,35 @@ export default function Dashboard() {
             try {
                 const response = await fetchApi('/matchmaking/join/', {
                     method: 'POST',
-                    body: JSON.stringify({ intent: intentText, username: getUsername() })
+                    body: JSON.stringify({ 
+                        intent: intentText, 
+                        username: getUsername(),
+                        is_offline: isOffline,
+                        mode: modePref,
+                        gender_filter: genderFilter,
+                        location_filter: locationFilter
+                    })
                 });
                 if (response.match_found || response.room_name) {
                     stopPolling();
-                    window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || 'chat'}`;
+                    window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || modePref}`;
                 } else if (response.status === 'discovery_results') {
                     stopPolling();
                     setDiscoveryResults(response.results);
+                } else if (response.status === 'offline_activated') {
+                    stopPolling();
+                    alert(response.message);
                 } else if (response.status === 'no_results') {
                     stopPolling();
-                    alert(response.message); // Fallback to alert for now, using existing pattern
+                    alert(response.message);
                 }
             } catch {
                 stopPolling();
             }
         };
         // Poll every 3s
-        pollRef.current = setInterval(tryMatch, 3000);
+        const p = setInterval(tryMatch, 3000);
+        setPollRef(p);
     };
 
     const startPersonaMatch = async () => {
@@ -179,11 +198,21 @@ export default function Dashboard() {
         try {
             const response = await fetchApi('/matchmaking/join/', {
                 method: 'POST',
-                body: JSON.stringify({ intent: intentText, username: getUsername() })
+                body: JSON.stringify({ 
+                    intent: intentText, 
+                    username: getUsername(),
+                    is_offline: isOffline,
+                    mode: modePref,
+                    gender_filter: genderFilter,
+                    location_filter: locationFilter
+                })
             });
-            if (response.match_found || response.room_name) {
+            if (response.status === 'offline_activated') {
                 setIsMatching(false);
-                window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || 'chat'}`;
+                alert(response.message);
+            } else if (response.match_found || response.room_name) {
+                setIsMatching(false);
+                window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || modePref}`;
             } else {
                 setSearchingIntent(intentText);
                 pollForMatch(intentText);
@@ -244,7 +273,9 @@ export default function Dashboard() {
     };
 
     // ===== CASE 3: AI SUPPORT CHAT HANDLERS =====
-    const openSupportChat = async () => {
+    const openSupportChat = async (persona: string = "Warm Companion") => {
+        setSelectedPersona(persona);
+        setPersonaSelectorOpen(false);
         setSupportChatOpen(true);
         setSupportMessages([]);
         setReadyToConnect(false);
@@ -252,7 +283,12 @@ export default function Dashboard() {
         try {
             const res = await fetchApi('/matchmaking/support-chat/', {
                 method: 'POST',
-                body: JSON.stringify({ username: getUsername(), message: '', history: [] })
+                body: JSON.stringify({ 
+                    username: getUsername(), 
+                    message: '', 
+                    history: [],
+                    persona: persona
+                })
             });
             const aiMsg = { role: 'model' as const, text: res.reply };
             setSupportMessages([aiMsg]);
@@ -281,7 +317,8 @@ export default function Dashboard() {
                 body: JSON.stringify({
                     username: getUsername(),
                     message: userMsg.text,
-                    history: historyForApi
+                    history: historyForApi,
+                    persona: selectedPersona
                 })
             });
             const aiMsg = { role: 'model' as const, text: res.reply };
@@ -802,7 +839,7 @@ export default function Dashboard() {
                         </p>
 
                         {/* Online Count Badge */}
-                        <div className="flex items-center gap-3 mb-10 font-mono text-sm">
+                        <div className="flex flex-wrap items-center gap-3 mb-10 font-mono text-sm">
                             <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
                                 <span className="relative flex h-2.5 w-2.5">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -812,6 +849,44 @@ export default function Dashboard() {
                                 <span className="text-gray-500">nodes active now</span>
                             </div>
                             <span className="text-gray-600 text-xs">/ {totalUsers} total</span>
+
+                            {/* Global Filters Panel */}
+                            <div className="flex flex-wrap items-center gap-2 md:ml-4 p-1 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                <button
+                                    onClick={() => setIsOffline(!isOffline)}
+                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${isOffline ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-transparent text-gray-500 hover:text-white'}`}
+                                >
+                                    {isOffline ? 'Mode: Offline Search' : 'Mode: Live Match'}
+                                </button>
+                                <div className="w-px h-4 bg-white/10 mx-1" />
+                                <button
+                                    onClick={() => setModePref(modePref === 'chat' ? 'video' : 'chat')}
+                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${modePref === 'video' ? 'bg-cyan-500 text-black' : 'bg-transparent text-gray-500 hover:text-white'}`}
+                                >
+                                    {modePref === 'video' ? '📹 Video' : '💬 Text'}
+                                </button>
+                                <div className="w-px h-4 bg-white/10 mx-1" />
+                                <div className="flex items-center gap-1 bg-black/20 rounded-lg px-2">
+                                    <span className="text-[9px] text-gray-600 font-bold">BIO:</span>
+                                    <select 
+                                        value={genderFilter} 
+                                        onChange={(e) => setGenderFilter(e.target.value as any)}
+                                        className="bg-transparent text-[10px] text-cyan-400 focus:outline-none py-1.5 font-bold cursor-pointer"
+                                    >
+                                        <option value="A" className="bg-[#050511]">ANY</option>
+                                        <option value="M" className="bg-[#050511]">MALE</option>
+                                        <option value="F" className="bg-[#050511]">FEMALE</option>
+                                    </select>
+                                </div>
+                                <div className="w-px h-4 bg-white/10 mx-1" />
+                                <input 
+                                    type="text"
+                                    value={locationFilter}
+                                    onChange={(e) => setLocationFilter(e.target.value)}
+                                    placeholder="LOCATION FILTER"
+                                    className="bg-transparent text-[10px] text-cyan-400 placeholder-gray-700 px-3 py-1.5 font-bold focus:outline-none w-32 uppercase"
+                                />
+                            </div>
                         </div>
 
                         {/* Mode 1: Intent Matchmaking Section */}
@@ -861,28 +936,31 @@ export default function Dashboard() {
                         </div>
 
                         {/* Mode 3: Omegle Roulette */}
-                        <div className="w-full max-w-xl space-y-4">
+                        <div className={`w-full max-w-xl space-y-4 ${isOffline ? 'opacity-20 cursor-not-allowed grayscale pointer-events-none' : ''}`}>
                             <div className="flex justify-between items-end mb-2">
                                 <h3 className="text-xl font-bold uppercase tracking-widest text-slate-800 dark:text-green-400">03. Roulette (M/F)</h3>
-                                <span className="text-[10px] font-mono text-slate-500 mr-2 border border-slate-500/30 px-2 py-0.5">Strict Male/Female</span>
+                                <div className="flex items-center gap-2">
+                                    {isOffline && <span className="text-[9px] font-black text-amber-500 animate-pulse uppercase">[ LIVE ONLY ]</span>}
+                                    <span className="text-[10px] font-mono text-slate-500 mr-2 border border-slate-500/30 px-2 py-0.5">Strict Male/Female</span>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => startOmegleMatch('chat')}
-                                    disabled={isMatching}
+                                    disabled={isMatching || isOffline}
                                     className={`w-full py-4 bg-transparent text-slate-800 dark:text-white font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all border border-slate-300 dark:border-white/20 hover:bg-white/10 font-mono text-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 >
                                     <MessageSquare className="w-4 h-4 text-slate-500 dark:text-gray-400" />
                                     Text Chat
                                 </motion.button>
-
+ 
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => startOmegleMatch('video')}
-                                    disabled={isMatching}
+                                    disabled={isMatching || isOffline}
                                     className={`w-full py-4 bg-green-500/10 text-slate-800 dark:text-green-400 font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all border border-green-500/40 hover:bg-green-500/20 font-mono text-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 >
                                     <Video className="w-4 h-4 text-green-500" />
@@ -900,7 +978,7 @@ export default function Dashboard() {
                             <motion.button
                                 whileHover={{ scale: 1.01 }}
                                 whileTap={{ scale: 0.99 }}
-                                onClick={openSupportChat}
+                                onClick={() => setPersonaSelectorOpen(true)}
                                 className="w-full px-6 py-5 bg-rose-500/8 text-slate-800 dark:text-white font-bold uppercase tracking-widest flex items-center justify-between transition-all border border-rose-500/20 hover:bg-rose-500/15 hover:border-rose-400/40 font-mono group"
                             >
                                 <div className="flex items-center gap-4">
@@ -918,6 +996,54 @@ export default function Dashboard() {
                             </motion.button>
                         </div>
 
+                        {/* Persona Selection Modal */}
+                        <AnimatePresence>
+                            {personaSelectorOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.9, y: 20 }}
+                                        animate={{ scale: 1, y: 0 }}
+                                        className="w-full max-w-lg bg-[#0a0a14] border border-white/10 p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+                                    >
+                                        <h2 className="text-2xl font-black font-mono tracking-widest text-white uppercase italic mb-2">Choose Your Companion</h2>
+                                        <p className="text-slate-400 font-mono text-xs mb-8 border-l-2 border-rose-500/50 pl-4">Select the neural personality that fits your current state.</p>
+                                        
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {[
+                                                { name: "Empathetic Listener", desc: "Warm, non-judgmental, focused on listening deeply.", icon: "💙", color: "text-blue-400" },
+                                                { name: "Tough Love", desc: "Direct, firm, focused on honesty and action.", icon: "👊", color: "text-rose-400" },
+                                                { name: "Analytical Advisor", desc: "Logical, systematic, helps break down complex problems.", icon: "🧠", color: "text-purple-400" },
+                                                { name: "Warm Companion", desc: "Friendly, casual, like talking to a close friend.", icon: "🤝", color: "text-amber-400" }
+                                            ].map((p) => (
+                                                <button
+                                                    key={p.name}
+                                                    onClick={() => openSupportChat(p.name)}
+                                                    className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-left group"
+                                                >
+                                                    <span className="text-2xl group-hover:scale-110 transition-transform">{p.icon}</span>
+                                                    <div>
+                                                        <h4 className={`font-bold text-sm uppercase tracking-wider ${p.color}`}>{p.name}</h4>
+                                                        <p className="text-[11px] text-slate-500 font-mono italic">{p.desc}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setPersonaSelectorOpen(false)}
+                                            className="w-full mt-8 py-3 text-slate-500 hover:text-white font-mono text-xs uppercase tracking-[0.2em] border-t border-white/5 pt-6"
+                                        >
+                                            [ Abort Selection ]
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* Right Col: Floating Status Cards */}

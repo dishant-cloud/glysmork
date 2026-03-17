@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, AIOnboardingChatView, ImprovementBotView, LoginView, RegisterView, OnlineCountView, HeartbeatView
+from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, AIOnboardingChatView, ImprovementBotView, LoginView, RegisterView, OnlineCountView, HeartbeatView, AnalyticsView, ImageUploadView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='api-register'),
@@ -11,5 +11,7 @@ urlpatterns = [
     path('improvement-bot/', ImprovementBotView.as_view(), name='api-improvement-bot'),
     path('online-count/', OnlineCountView.as_view(), name='api-online-count'),
     path('heartbeat/', HeartbeatView.as_view(), name='api-heartbeat'),
+    path('analytics/', AnalyticsView.as_view(), name='api-analytics'),
+    path('profile/upload-photo/', ImageUploadView.as_view(), name='api-profile-upload-photo'),
 ]
 

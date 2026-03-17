@@ -21,6 +21,8 @@ export default function ProfilePage() {
     const [editGender, setEditGender] = useState('');
     const [editAge, setEditAge] = useState('');
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [viewMode, setViewMode] = useState<'persona' | 'real'>('persona');
 
     useEffect(() => {
         loadProfile();
@@ -62,11 +64,7 @@ export default function ProfilePage() {
             return;
         }
         try {
-            // Use public profile endpoint — no session cookie needed
-            const response = await fetch(`http://127.0.0.1:8000/api/users/profile/${storedUsername}/`);
-
-            if (!response.ok) throw new Error(`${response.status}`);
-            const data = await response.json();
+            const data = await fetchApi(`/users/profile/${storedUsername}/`);
             setProfileData(data);
             setEditBio(data.bio || '');
             setEditGender(data.gender || 'O');
@@ -87,6 +85,30 @@ export default function ProfilePage() {
             }
         } catch (err) {
             console.error("Failed to load friends", err);
+        }
+    };
+
+    const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const data = await fetchApi('/users/profile/upload-photo/', {
+                method: 'POST',
+                body: formData,
+            });
+            setProfileData((prev: any) => ({ ...prev, image: data.image_url }));
+            alert('Authentic photo synchronized successfully.');
+            setViewMode('real');
+        } catch (err: any) {
+            console.error("Failed to upload photo", err);
+            alert(err.message || 'Failed to update neural asset.');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -163,21 +185,49 @@ export default function ProfilePage() {
                         >
                             {/* The Persona Image */}
                             <div className="aspect-square w-full bg-slate-900 border border-slate-800 mb-6 relative overflow-hidden flex items-center justify-center">
-                                {profileData?.persona_image_url ? (
-                                    <img
-                                        src={profileData.persona_image_url}
-                                        alt="AI Persona"
-                                        className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
-                                    />
+                                {viewMode === 'persona' ? (
+                                    profileData?.persona_image_url ? (
+                                        <img
+                                            src={profileData.persona_image_url}
+                                            alt="AI Persona"
+                                            className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
+                                        />
+                                    ) : (
+                                        <div className="text-slate-700 font-mono text-xs text-center p-4">
+                                            <User className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                            NO VISUAL ASSET<br />(Complete Onboarding)
+                                        </div>
+                                    )
                                 ) : (
-                                    <div className="text-slate-700 font-mono text-xs text-center p-4">
-                                        <User className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                                        NO VISUAL ASSET<br />(Complete Onboarding)
-                                    </div>
+                                    profileData?.image ? (
+                                        <img
+                                            src={`http://127.0.0.1:8000${profileData.image}`}
+                                            alt="Real Profile"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="text-slate-700 font-mono text-xs text-center p-4">
+                                            <User className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                            NO PHOTO UPLOADED
+                                        </div>
+                                    )
                                 )}
 
                                 <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md border border-cyan-500/30 px-2 py-1 flex items-center gap-1 font-mono text-[10px] text-cyan-400 z-10">
                                     <Activity className="w-3 h-3" /> SYS.TRUST: {profileData?.trust_score || 100}
+                                </div>
+                                
+                                <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4 gap-2 px-4">
+                                    <button 
+                                        onClick={() => setViewMode(viewMode === 'persona' ? 'real' : 'persona')}
+                                        className="text-[9px] text-white font-mono bg-white/10 hover:bg-white/20 px-2 py-1 border border-white/20 backdrop-blur-sm"
+                                    >
+                                        [ {viewMode === 'persona' ? 'VIEW_REAL' : 'VIEW_AI'} ]
+                                    </button>
+                                    <label className="text-[9px] text-cyan-400 font-mono bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-1 border border-cyan-500/20 backdrop-blur-sm cursor-pointer whitespace-nowrap">
+                                        [ {uploading ? 'UPLOADING...' : 'UPLOAD_PHOTO'} ]
+                                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} />
+                                    </label>
                                 </div>
                             </div>
 

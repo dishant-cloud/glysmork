@@ -602,3 +602,72 @@ Before that point (step < 5), respond ONLY with:
             return Response({"done": False, "question": q})
 
 
+
+class AnalyticsView(APIView):
+    """
+    Returns site-wide analytics for the dashboard.
+    """
+    permission_classes = [AllowAny] # Allow all to see the hub metrics
+
+    def get(self, request, *args, **kwargs):
+        now = timezone.now()
+        one_week_ago = now - timedelta(days=7)
+        five_minutes_ago = now - timedelta(minutes=5)
+
+        total_nodes = Profile.objects.count()
+        active_nodes = Profile.objects.filter(last_seen__gte=five_minutes_ago).count()
+
+        # Gender Distribution
+        gender_data = Profile.objects.values('gender').annotate(count=Count('gender'))
+        gender_map = {
+            'M': 'Male',
+            'F': 'Female',
+            'O': 'Other'
+        }
+        gender_stats = {gender_map.get(item['gender'], 'Unknown'): item['count'] for item in gender_data}
+
+        # Location (Country) Distribution - Top 5
+        location_data = Profile.objects.exclude(country='').values('country').annotate(count=Count('country')).order_by('-count')[:5]
+        location_stats = {str(item['country']): item['count'] for item in location_data}
+
+        # Time-series: Joins over past 7 days
+        growth_stats = []
+        for i in range(7):
+            date = (now - timedelta(days=i)).date()
+            count = User.objects.filter(date_joined__date=date).count()
+            growth_stats.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "joins": count
+            })
+        growth_stats.reverse()
+
+        return Response({
+            "total_nodes": total_nodes,
+            "active_nodes": active_nodes,
+            "gender_distribution": gender_stats,
+            "top_locations": location_stats,
+            "growth_trends": growth_stats,
+            "system_status": "OPERATIONAL"
+        })
+
+
+class ImageUploadView(APIView):
+    """
+    Endpoint to upload a real profile photo.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        profile = request.user.profile
+        if 'image' not in request.FILES:
+            return Response({"error": "No image provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        image_file = request.FILES['image']
+        profile.image = image_file
+        profile.save()
+        
+        return Response({
+            "message": "Profile photo updated successfully.",
+            "image_url": profile.image.url
+        }, status=status.HTTP_200_OK)
+

@@ -2,15 +2,18 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from matchmaking.models import Loop, CallRequest, Friendship, ChatNotification
+from matchmaking.models import Loop, CallRequest, Friendship, ChatNotification, MatchHistory, OfflineSearch
 from users.models import Profile
 from room.models import Room
 from .serializers import LoopSerializer, CallRequestSerializer
-from django.db.models import Q
+from django.db.models import Q, Count
 import os
 import google.generativeai as genai
 import json
 import uuid
+import time
+from datetime import timedelta
+from django.utils import timezone
 
 genai.configure(api_key="AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU")
 
@@ -38,12 +41,34 @@ class JoinMatchmakingView(APIView):
             else:
                 return Response({"error": "Authentication required. Please provide a username or log in."}, status=status.HTTP_401_UNAUTHORIZED)
         intent = request.data.get('intent', '').strip()
+        is_offline = request.data.get('is_offline', False)
+        mode_pref = request.data.get('mode', 'chat') # chat or video
+        gender_filter = request.data.get('gender_filter', 'A') # M, F, or A (Any)
+        location_filter = request.data.get('location_filter', '').strip()
         
-        if not intent:
+        if not intent and not is_offline:
             return Response(
                 {"error": "Tell us who you want to talk to or what you want to discuss."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # --- NEW: OFFLINE SEARCH REGISTRATION ---
+        if is_offline:
+            OfflineSearch.objects.update_or_create(
+                user=user,
+                defaults={
+                    'intent': intent,
+                    'mode': mode_pref,
+                    'gender_filter': gender_filter,
+                    'location_filter': location_filter,
+                    'is_active': True,
+                    'daily_refresh_timestamp': timezone.now()
+                }
+            )
+            return Response({
+                "status": "offline_activated",
+                "message": "Offline matching activated. Check back daily to keep searching."
+            })
 
         # --- NEW: DIRECT CONNECTION HANDLER (from Discovery) ---
         if intent.startswith('DIRECT_CONNECT:'):
@@ -117,36 +142,51 @@ class JoinMatchmakingView(APIView):
         active_threshold = timezone.now() - timedelta(seconds=20)
         Loop.objects.filter(last_seen__lt=active_threshold).delete()
         
-        # --- PHASE 3: RANDOM MATCHING FILTERS ---
-        match = None
-        mode = 'chat' # Default mode
-        
+        # --- PREVENT RE-MATCHES ---
+        # Get IDs of users already matched in history
+        history_ids = MatchHistory.objects.filter(Q(user1=user) | Q(user2=user)).values_list('user1_id', 'user2_id')
+        excluded_ids = {user.id}
+        for u1, u2 in history_ids:
+            excluded_ids.add(u1)
+            excluded_ids.add(u2)
+
         # Only match with users who have been seen in the last 20 seconds
-        active_loop = Loop.objects.filter(last_seen__gte=active_threshold).exclude(user=user)
+        active_loop = Loop.objects.filter(last_seen__gte=active_threshold).exclude(user_id__in=excluded_ids)
 
         if intent.lower().startswith("random opposite gender"):
             my_gender = loop.gender
             target_gender = 'F' if my_gender == 'M' else 'M' if my_gender == 'F' else None
             
+            # Use manual gender filter if provided and not roulette ( Roulette is strict )
+            if "roulette" not in intent.lower():
+                if gender_filter != 'A':
+                    target_gender = gender_filter
+
             # Extract requested mode (video or chat)
-            if "video" in intent.lower():
+            if "video" in intent.lower() or mode_pref == 'video':
                 mode = 'video'
-                # Ensure we only match someone who also asked for opposite gender video
                 intent_filter = "random opposite gender video"
             else:
                 mode = 'chat'
                 intent_filter = "random opposite gender chat"
             
             if target_gender:
-                # Find someone of the opposite gender who ALSO wants the same mode
-                potential_match = active_loop.filter(
+                # Filter by Location if requested
+                query = active_loop.filter(
                     gender=target_gender,
-                    user__profile__current_intent__iexact=intent_filter
-                ).order_by('?').first() # Random order
+                    user__profile__current_intent__icontains=mode
+                )
+                
+                if location_filter:
+                    query = query.filter(user__profile__location__icontains=location_filter)
+
+                potential_match = query.order_by('?').first() # Random order
                 
                 if potential_match:
                     match = potential_match.user
                     Loop.objects.filter(user__in=[user, match]).delete()
+                    # Log to History
+                    MatchHistory.objects.get_or_create(user1=min(user, match, key=lambda u: u.id), user2=max(user, match, key=lambda u: u.id))
             else:
                 # If they are 'Other', just match them with anyone else wanting the exact same match type
                 potential_match = active_loop.filter(
@@ -497,20 +537,31 @@ class SupportChatView(APIView):
     After 3-4 exchanges the AI offers to connect them with a real person.
     """
 
-    SYSTEM_PERSONA = (
-        "You are a warm, compassionate AI companion inside the GLYSMORK app - a place where people connect. "
-        "Your ONLY task right now is to make the person feel heard and less alone.\n\n"
-        "Rules:\n"
-        "- Keep replies SHORT (2-4 sentences max). Natural, human, never clinical.\n"
-        "- NEVER give generic advice like 'see a therapist'. Just listen and ask gentle follow-up questions.\n"
-        "- Reflect back what they say. Show you understood.\n"
-        "- Use their own words when asking follow-up questions.\n"
-        "- Never judge, never dismiss.\n"
-        "- After the user has sent 3 or more messages and seems open to talking to a real person, "
-        "end your reply with exactly this token on a new line: READY_TO_CONNECT\n"
-        "  Only do this once when you feel the time is right.\n"
-        "- If they say they want to connect to a real person, always include READY_TO_CONNECT at the end."
-    )
+    PERSONA_MAP = {
+        "Empathetic Listener": "You are a warm, highly empathetic AI companion. Your focus is on validating the user's feelings and listening deeply.",
+        "Tough Love": "You are a direct, straight-talking AI companion. You offer 'tough love'—be honest, firm, and focused on self-improvement and action.",
+        "Analytical Advisor": "You are an analytical, logical AI companion. You help the user break down their feelings into logical components and look for root causes.",
+        "Warm Companion": "You are a friendly, casual AI companion. You talk like a close friend, using warm language and light humor where appropriate."
+    }
+
+    def _get_system_instructions(self, persona_name):
+        persona_base = self.PERSONA_MAP.get(persona_name, self.PERSONA_MAP["Warm Companion"])
+        
+        return (
+            f"{persona_base}\n\n"
+            "You are inside the GLYSMORK app - a place where people connect. "
+            "Your ONLY task right now is to make the person feel heard and less alone.\n\n"
+            "Rules:\n"
+            "- Keep replies SHORT (2-4 sentences max). Natural, human, never clinical.\n"
+            "- NEVER give generic advice like 'see a therapist'. Just listen and ask gentle follow-up questions.\n"
+            "- Reflect back what they say. Show you understood.\n"
+            "- Use their own words when asking follow-up questions.\n"
+            "- Never judge, never dismiss.\n"
+            "- After the user has sent 3 or more messages and seems open to talking to a real person, "
+            "end your reply with exactly this token on a new line: READY_TO_CONNECT\n"
+            "  Only do this once when you feel the time is right.\n"
+            "- If they say they want to connect to a real person, always include READY_TO_CONNECT at the end."
+        )
 
     def _resolve_user(self, request):
         if request.user.is_authenticated:
@@ -531,11 +582,12 @@ class SupportChatView(APIView):
 
         history = request.data.get('history', [])
         user_message = request.data.get('message', '').strip()
+        selected_persona = request.data.get('persona', 'Warm Companion')
 
         try:
             ai_model = genai.GenerativeModel(
                 model_name='gemini-2.5-flash',
-                system_instruction=self.SYSTEM_PERSONA
+                system_instruction=self._get_system_instructions(selected_persona)
             )
 
             safety_settings = [

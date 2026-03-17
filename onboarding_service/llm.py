@@ -75,8 +75,6 @@ def get_chat_response(message: str, history: list, guidelines: list) -> str:
     {guidelines_text}
     
     Always collect these universal basics regardless of bucket: 
-    - communication preference (text / voice / video)
-    - availability and frequency
     - language
     - location preference (local / same country / global)
     - any hard dealbreakers
@@ -137,8 +135,6 @@ def extract_structured_data(conversation_history: list) -> dict:
       - location (string)
       - location_preference (LOCAL / SAME_COUNTRY / OPEN_TO_LONG_DISTANCE / GLOBAL)
       - languages (array of ISO 639-1 codes, e.g. ["en"])
-      - availability (array of MORNINGS / AFTERNOONS / EVENINGS / NIGHTS / WEEKENDS / FLEXIBLE)
-      - communication_preference (TEXT / VOICE / VIDEO / NO_PREFERENCE)
       - dealbreakers (array of SCREAMING_SNAKE_CASE strings)
       
     3. who_i_am:
