@@ -59,8 +59,7 @@ export default function ProfilePage() {
     const loadProfile = async () => {
         const storedUsername = getUsername();
         if (!storedUsername) {
-            setError('Not logged in. Please log in first.');
-            setLoading(false);
+            window.location.href = '/login';
             return;
         }
         try {

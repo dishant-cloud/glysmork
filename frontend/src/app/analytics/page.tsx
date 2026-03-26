@@ -21,6 +21,10 @@ export default function AnalyticsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!localStorage.getItem('user')) {
+            window.location.href = '/login';
+            return;
+        }
         const fetchAnalytics = async () => {
             try {
                 const res = await fetchApi('/users/analytics/');

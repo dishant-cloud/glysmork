@@ -16,7 +16,17 @@ export default function Login() {
     useEffect(() => {
         const existingUser = localStorage.getItem('user');
         if (existingUser) {
-            router.replace('/dashboard');
+            try {
+                const parsed = JSON.parse(existingUser);
+                if (parsed?.username) {
+                    router.replace('/dashboard');
+                    return;
+                }
+            } catch {}
+            // Malformed or missing username — clear it
+            localStorage.removeItem('user');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
         }
     }, [router]);
 

@@ -31,6 +31,13 @@ export default function ImprovementBot() {
     };
 
     useEffect(() => {
+        if (!localStorage.getItem('user')) {
+            window.location.href = '/login';
+            return;
+        }
+    }, []);
+
+    useEffect(() => {
         scrollToBottom();
     }, [messages, isTyping]);
 

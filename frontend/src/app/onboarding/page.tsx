@@ -42,8 +42,7 @@ export default function OnboardingChat() {
         };
 
         if (!username) {
-            // No username in storage — just fire the opening question
-            fireOpener();
+            window.location.href = '/login';
             return;
         }
 
