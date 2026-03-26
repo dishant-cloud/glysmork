@@ -8,8 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Header from '@/components/Header';
 
 interface AnalyticsData {
-    total_nodes: number;
-    active_nodes: number;
+    total_users: number;
+    active_users: number;
     gender_distribution: Record<string, number>;
     top_locations: Record<string, number>;
     growth_trends: { date: string; joins: number }[];
@@ -55,15 +55,15 @@ export default function AnalyticsPage() {
                         <ArrowLeft className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
                     </Link>
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-cyan-500/70 tracking-widest uppercase">Network Diagnostics</span>
-                        <h1 className="text-3xl font-black tracking-tighter uppercase italic">System Analytics</h1>
+                        <span className="text-[10px] text-cyan-500/70 tracking-widest uppercase">Platform Insights</span>
+                        <h1 className="text-3xl font-black tracking-tighter uppercase italic">Growth & Activity</h1>
                     </div>
                 </div>
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-[60vh]">
                         <div className="w-12 h-12 border-2 border-t-cyan-500 border-r-purple-500 border-b-cyan-500 border-l-transparent animate-spin rounded-full mb-4" />
-                        <span className="text-xs text-slate-500 animate-pulse uppercase tracking-widest">Compiling Neural Data...</span>
+                        <span className="text-xs text-slate-500 animate-pulse uppercase tracking-widest">Loading Insights...</span>
                     </div>
                 ) : data && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -72,19 +72,19 @@ export default function AnalyticsPage() {
                         <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
                             <MetricCard 
                                 icon={<Users className="w-5 h-5" />} 
-                                label="Total Neural Nodes" 
-                                value={data.total_nodes} 
+                                label="Total Users" 
+                                value={data.total_users} 
                                 color="cyan"
                             />
                             <MetricCard 
                                 icon={<Activity className="w-5 h-5" />} 
-                                label="Active Connections" 
-                                value={data.active_nodes} 
+                                label="Active Now" 
+                                value={data.active_users} 
                                 color="green"
                             />
                             <MetricCard 
                                 icon={<Server className="w-5 h-5" />} 
-                                label="System Status" 
+                                label="Server Status" 
                                 value={data.system_status} 
                                 color="white"
                                 subValue="LATENCY: 24ms"
@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
                                                 className="w-full bg-gradient-to-t from-cyan-600/40 to-cyan-400 border-t border-cyan-300 relative"
                                             >
                                                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-cyan-400 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap">
-                                                    +{day.joins} NODES
+                                                    +{day.joins} USERS
                                                 </div>
                                             </motion.div>
                                         </div>
@@ -144,8 +144,8 @@ export default function AnalyticsPage() {
                                 {Object.entries(data.top_locations).map(([country, count], idx) => (
                                     <div key={country} className="space-y-2">
                                         <div className="flex justify-between text-[10px] uppercase font-bold">
-                                            <span>{country || "Unknown Node"}</span>
-                                            <span className="text-purple-400">{count} NODES</span>
+                                            <span>{country || "Unknown Region"}</span>
+                                            <span className="text-purple-400">{count} USERS</span>
                                         </div>
                                         <div className="h-1.5 bg-white/5 relative overflow-hidden">
                                             <motion.div 
@@ -185,13 +185,13 @@ export default function AnalyticsPage() {
                         {/* System Logs */}
                         <div className="lg:col-span-8 bg-white/5 border border-white/10 p-8">
                             <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-400 mb-8">
-                                <Cpu className="w-4 h-4" /> Neural Logs
+                                <Cpu className="w-4 h-4" /> Activity Logs
                             </h3>
                             <div className="space-y-3 font-mono text-[10px]">
                                 <div className="text-green-500/80">{"[SUCCESS]"} ALL SYSTEMS OPERATIONAL</div>
-                                <div className="text-cyan-500/60">{"[INFO]"} REDIS NODE CLUSTER AT 12% LOAD</div>
-                                <div className="text-purple-500/60">{"[INFO]"} AI PAIRING ENGINE SYNCHRONIZED</div>
-                                <div className="text-slate-500">{"[LOG]"} HEARTBEAT RECEIVED FROM {data.active_nodes} ACTIVE NODES</div>
+                                <div className="text-cyan-500/60">{"[INFO]"} REDIS CLUSTER AT 12% LOAD</div>
+                                <div className="text-purple-500/60">{"[INFO]"} AI PAIRING ENGINE READY</div>
+                                <div className="text-slate-500">{"[LOG]"} HEARTBEAT RECEIVED FROM {data.active_users} ACTIVE USERS</div>
                                 <div className="text-slate-500">{"[LOG]"} SYSTEM CACHE FLUSHED AT {new Date().toLocaleTimeString()}</div>
                                 <div className="text-slate-600 border-t border-white/5 pt-3">{"[BOOT]"} DISTRIBUTED NETWORK INITIALIZED VIA GLYSMORK CORE</div>
                             </div>

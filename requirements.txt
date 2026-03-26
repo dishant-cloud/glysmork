@@ -10,3 +10,8 @@ uvicorn
 whitenoise
 channels-redis
 dj-database-url
+djangorestframework
+djangorestframework-simplejwt
+google-generativeai
+celery
+redis

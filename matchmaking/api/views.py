@@ -153,6 +153,8 @@ class JoinMatchmakingView(APIView):
         # Only match with users who have been seen in the last 20 seconds
         active_loop = Loop.objects.filter(last_seen__gte=active_threshold).exclude(user_id__in=excluded_ids)
 
+        match = None  # Initialize to prevent UnboundLocalError
+
         if intent.lower().startswith("random opposite gender"):
             my_gender = loop.gender
             target_gender = 'F' if my_gender == 'M' else 'M' if my_gender == 'F' else None
@@ -227,10 +229,10 @@ class JoinMatchmakingView(APIView):
                 status='pending'
             )
             
-            session_id = str(uuid.uuid4())[:6]
-            room_name = f"room_{min(user.id, match.id)}_{max(user.id, match.id)}_{session_id}"
-            room, _ = Room.objects.get_or_create(name=room_name)
-            room.users.add(user, match)
+            session_id = uuid.uuid4().hex[:12]
+            room_name = f"session_{session_id}"
+            # RANDOM MATCHES ARE EPHEMERAL: DO NOT CREATE Room OBJECTS in DB
+            # Just return the room_name so they can connect via WebSocket/Redis
 
             import time
             match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}:{mode}'
@@ -281,7 +283,7 @@ class JoinMatchmakingView(APIView):
             }
             candidate_summaries.append(summary)
         
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Lower safety thresholds
         safety_settings = [
@@ -676,21 +678,28 @@ class GetNotificationsView(APIView):
     permission_classes = []
 
     def get(self, request):
+        from django.utils import timezone
+        from datetime import timedelta
+
         username = request.query_params.get('username')
         if not username:
             return Response({'error': 'username required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Only show notifications created in the last 24 hours — ignore stale records
+        since = timezone.now() - timedelta(hours=24)
         notifs = ChatNotification.objects.filter(
             receiver__username=username,
-            is_read=False
+            is_read=False,
+            created_at__gte=since,
         ).order_by('-created_at')[:10]
+
 
         data = [{
             'id': n.id,
             'sender': n.sender.username,
             'message': n.message,
             'room_name': n.room_name,
-            'created_at': n.created_at.strftime('%H:%M'),
+            'created_at': n.created_at.isoformat(),
         } for n in notifs]
         return Response({'notifications': data})
 

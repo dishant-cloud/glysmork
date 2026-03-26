@@ -4,6 +4,20 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.core.cache import cache
+import uuid
+
+def _cache_get_messages(room_name):
+    import json
+    raw = cache.get(f'session:{room_name}:messages') or '[]'
+    return json.loads(raw)
+
+def _cache_append_message(room_name, msg_data):
+    import json
+    msgs = _cache_get_messages(room_name)
+    msgs.append(msg_data)
+    # 24h expiration for active sessions
+    cache.set(f'session:{room_name}:messages', json.dumps(msgs), timeout=86400)
 from room.models import Message, Room
 from .serializers import MessageSerializer
 from django.utils import timezone
@@ -55,6 +69,7 @@ class RoomStatusView(APIView):
     permission_classes = [] 
 
     def get(self, request, room_name):
+        print("hi")
         try:
             room = Room.objects.get(name=room_name)
             return Response({"is_active": room.is_active})
@@ -274,32 +289,222 @@ class MessageListView(APIView):
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
-            if room_name.startswith('direct_'):
-                return Response([], status=status.HTTP_200_OK)
-            return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
+            if room_name.startswith('session_') or room_name.startswith('direct_'):
+                # We'll assume it exists or will be created on POST
+                room = None
+            else:
+                return Response({"error": "Room not found"}, status=status.HTTP_404_NOT_FOUND)
 
         requesting_user = self._resolve_user(request)
+        
+        # Pagination params
+        cursor = request.query_params.get('cursor') # timestamp or ID
+        limit = 50
 
-        messages = Message.objects.filter(room=room).order_by('date')
+        # Case 1: Session Room (Ephemeral messages in Redis)
+        if room_name.startswith('session_'):
+            session_id = room_name.replace('session_', '')
+            from django.core.cache import cache
+            
+            raw_msgs = cache.get(f'session:{session_id}:messages') or '[]'
+            try:
+                msg_list = json.loads(raw_msgs)
+            except:
+                msg_list = []
+                
+            raw_calls = cache.get(f'session:{session_id}:calls') or '[]'
+            try:
+                call_list = json.loads(raw_calls)
+            except:
+                call_list = []
+
+            # We don't need to manually merge call_list visually because we already inject visual call placeholders into messages list!
+            # So the visual messages list is enough for chat UI.
+            
+            all_msgs = msg_list
+            
+            # Sort by timestamp (ISO strings sort correctly)
+            all_msgs.sort(key=lambda x: x.get('timestamp', x.get('ts', '')))
+            
+            # Simple offset-based pagination for Redis list for now, 
+            # as it's typically short-lived and doesn't have DB IDs
+            # If cursor is provided, it's an ISO timestamp
+            if cursor:
+                all_msgs = [m for m in all_msgs if m.get('timestamp', m.get('ts', '')) < cursor]
+            
+            # Take last {limit}
+            page_msgs = all_msgs[-limit:]
+            has_more = len(all_msgs) > limit
+            
+            data = []
+            for msg in page_msgs:
+                data.append({
+                    "id": msg.get('id', msg.get('ts')), # Use UUID or timestamp
+                    "sender": msg.get('sender', msg.get('sender_id')),
+                    "text": msg.get('text'),
+                    "status": msg.get('status', 'read'), 
+                    "timestamp": msg.get('timestamp', msg.get('ts')),
+                    "is_ephemeral": True,
+                    "is_call_log": msg.get('is_call_log', False),
+                    "call_mode": msg.get('call_mode'),
+                    "call_status": msg.get('call_status'),
+                    "call_duration": msg.get('call_duration'),
+                })
+            
+            next_cursor = page_msgs[0].get('ts') if page_msgs else None
+            return Response({
+                "results": data,
+                "has_more": has_more,
+                "next_cursor": next_cursor
+            })
+
+        # Case 2: Friend/Room Chat (PostgreSQL)
+        if not room:
+            return Response({"results": [], "has_more": False})
+
+        messages = Message.objects.filter(room=room).order_by('-date')
+        
+        if cursor:
+            messages = messages.filter(id__lt=cursor)
+        
+        # Apply limit + 1 to check for has_more
+        page_msgs = list(messages[:limit + 1])
+        has_more = len(page_msgs) > limit
+        if has_more:
+            page_msgs = page_msgs[:limit]
+        
+        # Reverse to get chronological order for the client
+        page_msgs.reverse()
+        
+        # Robust CallLog fetching for two-party rooms
+        calls = []
+        from calls.models import CallLog
+        from django.db import models
+        
+        # Case A: Friend chat room name is "direct_userA_userB"
+        if room_name.startswith('direct_'):
+            parts = room_name.split('_')
+            if len(parts) == 3:
+                u1_n, u2_n = parts[1], parts[2]
+                calls_qs = CallLog.objects.filter(
+                    (models.Q(caller__username=u1_n, receiver__username=u2_n) | 
+                     models.Q(caller__username=u2_n, receiver__username=u1_n))
+                ).order_by('-created_at')[:limit]
+                calls = list(calls_qs)
+                calls.reverse()
+        
+        # Case B: Ephemeral session room with precisely 2 users
+        elif room and room.users.count() == 2:
+            room_users = list(room.users.all())
+            user1, user2 = room_users[0], room_users[1]
+            calls_qs = CallLog.objects.filter(
+                models.Q(caller=user1, receiver=user2) | 
+                models.Q(caller=user2, receiver=user1)
+            ).order_by('-created_at')[:limit]
+            calls = list(calls_qs)
+            calls.reverse()
+
         data = []
-        for msg in messages:
-            # Skip if deleted for this user
+        for msg in page_msgs:
             if requesting_user and msg.deleted_for_sender and msg.user == requesting_user:
                 continue
+            
             text = msg.value
             if msg.deleted_for_everyone:
                 text = "This message was deleted."
+                
             data.append({
                 "id": msg.id,
                 "sender": msg.user.username,
                 "text": text,
-                "isRead": msg.is_read,
+                "status": msg.status,
+                "isRead": msg.status == 'read',
                 "deletedForEveryone": msg.deleted_for_everyone,
-                "timestamp": msg.date.strftime("%I:%M %p")
+                "timestamp": msg.date.strftime("%I:%M %p"),
+                "date_iso": msg.date.isoformat(),
+                "is_ephemeral": False,
+                "is_call_log": False
             })
-        return Response(data, status=status.HTTP_200_OK)
+
+        for call in calls:
+            data.append({
+                "id": str(call.call_id),
+                "sender": call.caller.username if call.caller else 'Unknown',
+                "text": "",
+                "status": "read", # Force read for call logs visually
+                "isRead": True,
+                "deletedForEveryone": False,
+                "timestamp": call.created_at.strftime("%I:%M %p"),
+                "date_iso": call.created_at.isoformat(),
+                "is_ephemeral": False,
+                "is_call_log": True,
+                "call_mode": call.mode,
+                "call_status": call.status,
+                "call_duration": call.duration_seconds
+            })
+            
+        # Re-sort combined data by ISO timestamp
+        data.sort(key=lambda x: x.get('date_iso', ''))
+
+        next_cursor = page_msgs[0].id if page_msgs else None
+
+        return Response({
+            "results": data,
+            "has_more": has_more,
+            "next_cursor": next_cursor
+        }, status=status.HTTP_200_OK)
 
     def post(self, request, room_name):
+        requesting_user = self._resolve_user(request)
+        if not requesting_user:
+            return Response({"error": "Provide a valid username."}, status=status.HTTP_400_BAD_REQUEST)
+
+        text = request.data.get('text')
+        if not text:
+            return Response({"error": "Message text is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%I:%M %p")
+
+        if room_name.startswith('session_'):
+            # EPHEMERAL: Save to Redis
+            msg_id = f"eph_{uuid.uuid4().hex[:8]}"
+            msg_data = {
+                "id": msg_id,
+                "sender": requesting_user.username,
+                "text": text,
+                "status": "read",
+                "isRead": True,
+                "deletedForEveryone": False,
+                "timestamp": timestamp,
+                "is_ephemeral": True,
+                "client_id": request.data.get('client_id')
+            }
+            _cache_append_message(room_name, msg_data)
+
+            # Broadcast
+            try:
+                import re
+                safe_room_name = re.sub(r'[^a-zA-Z0-9_\-]', '', room_name)
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    async_to_sync(channel_layer.group_send)(
+                        f'chat_{safe_room_name}',
+                        {
+                            'type': 'chat_message',
+                            'id': msg_id,
+                            'message': text,
+                            'username': requesting_user.username,
+                            'timestamp': timestamp,
+                            'isRead': True,
+                            'deletedForEveryone': False,
+                            'client_id': request.data.get('client_id')
+                        }
+                    )
+            except: pass
+
+            return Response(msg_data, status=status.HTTP_201_CREATED)
+
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
@@ -346,7 +551,8 @@ class MessageListView(APIView):
                         'username': msg.user.username,
                         'timestamp': msg.date.strftime("%I:%M %p"),
                         'isRead': msg.is_read,
-                        'deletedForEveryone': msg.deleted_for_everyone
+                        'deletedForEveryone': msg.deleted_for_everyone,
+                        'client_id': request.data.get('client_id')
                     }
                 )
         except Exception as e:

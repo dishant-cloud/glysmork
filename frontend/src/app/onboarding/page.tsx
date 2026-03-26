@@ -8,17 +8,17 @@ import { fetchApi } from '@/lib/api';
 type Message = { role: 'model' | 'user'; text: string; isCrisis?: boolean };
 
 export default function OnboardingChat() {
-    const [messages, setMessages]           = useState<Message[]>([]);
-    const [input, setInput]                 = useState('');
-    const [step, setStep]                   = useState(0);
-    const [loading, setLoading]             = useState(false);
-    const [inCrisis, setInCrisis]           = useState(false);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [input, setInput] = useState('');
+    const [step, setStep] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [inCrisis, setInCrisis] = useState(false);
     const [finalQuestion, setFinalQuestion] = useState<string | null>(null);
-    const [isAnalyzing, setIsAnalyzing]     = useState(false);
-    const [capDetected, setCapDetected]     = useState<string | null>(null);
-    const [activeIndex, setActiveIndex]     = useState(0);
-    const bottomRef                         = useRef<HTMLDivElement | null>(null);
-    const didInit                           = useRef(false); // prevent React StrictMode double-call
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [capDetected, setCapDetected] = useState<string | null>(null);
+    const [activeIndex, setActiveIndex] = useState(0);
+    const bottomRef = useRef<HTMLDivElement | null>(null);
+    const didInit = useRef(false); // prevent React StrictMode double-call
 
     // GLYSMORK letter animation
     useEffect(() => {
@@ -62,7 +62,7 @@ export default function OnboardingChat() {
                 }
             })
             .catch(() => fireOpener());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const getUsername = () => {
@@ -99,7 +99,7 @@ export default function OnboardingChat() {
                 })
             });
             const data = await res.json();
-            
+
             if (data.is_complete) {
                 const closing = "Thanks for being so open. I have everything I need to build your profile now.";
                 setFinalQuestion(closing);
@@ -120,7 +120,7 @@ export default function OnboardingChat() {
         if (!input.trim() || loading) return;
         const userText = input.trim();
         setInput('');
-        setInCrisis(false); 
+        setInCrisis(false);
 
         const userMsg: Message = { role: 'user', text: userText };
         const newMsgs = [...messages, userMsg];
@@ -180,7 +180,7 @@ export default function OnboardingChat() {
 
             window.location.href = '/dashboard';
         } catch (err: any) {
-             window.location.href = '/dashboard';
+            window.location.href = '/dashboard';
         } finally {
             setIsAnalyzing(false);
         }
@@ -200,12 +200,11 @@ export default function OnboardingChat() {
             {/* Header */}
             <div className="relative z-10 w-full max-w-2xl px-4 pt-8 pb-4 flex flex-col items-center">
                 <h1 className="text-2xl font-bold tracking-[0.2em] flex gap-1 mb-4">
-                    {['G','L','Y','S','M','O','R','K'].map((l, i) => (
-                        <span key={i} className={`transition-all duration-300 inline-block ${
-                            i === activeIndex
+                    {['G', 'L', 'Y', 'S', 'M', 'O', 'R', 'K'].map((l, i) => (
+                        <span key={i} className={`transition-all duration-300 inline-block ${i === activeIndex
                                 ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 text-3xl -translate-y-2'
                                 : 'text-gray-500'
-                        }`}>{l}</span>
+                            }`}>{l}</span>
                     ))}
                 </h1>
                 <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
@@ -230,21 +229,19 @@ export default function OnboardingChat() {
                             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             {msg.role === 'model' && (
-                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-base mr-2 mt-1 flex-shrink-0 ${
-                                    msg.isCrisis
+                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-base mr-2 mt-1 flex-shrink-0 ${msg.isCrisis
                                         ? 'bg-red-500/20 border-red-400/40 text-red-400'
                                         : 'bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border-cyan-400/30'
-                                }`}>
+                                    }`}>
                                     {msg.isCrisis ? '🆘' : '✦'}
                                 </div>
                             )}
-                            <div className={`max-w-[80%] px-5 py-3 text-sm leading-relaxed font-light whitespace-pre-line ${
-                                msg.role === 'user'
+                            <div className={`max-w-[80%] px-5 py-3 text-sm leading-relaxed font-light whitespace-pre-line ${msg.role === 'user'
                                     ? 'bg-white/10 border border-white/15 text-white rounded-l-2xl rounded-tr-2xl rounded-br-sm backdrop-blur-md'
                                     : msg.isCrisis
                                         ? 'bg-red-500/10 border border-red-400/30 text-red-100 rounded-r-2xl rounded-tl-2xl rounded-bl-sm backdrop-blur-md'
                                         : 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-400/20 text-gray-100 rounded-r-2xl rounded-tl-2xl rounded-bl-sm backdrop-blur-md'
-                            }`}>
+                                }`}>
                                 {msg.text}
                             </div>
                         </motion.div>
@@ -259,7 +256,7 @@ export default function OnboardingChat() {
                         >
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border border-cyan-400/30 flex items-center justify-center text-base flex-shrink-0">✦</div>
                             <div className="flex gap-1.5 px-4 py-3 bg-cyan-500/10 border border-cyan-400/20 rounded-r-2xl rounded-tl-2xl">
-                                {[0,1,2].map(i => (
+                                {[0, 1, 2].map(i => (
                                     <motion.span key={i} className="w-1.5 h-1.5 rounded-full bg-cyan-400"
                                         animate={{ y: [0, -5, 0] }}
                                         transition={{ duration: 0.5, delay: i * 0.15, repeat: Infinity }}
@@ -301,7 +298,7 @@ export default function OnboardingChat() {
                         >
                             <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
                             <h2 className="text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-green-400 to-purple-500">
-                                Mapping Your Neural Node...
+                                Building Your AI Profile...
                             </h2>
                             <p className="text-gray-400 font-mono text-xs text-center max-w-xs">
                                 Generating your soul image and psychological profile.

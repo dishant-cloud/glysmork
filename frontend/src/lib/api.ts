@@ -23,6 +23,13 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
         ...(options.headers as Record<string, string>),
     };
 
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    }
+
     // Only set application/json if not sending FormData
     if (!(options.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';

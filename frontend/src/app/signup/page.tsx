@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { 
-    Network, 
-    AtSign, 
-    Fingerprint, 
-    Dna, 
-    Hourglass, 
-    Terminal, 
-    AlertTriangle, 
+import {
+    Network,
+    AtSign,
+    Fingerprint,
+    Dna,
+    Hourglass,
+    Terminal,
+    AlertTriangle,
     ChevronRight,
     ArrowLeft
 } from 'lucide-react';
@@ -26,13 +26,20 @@ export default function SignUp() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
+    useEffect(() => {
+        const existingUser = localStorage.getItem('user');
+        if (existingUser) {
+            router.replace('/dashboard');
+        }
+    }, [router]);
+
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg('');
         setIsSubmitting(true);
 
         try {
-            const data = await fetch('http://localhost:8000/api/users/register/', {
+            const data = await fetch('http://127.0.0.1:8000/api/users/register/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -49,9 +56,11 @@ export default function SignUp() {
             });
 
             localStorage.setItem('user', JSON.stringify(data.user));
+            if (data.access) localStorage.setItem('access_token', data.access);
+            if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
             router.push('/onboarding');
         } catch (error: any) {
-            setErrorMsg(error?.message || "SYNCHRONIZATION ERROR: Node uncontactable.");
+            setErrorMsg(error?.message || "Connection error. Please try again later.");
             setIsSubmitting(false);
         }
     };
@@ -62,20 +71,20 @@ export default function SignUp() {
             <div className="absolute inset-0 bg-[url('/glysmork_signup.png')] bg-cover bg-center opacity-20 mix-blend-screen" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-[#020205] z-0" />
             <div className="absolute inset-0 bg-noise z-10" />
-            
+
             {/* Floating Orbs */}
-            <motion.div 
-                animate={{ x: [-20, 20, -20], y: [-20, 30, -20], scale: [1, 1.3, 1] }} 
+            <motion.div
+                animate={{ x: [-20, 20, -20], y: [-20, 30, -20], scale: [1, 1.3, 1] }}
                 transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
                 className="absolute top-1/4 -left-1/4 w-[50vw] h-[50vw] min-w-[400px] min-h-[400px] bg-emerald-600/10 blur-[120px] rounded-full z-0"
             />
-            <motion.div 
-                animate={{ x: [20, -20, 20], y: [20, -30, 20], scale: [1, 1.2, 1] }} 
+            <motion.div
+                animate={{ x: [20, -20, 20], y: [20, -30, 20], scale: [1, 1.2, 1] }}
                 transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
                 className="absolute bottom-[-10%] right-[-10%] w-[45vw] h-[45vw] min-w-[500px] min-h-[500px] bg-cyan-900/20 blur-[150px] rounded-full z-0"
             />
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -83,7 +92,7 @@ export default function SignUp() {
             >
                 {/* Branding & Header */}
                 <div className="flex flex-col items-center mb-8 relative">
-                    <button 
+                    <button
                         type="button"
                         onClick={() => router.push('/login')}
                         className="absolute left-0 top-0 text-cyan-600 hover:text-cyan-400 transition-colors p-2"
@@ -95,14 +104,14 @@ export default function SignUp() {
                         <Logo />
                     </div>
                     <div className="text-[10px] uppercase tracking-[0.3em] text-emerald-500/80 font-mono mt-2">
-                        Node Registration Protocol
+                        Create Your Account
                     </div>
                 </div>
 
                 <form onSubmit={handleSignUp} className="space-y-6">
                     {/* Error Display */}
                     {errorMsg && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             className="bg-red-950/40 border border-red-500/50 rounded-lg p-4 flex items-start gap-3 text-red-300 font-mono text-xs shadow-[0_0_15px_rgba(239,68,68,0.2)]"
@@ -117,7 +126,7 @@ export default function SignUp() {
                         {/* Username Input */}
                         <div className="space-y-2 group">
                             <label className="text-[10px] font-mono tracking-[0.2em] text-emerald-500 uppercase flex items-center justify-between">
-                                <span>NEURAL_ID</span>
+                                <span>Username</span>
                                 <Network className="w-3 h-3 opacity-50" />
                             </label>
                             <div className="relative">
@@ -135,7 +144,7 @@ export default function SignUp() {
                         {/* Email Input */}
                         <div className="space-y-2 group">
                             <label className="text-[10px] font-mono tracking-[0.2em] text-emerald-500 uppercase flex items-center justify-between">
-                                <span>COMMS_LINK</span>
+                                <span>Email Address</span>
                                 <AtSign className="w-3 h-3 opacity-50" />
                             </label>
                             <div className="relative">
@@ -144,7 +153,7 @@ export default function SignUp() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono text-emerald-50 placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:bg-emerald-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
-                                    placeholder="node@network.com"
+                                    placeholder="user@example.com"
                                     required
                                 />
                             </div>
@@ -153,7 +162,7 @@ export default function SignUp() {
                         {/* Password Input */}
                         <div className="space-y-2 group">
                             <label className="text-[10px] font-mono tracking-[0.2em] text-purple-500 uppercase flex items-center justify-between">
-                                <span>ACCESS_KEY</span>
+                                <span>Password</span>
                                 <Fingerprint className="w-3 h-3 opacity-50" />
                             </label>
                             <div className="relative">
@@ -174,7 +183,7 @@ export default function SignUp() {
                             {/* Gender */}
                             <div className="space-y-2 group">
                                 <label className="text-[10px] font-mono tracking-[0.2em] text-cyan-500 uppercase flex items-center justify-between">
-                                    <span>MORPHOLOGY</span>
+                                    <span>Gender</span>
                                     <Dna className="w-3 h-3 opacity-50" />
                                 </label>
                                 <div className="relative">
@@ -189,11 +198,11 @@ export default function SignUp() {
                                     </select>
                                 </div>
                             </div>
-                            
+
                             {/* Age */}
                             <div className="space-y-2 group">
                                 <label className="text-[10px] font-mono tracking-[0.2em] text-cyan-500 uppercase flex items-center justify-between">
-                                    <span>CYCLES</span>
+                                    <span>Age</span>
                                     <Hourglass className="w-3 h-3 opacity-50" />
                                 </label>
                                 <div className="relative">
@@ -227,10 +236,10 @@ export default function SignUp() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                         <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                                        <span className="text-[10px] font-mono font-bold text-red-400 tracking-widest uppercase">Strict Compliance</span>
+                                        <span className="text-[10px] font-mono font-bold text-red-400 tracking-widest uppercase">Community Guidelines</span>
                                     </div>
                                     <p className="text-xs font-sans text-slate-300 leading-relaxed text-justify pr-2">
-                                        I formally attest this interface is utilized solely for FRIENDLY neural connections. I will strictly <span className="font-bold text-red-400 font-mono tracking-wide underline decoration-red-500/50">NOT</span> broadcast explicit or sexual protocols. I comprehend that violation of these directives results in instantaneous neural severance.
+                                        I agree to use this platform for friendly connections only. I will not broadcast explicit or sexual content. I understand that violating these rules will result in an immediate account ban.
                                     </p>
                                 </div>
                             </div>
@@ -245,9 +254,9 @@ export default function SignUp() {
                             className={`relative w-full overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/40 via-cyan-900/40 to-emerald-900/40 py-4 font-mono text-sm tracking-widest text-emerald-100 uppercase transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black ${isSubmitting ? 'opacity-70 scale-95 hover:scale-95' : ''}`}
                         >
                             <span className="relative z-10 flex items-center justify-center gap-2">
-                                {isSubmitting ? 'INITIALIZING PROTOCOL...' : (
+                                {isSubmitting ? 'INITIALIZING...' : (
                                     <>
-                                        COMMENCE_ONBOARDING
+                                        Get Started
                                         <ChevronRight className="w-4 h-4 animate-pulse" />
                                     </>
                                 )}

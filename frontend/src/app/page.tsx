@@ -14,6 +14,8 @@ export default function Home() {
   useEffect(() => {
     if (localStorage.getItem('user')) {
       setIsLoggedIn(true);
+      window.location.href = '/dashboard';
+      return;
     }
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % 8); // 8 is length of "GLYSMORK"
@@ -73,8 +75,8 @@ export default function Home() {
               Find<br />Exactly<br />Who You<br />Need.
             </h2>
 
-            <p className="text-lg md:text-xl text-slate-600 dark:text-gray-400 max-w-lg mb-12 font-mono leading-relaxed border-l-2 border-purple-500/50 pl-6 transition-colors">
-              Not an algorithm. Not a dating app.<br />Describe a topic, a mindset, or an expertise. The Neural Engine connects you to the exact human.
+            <p className="text-lg md:text-xl text-slate-600 dark:text-gray-400 max-w-lg mb-12 leading-relaxed border-l-3 border-purple-500/50 pl-6 transition-colors">
+              Not another algorithm. Not a dating app.<br />Describe a topic, a mindset, or an expertise. Our smart engine connects you to the exact person you need.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
@@ -100,9 +102,9 @@ export default function Home() {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all shadow-[8px_8px_0px_rgba(168,85,247,0.5)] border border-black dark:border-white hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_rgba(168,85,247,0.5)]"
+                      className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-bold flex items-center justify-center gap-4 transition-all shadow-[0_10px_30px_rgba(168,85,247,0.3)] border border-black dark:border-white hover:y-[-2px]"
                     >
-                      Initiate Protocol
+                      Get Started
                       <ArrowUpRight className="w-6 h-6" />
                     </motion.button>
                   </Link>
@@ -110,9 +112,9 @@ export default function Home() {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-transparent text-slate-800 dark:text-white font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/30 hover:bg-white/5"
+                      className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-transparent text-slate-800 dark:text-white font-bold flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/20 hover:bg-white/5"
                     >
-                      Access Node
+                      Sign In
                     </motion.button>
                   </Link>
                 </>
@@ -128,14 +130,14 @@ export default function Home() {
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="absolute top-10 right-0 w-72 bg-white/60 dark:bg-black/60 backdrop-blur-xl border border-black/10 dark:border-white/20 p-6 z-20 shadow-xl transition-colors"
+              className="absolute top-10 right-0 w-72 bg-white/60 dark:bg-black/60 backdrop-blur-xl border border-black/10 dark:border-white/20 p-8 rounded-3xl z-20 shadow-2xl transition-colors"
             >
               <div className="flex justify-between items-start mb-12">
                 <Search className="text-cyan-600 dark:text-cyan-400 w-6 h-6 transition-colors" />
-                <span className="text-xs font-mono text-slate-400 dark:text-gray-500 transition-colors">01</span>
+                <span className="text-xs font-bold text-slate-400 dark:text-gray-500 transition-colors">01</span>
               </div>
-              <h3 className="text-xl font-black mb-2 uppercase tracking-wide text-slate-800 dark:text-white transition-colors">Intent Map</h3>
-              <p className="text-sm text-slate-600 dark:text-gray-400 font-mono transition-colors">Specify who you need. The engine searches.</p>
+              <h3 className="text-xl font-bold mb-2 tracking-tight text-slate-800 dark:text-white transition-colors">Intent Search</h3>
+              <p className="text-sm text-slate-600 dark:text-gray-400 font-medium transition-colors">Specify who you need. The engine searches the network.</p>
             </motion.div>
 
             {/* Card 2 */}
@@ -143,14 +145,14 @@ export default function Home() {
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="absolute top-64 left-0 lg:-left-12 w-80 bg-purple-100/60 dark:bg-purple-900/30 backdrop-blur-xl border border-purple-300/40 dark:border-purple-500/40 p-6 z-30 shadow-2xl transition-colors"
+              className="absolute top-64 left-0 lg:-left-12 w-80 bg-purple-100/60 dark:bg-purple-900/30 backdrop-blur-xl border border-purple-300/40 dark:border-purple-500/40 p-8 rounded-3xl z-30 shadow-2xl transition-colors"
             >
               <div className="flex justify-between items-start mb-12">
                 <Brain className="text-purple-600 dark:text-purple-400 w-6 h-6 transition-colors" />
-                <span className="text-xs font-mono text-purple-400 dark:text-purple-300 transition-colors">02</span>
+                <span className="text-xs font-bold text-purple-400 dark:text-purple-300 transition-colors">02</span>
               </div>
-              <h3 className="text-2xl font-black mb-2 text-purple-900 dark:text-purple-100 uppercase tracking-wider transition-colors">Deep Cortex</h3>
-              <p className="text-sm text-purple-700/80 dark:text-purple-200/70 font-mono leading-relaxed transition-colors">Every profile analyzed profoundly for pure conceptual compatibility and psychological resonance.</p>
+              <h3 className="text-2xl font-bold mb-2 text-purple-900 dark:text-purple-100 tracking-tight transition-colors">Smart Matching</h3>
+              <p className="text-sm text-purple-700/80 dark:text-purple-200/70 font-medium leading-relaxed transition-colors">Every profile analyzed for pure conceptual compatibility and personality resonance.</p>
             </motion.div>
 
             {/* Card 3 */}
@@ -158,14 +160,14 @@ export default function Home() {
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.7 }}
-              className="absolute bottom-10 right-10 w-64 bg-slate-50/80 dark:bg-black/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-6 z-10 shadow-lg transition-colors"
+              className="absolute bottom-10 right-10 w-64 bg-slate-50/80 dark:bg-black/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-8 rounded-3xl z-10 shadow-xl transition-colors"
             >
               <div className="flex justify-between items-start mb-8">
                 <Network className="text-slate-500 dark:text-gray-500 w-6 h-6 transition-colors" />
-                <span className="text-xs font-mono text-slate-400 dark:text-gray-600 transition-colors">03</span>
+                <span className="text-xs font-bold text-slate-400 dark:text-gray-600 transition-colors">03</span>
               </div>
-              <h3 className="text-lg font-bold mb-2 text-slate-800 dark:text-gray-300 uppercase transition-colors">The Link</h3>
-              <p className="text-xs text-slate-500 dark:text-gray-500 font-mono transition-colors">Instant routing to target node.</p>
+              <h3 className="text-lg font-bold mb-2 text-slate-800 dark:text-gray-300 transition-colors">Direct Connection</h3>
+              <p className="text-xs text-slate-500 dark:text-gray-500 font-medium transition-colors">Instant routing to the right person.</p>
             </motion.div>
 
           </div>

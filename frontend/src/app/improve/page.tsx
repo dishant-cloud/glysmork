@@ -70,11 +70,11 @@ export default function ImprovementBot() {
                 const botMsg: Message = {
                     id: Date.now() + 1,
                     role: 'bot',
-                    content: "My neural processors are currently recalibrating. Please try again shortly."
+                    content: "My systems are currently updating. Please try again shortly."
                 };
                 setMessages(prev => [...prev, botMsg]);
             } finally {
-                setIsThinking(false);
+                setIsTyping(false);
             }
         } catch (error) {
             console.error(error);
@@ -113,7 +113,7 @@ export default function ImprovementBot() {
                             Improvement Bot
                             <span className="px-2 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30 font-mono uppercase tracking-wider">AI</span>
                         </h2>
-                        <p className="text-xs text-emerald-400 font-mono">Uses your profile analysis data</p>
+                        <p className="text-xs text-emerald-400 font-mono">Uses your profile insights</p>
                     </div>
                 </div>
             </header>
@@ -135,7 +135,7 @@ export default function ImprovementBot() {
                             What do you want to improve?
                         </h2>
                         <p className="text-gray-500 text-center mb-10 text-sm leading-relaxed">
-                            I analyze your psychological profile, behavioral patterns, and self-reported data to give you advice no generic bot ever could.
+                            I analyze your psychological profile, behavioral patterns, and shared experiences to give you advice no generic bot ever could.
                         </p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
@@ -225,7 +225,7 @@ export default function ImprovementBot() {
                             <div className="glass-panel px-5 py-3 rounded-2xl rounded-bl-sm border-emerald-500/10">
                                 <div className="flex items-center gap-2">
                                     <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                                    <span className="text-sm text-gray-400 font-mono">Analyzing your data...</span>
+                                    <span className="text-sm text-gray-400 font-mono">Reflecting on your journey...</span>
                                 </div>
                             </div>
                         </motion.div>
@@ -256,7 +256,7 @@ export default function ImprovementBot() {
                     </button>
                 </div>
                 <p className="text-center text-[10px] text-gray-600 font-mono mt-3 uppercase tracking-widest">
-                    Powered by your psychological profile data
+                    Powered by your psychological profile insights
                 </p>
             </footer>
         </div>

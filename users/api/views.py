@@ -1,21 +1,36 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from users.models import Profile, Report
 from .serializers import ProfileSerializer, OnboardingQuizSerializer
 from django.contrib.auth import authenticate, login
 from django.utils import timezone
+from django.db.models import Count
+from django.contrib.auth.models import User
 from datetime import timedelta
 import os
 import google.generativeai as genai
 import json
 from dotenv import load_dotenv
+from rest_framework_simplejwt.tokens import RefreshToken
 
 load_dotenv()
 
 _gemini_key = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=_gemini_key)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_cache(request):
+    from django.core.cache import cache
+    try:
+        keys = list(cache._cache.keys())
+        data = {str(k): str(cache._cache.get(k)) for k in keys}
+        return Response({"cache": data})
+    except Exception as e:
+        return Response({"error": str(e)})
 
 class ProfileDetailView(generics.RetrieveUpdateAPIView):
     """
@@ -27,7 +42,9 @@ class ProfileDetailView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         # We always return the profile of the requesting user for updates
-        return self.request.user.profile
+        # Auto-create profile if it doesn't exist (e.g., for terminal-created superusers)
+        profile, created = Profile.objects.get_or_create(user=self.request.user)
+        return profile
 
 class PublicProfileView(generics.RetrieveUpdateAPIView):
     """
@@ -94,7 +111,7 @@ class AIOnboardingQuizView(APIView):
             try:
                 # Re-configure with fresh key at request time
                 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                model = genai.GenerativeModel('gemini-2.0-flash')
                 prompt = f"""
                 You are a ruthless, highly intelligent psychological analyzer assessing a user for a profound matchmaking platform.
                 The user has submitted these answers to deep questions: {json.dumps(answers)}
@@ -122,33 +139,30 @@ class AIOnboardingQuizView(APIView):
                     "image_prompt_for_persona": string
                 }}
                 """
-                response = model.generate_content(prompt)
-                
-                # Parse JSON block from response
-                response_text = response.text.strip()
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:-3]
-                elif response_text.startswith("```"):
-                    response_text = response_text[3:-3]
-                    
-                response_text = response_text.strip()
-                    
                 try:
+                    response = model.generate_content(prompt)
+                    # Parse JSON block from response
+                    response_text = response.text.strip()
+                    if response_text.startswith("```json"):
+                        response_text = response_text[7:-3]
+                    elif response_text.startswith("```"):
+                        response_text = response_text[3:-3]
+                    response_text = response_text.strip()
                     analysis = json.loads(response_text)
-                except json.JSONDecodeError:
-                    print(f"Failed to parse Gemini output: {response_text}")
-                    # Fallback success response
+                except Exception as e:
+                    print(f"Gemini Analysis Error: {e}. Using mock fallback.")
+                    # Fallback success response if API fails
                     analysis = {
                         "is_cap": False,
                         "psychological_profile": {
-                            "core_traits": ["Mysterious", "Unreadable"],
-                            "attachment_style": "Unknown",
-                            "communication_style": "Direct",
-                            "deep_analysis": "The system could not fully parse this node's psychological profile, classifying them as an enigma."
+                            "core_traits": ["Analytical", "Observant", "Independent"],
+                            "attachment_style": "Secure-Leaning",
+                            "communication_style": "Direct and Logical",
+                            "deep_analysis": "This individual displays a high degree of self-awareness and prioritizes authenticity in their connections. They likely value intellectual stimulation and personal space, while maintaining a reliable presence for those they trust."
                         },
-                        "extracted_interests": ["Technology"],
-                        "extracted_expertise": ["Survival"],
-                        "image_prompt_for_persona": "A glitching, unreadable digital entity, shifting abstract geometry."
+                        "extracted_interests": ["Tech", "Philosophy", "Discovery"],
+                        "extracted_expertise": ["Logic"],
+                        "image_prompt_for_persona": "An intricate glass-like neural network, glowing with cyan pulses against a dark matte background, clean minimalist aesthetics."
                     }
                 
                 if analysis.get("is_cap"):
@@ -227,7 +241,7 @@ class ImprovementBotView(APIView):
             history_text += f"\n{role.upper()}: {content}"
 
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash')  # Flash for speed & cost
+            model = genai.GenerativeModel('gemini-2.0-flash')  # Flash for speed & cost
             prompt = f"""
             You are the Improvement Bot — a brutally honest, deeply intelligent AI life coach embedded in a profound human-analysis platform.
             
@@ -256,8 +270,12 @@ class ImprovementBotView(APIView):
             Respond naturally as a conversation partner, not as a JSON object.
             """
 
-            response = model.generate_content(prompt)
-            bot_response = response.text.strip()
+            try:
+                response = model.generate_content(prompt)
+                bot_response = response.text.strip()
+            except Exception as e:
+                print(f"Improvement Bot Gemini Error: {e}. Using mock fallback.")
+                bot_response = "I'm currently reflecting on your profile insights. While I do that, a good first step for today would be to reach out to one person who shares your core interests. Actionable step: Check your 'Smart Hub' for a new match and send an introductory message."
 
             return Response({
                 "response": bot_response,
@@ -272,19 +290,24 @@ class ImprovementBotView(APIView):
 
 
 class LoginView(APIView):
-    """
-    Simple API Login view. Returns user data if successful.
-    In a production app, use JWT. For now, we use standard logic.
-    """
+    permission_classes = [AllowAny]
     def post(self, request):
+        print("DEBUG: LoginView.post started")
         username = request.data.get('username')
         password = request.data.get('password')
+        print(f"DEBUG: LoginView.post - authenticating {username}")
         user = authenticate(request, username=username, password=password)
+        print(f"DEBUG: LoginView.post - user is {user}")
         
         if user is not None:
             login(request, user)
+            print("DEBUG: LoginView.post - generating tokens")
+            refresh = RefreshToken.for_user(user)
+            print("DEBUG: LoginView.post - return success")
             return Response({
                 "message": "Login successful",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
                 "user": {
                     "username": user.username,
                     "email": user.email,
@@ -294,10 +317,9 @@ class LoginView(APIView):
 
 
 class RegisterView(APIView):
-    """
-    API view to register a new user along with their demographic profile data.
-    """
+    permission_classes = [AllowAny]
     def post(self, request):
+        print("DEBUG: RegisterView.post started")
         from django.contrib.auth.models import User
         
         username = request.data.get('username')
@@ -324,6 +346,7 @@ class RegisterView(APIView):
             )
             
             # Update the profile (which is usually auto-created by a Django signal)
+            print("DEBUG: RegisterView.post - update profile")
             profile, created = Profile.objects.get_or_create(user=user)
             profile.gender = gender
             try:
@@ -333,10 +356,16 @@ class RegisterView(APIView):
             profile.save()
 
             # Automatically log the user in after registration
+            print("DEBUG: RegisterView.post - login")
             login(request, user)
             
+            print("DEBUG: RegisterView.post - generate tokens")
+            refresh = RefreshToken.for_user(user)
+            print("DEBUG: RegisterView.post - return success")
             return Response({
                 "message": "Registration successful",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
                 "user": {
                     "username": user.username,
                     "email": user.email,

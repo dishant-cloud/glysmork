@@ -8,8 +8,10 @@ def get_user_from_token(token):
     try:
         access_token = AccessToken(token)
         user = User.objects.get(id=access_token['user_id'])
+        print(f"WS AUTH: Successful for user {user.username}")
         return user
-    except Exception:
+    except Exception as e:
+        print(f"WS AUTH ERROR: Token invalid or expired. Error: {e}")
         return AnonymousUser()
 
 class TokenAuthMiddleware:

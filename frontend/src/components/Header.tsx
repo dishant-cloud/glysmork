@@ -4,10 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LogOut, User, Mail, Users } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
-import { AnimatePresence, motion } from 'framer-motion'; // Assuming framer-motion is installed
+import { AnimatePresence, motion } from 'framer-motion';
+import { usePathname } from 'next/navigation'; 
+import { useNotification } from './NotificationProvider';
 
 export default function Header() {
+    const { onlineStatus } = useNotification();
     const [username, setUsername] = useState<string | null>(null);
+    const pathname = usePathname();
 
     useEffect(() => {
         const u = localStorage.getItem('user');
@@ -22,16 +26,16 @@ export default function Header() {
 
     const handleLogout = () => {
         localStorage.removeItem('user');
-        localStorage.removeItem('access_token'); // Added back from original
-        localStorage.removeItem('refresh_token'); // Added back from original
-        window.location.href = '/login';
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.replace('/login');
     };
 
     return (
         <header className="fixed top-0 left-0 right-0 p-6 z-50 flex justify-between items-center pointer-events-none">
             <div className="pointer-events-auto">
-                <Link href="/" className="flex items-center gap-2 group">
-                    <div className="w-10 h-10 bg-black dark:bg-white flex items-center justify-center rounded-none group-hover:rotate-45 transition-transform duration-500">
+                <Link href="/dashboard" replace={pathname !== '/dashboard'} className="flex items-center gap-2 group">
+                    <div className="w-10 h-10 bg-black dark:bg-white flex items-center justify-center rounded-xl group-hover:rotate-12 transition-transform duration-500 shadow-lg">
                         <span className="text-white dark:text-black font-black text-xl tracking-tighter">G</span>
                     </div>
                 </Link>
@@ -46,25 +50,34 @@ export default function Header() {
                             className="flex items-center gap-4"
                         >
                             <Link
-                                href="/messages?view=friends"
-                                title="Friends"
+                                href="/friends"
+                                replace={pathname !== '/dashboard'}
+                                title="Your Connections"
                                 className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-gray-400 hover:text-purple-400"
                             >
                                 <Users size={18} />
                             </Link>
                             <Link
                                 href="/messages"
-                                title="Messages"
+                                replace={pathname !== '/dashboard'}
+                                title="Direct Messages"
                                 className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-gray-400 hover:text-cyan-400"
                             >
                                 <Mail size={18} />
                             </Link>
                             <Link
                                 href="/profile"
+                                replace={pathname !== '/dashboard'}
                                 className="hidden md:flex flex-col items-end group"
                             >
-                                <span className="text-[10px] font-mono text-cyan-400/70 tracking-[0.2em] uppercase leading-none mb-1">Authenticated</span>
-                                <span className="text-black dark:text-white font-black tracking-widest text-xs uppercase group-hover:text-cyan-400 transition-colors uppercase">{username}</span>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-bold text-cyan-400/60 tracking-tight leading-none">Signed in as</span>
+                                    <div 
+                                        className={`w-1.5 h-1.5 rounded-full ${onlineStatus ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 animate-pulse'}`}
+                                        title={onlineStatus ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+                                    />
+                                </div>
+                                <span className="text-black dark:text-white font-bold tracking-tight text-sm group-hover:text-cyan-400 transition-colors uppercase">{username}</span>
                             </Link>
                             <button
                                 onClick={handleLogout}
@@ -80,13 +93,13 @@ export default function Header() {
                             animate={{ opacity: 1, x: 0 }}
                             className="flex items-center gap-4"
                         >
-                            <span className="hidden md:block text-[10px] font-mono text-red-500/70 tracking-[0.2em] uppercase leading-none">SYSTEM: GUEST MODE</span>
+                            <span className="hidden md:block text-[10px] font-bold text-red-500/50 tracking-tight">Guest Mode</span>
                             <Link
                                 href="/login"
-                                className="px-6 py-2 bg-white/10 dark:bg-white/5 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black border border-black/10 dark:border-white/10 transition-all font-mono text-xs uppercase tracking-widest flex items-center gap-2"
+                                className="px-5 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:scale-105 border border-black dark:border-white transition-all font-bold text-xs flex items-center gap-2 shadow-lg"
                             >
                                 <User size={14} />
-                                Login
+                                Sign In
                             </Link>
                         </motion.div>
                     )}

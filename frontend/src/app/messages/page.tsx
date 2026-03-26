@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import Header from '@/components/Header';
-import { MessageSquare, Clock, ArrowRight, User, Trash2, Users, UserCheck, UserPlus, X, Phone, Video } from 'lucide-react';
+import { MessageSquare, Clock, ArrowRight, User, Trash2, Users, UserCheck, UserPlus, X, Phone, Video, ArrowLeft } from 'lucide-react';
 import { useNotification } from '@/components/NotificationProvider';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 
 export default function InboxPage() {
@@ -13,25 +14,28 @@ export default function InboxPage() {
     const [username, setUsername] = useState<string | null>(null);
     const [ringingUsername, setRingingUsername] = useState<string | null>(null);
     const { sendSignal } = useNotification();
+    const router = useRouter();
     const [friendsData, setFriendsData] = useState<{
         friends: { id: number, username: string, is_online?: boolean }[],
         received: { id: number, username: string }[],
         sent: { id: number, username: string }[]
     }>({ friends: [], received: [], sent: [] });
+    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
 
     useEffect(() => {
         const u = localStorage.getItem('user');
         if (!u) {
-            window.location.href = '/login';
+            window.location.replace('/login');
             return;
         }
         try {
             const data = JSON.parse(u);
             setUsername(data.username);
             fetchFriends(data.username);
+            fetchNotifs(data.username);
             setLoading(false);
         } catch (e) {
-            window.location.href = '/login';
+            window.location.replace('/login');
         }
 
         const handleCallAccepted = (e: any) => {
@@ -42,15 +46,15 @@ export default function InboxPage() {
 
         const handleCallDeclined = () => {
             setRingingUsername(null);
-            alert("The node declined your connection request.");
+            alert("The user declined your connection request.");
         };
 
-        window.addEventListener('call_accepted', handleCallAccepted);
-        window.addEventListener('call_declined', handleCallDeclined);
+        window.addEventListener('sys_call_answered', handleCallAccepted);
+        window.addEventListener('sys_call_declined', handleCallDeclined);
 
         return () => {
-            window.removeEventListener('call_accepted', handleCallAccepted);
-            window.removeEventListener('call_declined', handleCallDeclined);
+            window.removeEventListener('sys_call_answered', handleCallAccepted);
+            window.removeEventListener('sys_call_declined', handleCallDeclined);
         };
     }, []);
 
@@ -60,6 +64,15 @@ export default function InboxPage() {
             setFriendsData(res);
         } catch (e) {
             console.error("Failed to fetch friends", e);
+        }
+    };
+
+    const fetchNotifs = async (currUser: string) => {
+        try {
+            const res = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(currUser)}`);
+            if (res.notifications) setChatNotifs(res.notifications);
+        } catch (e) {
+            console.error("Failed to fetch notifications", e);
         }
     };
 
@@ -87,9 +100,14 @@ export default function InboxPage() {
 
             <div className="relative z-10 w-full max-w-4xl mx-auto pt-40 pb-20 px-6">
                 <header className="mb-12">
-                    <h1 className="text-4xl font-black tracking-tighter uppercase mb-2 italic">Neural Inbox</h1>
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-cyan-400 transition-colors mb-6 uppercase tracking-widest"
+                    >
+                        <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+                    </button>
+                    <h1 className="text-4xl font-black tracking-tighter uppercase mb-2 italic">Messages</h1>
                     <div className="h-1 w-20 bg-gradient-to-r from-cyan-500 to-purple-600 mb-6" />
-
                     <p className="font-mono text-sm text-slate-500 dark:text-gray-400">
                         Persistent human connections verified by the AI engine.
                     </p>
@@ -101,8 +119,56 @@ export default function InboxPage() {
                         <span className="font-mono text-xs uppercase tracking-widest">Accessing Logs...</span>
                     </div>
                 ) : (
-                    /* Friends View */
                     <div className="space-y-12">
+                        {/* Unread Messages (Notifications) */}
+                        {chatNotifs.length > 0 && (
+                            <section>
+                                <h2 className="text-xs font-mono text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-2">Unread Messages</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {chatNotifs.map(n => (
+                                        <div key={n.id} className="p-4 bg-white/5 border border-purple-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-black text-white rounded-none border border-purple-400/50">
+                                                    {n.sender.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{n.sender}</span>
+                                                    <p className="text-[10px] text-gray-400 font-mono italic">
+                                                        {n.message.includes('missed') ? 'Missed connection attempt' : 'Wants to communicate with you!'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Link
+                                                    href={`/messages/${n.sender}`}
+                                                    className="px-3 py-1.5 bg-purple-500/20 text-purple-300 font-mono text-[10px] uppercase tracking-widest border border-purple-500/50 hover:bg-purple-500 hover:text-white transition-all"
+                                                    onClick={async () => {
+                                                        await fetchApi('/matchmaking/notifications/', {
+                                                            method: 'POST', body: JSON.stringify({ ids: [n.id] })
+                                                        });
+                                                    }}
+                                                >
+                                                    Message
+                                                </Link>
+                                                <button
+                                                    onClick={async () => {
+                                                        await fetchApi('/matchmaking/notifications/', {
+                                                            method: 'POST', body: JSON.stringify({ ids: [n.id] })
+                                                        });
+                                                        setChatNotifs(prev => prev.filter(x => x.id !== n.id));
+                                                    }}
+                                                    className="px-2 py-1.5 bg-red-500/10 text-red-400 font-mono text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                    title="Dismiss"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
                         {/* Pending Requests Received */}
                         {friendsData.received.length > 0 && (
                             <section>
@@ -111,8 +177,8 @@ export default function InboxPage() {
                                     {friendsData.received.map(f => (
                                         <div key={f.id} className="p-4 bg-white/5 border border-white/10 flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-white/10 flex items-center justify-center font-bold">{f.username.charAt(0).toUpperCase()}</div>
-                                                <span className="font-bold">{f.username}</span>
+                                                <div className="w-10 h-10 bg-white/10 flex items-center justify-center font-bold text-slate-900 dark:text-white">{f.username.charAt(0).toUpperCase()}</div>
+                                                <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{f.username}</span>
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
@@ -133,122 +199,52 @@ export default function InboxPage() {
                                 </div>
                             </section>
                         )}
-
-                        {/* Friends List */}
-                        <section>
-                            <h2 className="text-xs font-mono text-cyan-500 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Your Connections (Friends)</h2>
-                            {friendsData.friends.length === 0 ? (
-                                <p className="text-sm font-mono text-slate-500 py-4 italic text-center">No connections found. Add friends from the chat or discovery pages.</p>
-                            ) : (
+                        
+                        {/* Your Connections (Friends) */}
+                        {friendsData.friends.length > 0 && (
+                            <section>
+                                <h2 className="text-xs font-mono text-cyan-400 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Your Connections</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {friendsData.friends.map(f => {
-                                        const isOffline = !f.is_online;
-                                        const isRinging = ringingUsername === f.username;
-
-                                        return (
-                                            <div key={f.id} className="p-6 bg-white/5 border border-white/10 flex flex-col justify-between group">
-                                                <div className="flex items-center justify-between mb-6">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center text-white font-black border border-white/10">
-                                                            {f.username.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div>
-                                                            <h3 className="font-black uppercase tracking-widest text-sm">{f.username}</h3>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${f.is_online ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`} />
-                                                                <span className="text-[10px] text-slate-500 font-mono">
-                                                                    {f.is_online ? 'NODE_ACTIVE' : 'NODE_OFFLINE'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-3 gap-2 mt-auto">
-                                                    <Link
-                                                        href={`/messages/${f.username}`}
-                                                        className="flex flex-col items-center justify-center py-2 border border-cyan-500/50 text-cyan-400 font-mono text-[9px] uppercase tracking-widest hover:bg-cyan-500 hover:text-black transition-all"
-                                                    >
-                                                        <MessageSquare className="w-4 h-4 mb-1 opacity-60" />
-                                                        Chat
-                                                    </Link>
-
-                                                    {[
-                                                        { icon: Phone, mode: 'voice', label: 'Voice' },
-                                                        { icon: Video, mode: 'video', label: 'Video' }
-                                                    ].map((btn) => (
-                                                        <button
-                                                            key={btn.mode}
-                                                            disabled={isOffline || isRinging}
-                                                            onClick={() => {
-                                                                const initiateCall = async () => {
-                                                                    try {
-                                                                        setRingingUsername(f.username);
-                                                                        const res = await fetchApi('/matchmaking/join/', {
-                                                                            method: 'POST',
-                                                                            body: JSON.stringify({
-                                                                                intent: `DIRECT_CONNECT:${f.username}:${btn.mode}`,
-                                                                                username: username
-                                                                            })
-                                                                        });
-                                                                        if (res.room_name) {
-                                                                            sendSignal('initiate_call', {
-                                                                                target_user_id: f.id,
-                                                                                room_id: res.room_name,
-                                                                                mode: btn.mode
-                                                                            });
-                                                                        }
-                                                                    } catch (e) {
-                                                                        console.error(e);
-                                                                        setRingingUsername(null);
-                                                                    }
-                                                                };
-                                                                initiateCall();
-                                                            }}
-                                                            className={`flex flex-col items-center justify-center py-2 bg-black/40 border transition-all ${isOffline
-                                                                ? 'opacity-30 cursor-not-allowed border-slate-700'
-                                                                : isRinging
-                                                                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
-                                                                    : 'hover:bg-cyan-500 hover:text-black hover:border-cyan-400 border-cyan-500/50 text-cyan-400'
-                                                                }`}
-                                                            title={isOffline ? 'Node offline' : btn.label}
-                                                        >
-                                                            <btn.icon className={`w-4 h-4 mb-1 ${isRinging ? 'opacity-100' : 'opacity-60'}`} />
-                                                            <span className="text-[9px] font-mono uppercase tracking-widest">
-                                                                {isRinging ? 'Ringing...' : btn.label}
-                                                            </span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </section>
-
-                        {/* Sent Requests */}
-                        {friendsData.sent.length > 0 && (
-                            <section className="opacity-60 grayscale hover:grayscale-0 transition-all">
-                                <h2 className="text-xs font-mono text-slate-500 uppercase tracking-widest mb-6 border-b border-white/10 pb-2">Outbound Sync Requests (Pending)</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {friendsData.sent.map(f => (
-                                        <div key={f.id} className="p-4 bg-white/5 border border-white/10 flex items-center justify-between">
+                                    {friendsData.friends.map(f => (
+                                        <div key={f.id} className="p-4 bg-white/5 border border-white/10 flex items-center justify-between shadow-sm">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-white/10 flex items-center justify-center font-mono text-xs italic">SYNC</div>
-                                                <span className="font-bold text-slate-400">{f.username}</span>
+                                                <div className="relative">
+                                                    <div className="w-10 h-10 bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white rounded-none border border-cyan-400/50 shadow-md">
+                                                        {f.username.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    {f.is_online && (
+                                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#050511] animate-pulse" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight block leading-tight">{f.username}</span>
+                                                    <span className={`text-[9px] font-mono uppercase ${f.is_online ? 'text-green-400' : 'text-gray-500'}`}>
+                                                        {f.is_online ? 'Online' : 'Offline'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <button
-                                                onClick={() => handleFriendAction(f.username, 'cancel')}
-                                                className="text-[10px] font-mono text-red-400 uppercase tracking-tighter hover:underline"
-                                            >
-                                                [ Revoke ]
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <Link
+                                                    href={`/messages/${f.username}`}
+                                                    className="p-2 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all border border-cyan-500/20"
+                                                    title="Send Message"
+                                                >
+                                                    <MessageSquare className="w-4 h-4" />
+                                                </Link>
+                                                <button
+                                                    onClick={() => handleFriendAction(f.username, 'remove')}
+                                                    className="p-2 bg-red-500/10 text-red-100 hover:bg-red-500 hover:text-white transition-all border border-red-500/10"
+                                                    title="Remove Connection"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             </section>
                         )}
+
                     </div>
                 )}
             </div>

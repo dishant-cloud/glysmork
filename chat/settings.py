@@ -72,7 +72,9 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig', 
     'room',
     'matchmaking',
+    'calls',
     'django_countries',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -98,9 +100,18 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
 }
 
 ROOT_URLCONF = 'chat.urls'
@@ -127,19 +138,23 @@ ASGI_APPLICATION = 'chat.asgi.application'
 
 
 # Channel Layer
-if 'REDIS_URL' in os.environ:
+# Set USE_REDIS to False if your Redis version is older than 5.0 (causes 'BZPOPMIN' error)
+USE_REDIS = os.environ.get('USE_REDIS', 'False') == 'True'
+REDIS_URL = os.environ.get('REDIS_URL')
+
+if USE_REDIS and REDIS_URL:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [os.environ['REDIS_URL']],
+                'hosts': [REDIS_URL],
             },
         },
     }
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": os.environ['REDIS_URL'],
+            "LOCATION": REDIS_URL,
         }
     }
 else:

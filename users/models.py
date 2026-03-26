@@ -52,6 +52,9 @@ class Profile(models.Model):
     show_ai_analysis = models.BooleanField(default=True)
     hidden_data_fields = models.JSONField(default=list, blank=True, help_text="List of keys in profile to hide from public")
 
+    # Push Notifications
+    fcm_token = models.CharField(max_length=255, blank=True, null=True, help_text="Firebase Cloud Messaging device token")
+
     # Moderation
     reports_received = models.IntegerField(default=0)
     is_banned = models.BooleanField(default=False)

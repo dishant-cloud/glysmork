@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\others\shin beginning\new_part\glysmork\test_import.py", line 9, in <module>
+    import users.api.views
+  File "C:\others\shin beginning\new_part\glysmork\users\api\views.py", line 20, in <module>
+    @api_view(['GET'])
+     ^^^^^^^^
+NameError: name 'api_view' is not defined. Did you mean: 'APIView'?

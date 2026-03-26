@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   title: "Glysmork — Find Exactly Who You Need",
-  description: "The Universal Connection Engine. Describe the person you need, and our AI finds them from the network. Not dating. Not random. Precise.",
+  description: "The Universal Connection Engine. Describe the person you need, and our AI finds them from the community. Not dating. Not random. Precise.",
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
@@ -23,6 +23,9 @@ export const metadata: Metadata = {
 
 import { ThemeProvider } from "@/components/ThemeProvider";
 import NotificationProvider from "@/components/NotificationProvider";
+import CallProvider from "@/components/CallProvider";
+import IncomingCallUI from "@/components/IncomingCallUI";
+import ActiveCallUI from "@/components/ActiveCallUI";
 
 export default function RootLayout({
   children,
@@ -32,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${outfit.variable} ${inter.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -41,7 +44,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <NotificationProvider>
-            {children}
+            <CallProvider>
+              {children}
+              <IncomingCallUI />
+              <ActiveCallUI />
+            </CallProvider>
           </NotificationProvider>
         </ThemeProvider>
       </body>

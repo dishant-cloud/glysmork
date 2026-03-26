@@ -112,3 +112,40 @@ def generate_chat_analysis_task(room_name):
 
     except Exception as e:
         return f"Chat analysis failed: {str(e)}"
+
+@shared_task
+def cleanup_expired_sessions_task():
+    """
+    Background sweep task. Runs periodically (e.g. hourly) to clean up 
+    orphaned or expired components of Redis sessions that weren't cleaned up correctly,
+    AND deactivates old session rooms in PostgreSQL.
+    """
+    from django.core.cache import cache
+    from room.models import Room
+    from django.utils import timezone
+    from datetime import timedelta
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    count = 0
+    
+    # 1. Deactivate old SQL session rooms (over 24h old)
+    cutoff = timezone.now() - timedelta(hours=24)
+    old_rooms = Room.objects.filter(is_active=True, created_at__lt=cutoff, name__startswith='room_')
+    
+    with transaction.atomic():
+        for r in old_rooms:
+            # If it explicitly is a matchmaking generic room that never transitioned to a friend chat
+            if r.chat_type == 'session' or (r.chat_type == 'friend' and r.messages.count() == 0):
+                r.is_active = False
+                r.save(update_fields=['is_active'])
+                count += 1
+                
+    logger.info(f"Cleaned up {count} expired session rooms in PostgreSQL.")
+    
+    # 2. Redis native keys expire gracefully via their TTL of 24h (86400s) on creation/reset.
+    # No explicit scan required unless we need exact garbage collection of non-expiring keys.
+    # We will trust the robust TTL set in `_cache_set_list` (86400s = 24h).
+    
+    return f"Cleaned up {count} PostgreSQL rooms. Redis TTLs handle the rest."
+

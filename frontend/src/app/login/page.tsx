@@ -29,10 +29,12 @@ export default function Login() {
                 body: JSON.stringify({ username, password })
             });
             localStorage.setItem('user', JSON.stringify(data.user));
+            if (data.access) localStorage.setItem('access_token', data.access);
+            if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
             window.location.href = '/dashboard';
         } catch (error) {
             console.error(error);
-            alert("Neural Authentication Failed. Verification denied.");
+            alert("Login failed. Please check your credentials.");
         } finally {
             setIsLoading(false);
         }
@@ -44,20 +46,20 @@ export default function Login() {
             <div className="absolute inset-0 bg-[url('/glysmork_signup.png')] bg-cover bg-center opacity-30 mix-blend-screen" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-[#020205] z-0" />
             <div className="absolute inset-0 bg-noise z-10" />
-            
+
             {/* Floating Orbs */}
-            <motion.div 
-                animate={{ x: [0, 30, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }} 
+            <motion.div
+                animate={{ x: [0, 30, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
                 transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
                 className="absolute top-[20%] left-[20%] w-[30vw] h-[30vw] min-w-[300px] min-h-[300px] bg-cyan-600/20 blur-[120px] rounded-full z-0"
             />
-            <motion.div 
-                animate={{ x: [0, -40, 0], y: [0, 40, 0], scale: [1, 1.5, 1] }} 
+            <motion.div
+                animate={{ x: [0, -40, 0], y: [0, 40, 0], scale: [1, 1.5, 1] }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 className="absolute bottom-[10%] right-[10%] w-[40vw] h-[40vw] min-w-[400px] min-h-[400px] bg-purple-900/20 blur-[150px] rounded-full z-0"
             />
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -74,7 +76,7 @@ export default function Login() {
                     {/* Username Input */}
                     <div className="space-y-2 group">
                         <label className="text-[10px] font-mono tracking-[0.2em] text-cyan-500 uppercase flex items-center justify-between">
-                            <span>NEURAL_ID</span>
+                            <span>Username</span>
                             <Network className="w-3 h-3 opacity-50" />
                         </label>
                         <div className="relative">
@@ -83,7 +85,7 @@ export default function Login() {
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono text-cyan-50 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:bg-cyan-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]"
-                                placeholder="ENTER IDENTIFIER"
+                                placeholder="Enter your username"
                                 required
                             />
                         </div>
@@ -92,7 +94,7 @@ export default function Login() {
                     {/* Password Input */}
                     <div className="space-y-2 group">
                         <label className="text-[10px] font-mono tracking-[0.2em] text-purple-500 uppercase flex items-center justify-between">
-                            <span>ACCESS_KEY</span>
+                            <span>Password</span>
                             <Fingerprint className="w-3 h-3 opacity-50" />
                         </label>
                         <div className="relative">
@@ -115,9 +117,9 @@ export default function Login() {
                             className={`relative w-full overflow-hidden rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-cyan-900/40 py-4 font-mono text-sm tracking-widest text-cyan-100 uppercase transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-black ${isLoading ? 'opacity-70 scale-95 hover:scale-95' : ''}`}
                         >
                             <span className="relative z-10 flex items-center justify-center gap-2">
-                                {isLoading ? 'AUTHENTICATING...' : (
+                                {isLoading ? 'Logging in...' : (
                                     <>
-                                        ESTABLISH_CONNECTION
+                                        Login
                                         <ChevronRight className="w-4 h-4 animate-pulse" />
                                     </>
                                 )}
@@ -132,12 +134,12 @@ export default function Login() {
                 <div className="mt-8 flex flex-col items-center gap-4 text-xs font-mono text-slate-500">
                     <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
                     <p className="tracking-wide">
-                        UNREGISTERED NODE?{' '}
+                        New here?{' '}
                         <button
                             onClick={() => router.push('/signup')}
                             className="text-cyan-500 transition-colors hover:text-cyan-300 hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] focus:outline-none"
                         >
-                            [ INIT_REGISTRATION ]
+                            Create an Account
                         </button>
                     </p>
                 </div>

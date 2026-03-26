@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, User, Activity, Edit3, Phone, Video } from 'lucide-react';
+import { ArrowLeft, User, Activity, Edit3, Phone, Video, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNotification } from '@/components/NotificationProvider';
 
@@ -36,15 +36,15 @@ export default function ProfilePage() {
 
         const handleCallDeclined = () => {
             setRingingUsername(null);
-            alert("The node declined your connection request.");
+            alert("The user declined your connection request.");
         };
 
-        window.addEventListener('call_accepted', handleCallAccepted);
-        window.addEventListener('call_declined', handleCallDeclined);
+        window.addEventListener('sys_call_answered', handleCallAccepted);
+        window.addEventListener('sys_call_declined', handleCallDeclined);
 
         return () => {
-            window.removeEventListener('call_accepted', handleCallAccepted);
-            window.removeEventListener('call_declined', handleCallDeclined);
+            window.removeEventListener('sys_call_answered', handleCallAccepted);
+            window.removeEventListener('sys_call_declined', handleCallDeclined);
         };
     }, []);
 
@@ -71,15 +71,17 @@ export default function ProfilePage() {
             setEditAge(data.age || '18');
         } catch (err) {
             console.error("Failed to load profile", err);
-            setError('Could not load neural profile data.');
+            setError('Could not load your AI profile insights.');
         } finally {
             setLoading(false);
         }
     };
 
     const loadFriends = async () => {
+        const storedUsername = getUsername();
+        if (!storedUsername) return;
         try {
-            const data = await fetchApi('/matchmaking/friends/');
+            const data = await fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(storedUsername)}`);
             if (data.friends) {
                 setFriends(data.friends);
             }
@@ -106,7 +108,7 @@ export default function ProfilePage() {
             setViewMode('real');
         } catch (err: any) {
             console.error("Failed to upload photo", err);
-            alert(err.message || 'Failed to update neural asset.');
+            alert(err.message || 'Failed to update profile visual.');
         } finally {
             setUploading(false);
         }
@@ -137,20 +139,34 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#050511] flex items-center justify-center text-cyan-500 font-mono flex-col gap-4">
-                <div className="w-8 h-8 border-t-2 border-r-2 border-cyan-500 rounded-full animate-spin"></div>
-                Decrypting Neural Data...
+            <div className="min-h-screen bg-[#050511] flex items-center justify-center text-white flex-col gap-6 relative overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/5 blur-[120px] pointer-events-none" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/5 blur-[100px] pointer-events-none" />
+                
+                <div className="relative">
+                    <div className="w-12 h-12 border-t-2 border-r-2 border-cyan-500 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 w-12 h-12 border-2 border-white/5 rounded-full"></div>
+                </div>
+                <p className="text-sm font-bold tracking-[0.2em] text-slate-400 uppercase animate-pulse">Synchronizing Profile Insights</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-[#050511] flex flex-col items-center justify-center text-white p-8">
-                <p className="text-red-400 mb-6 font-mono text-center">{error}</p>
-                <Link href="/dashboard" className="px-6 py-2 border border-white/20 hover:bg-white/10 rounded-full font-mono text-sm transition-colors">
-                    Return to Hub
-                </Link>
+            <div className="min-h-screen bg-[#050511] flex flex-col items-center justify-center text-white p-8 relative overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-red-500/5 blur-[120px] pointer-events-none" />
+                
+                <div className="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-xl max-w-md w-full text-center shadow-2xl relative z-10">
+                    <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <AlertTriangle className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-black mb-2">Access Denied</h2>
+                    <p className="text-slate-400 mb-8 text-sm leading-relaxed">{error}</p>
+                    <Link href="/dashboard" className="block w-full py-4 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">
+                        Return to Dashboard
+                    </Link>
+                </div>
             </div>
         );
     }
@@ -161,16 +177,20 @@ export default function ProfilePage() {
         <div className="min-h-screen bg-[#050511] text-white selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">
 
             {/* Texture Layer */}
-            <div className="bg-noise opacity-30 fixed inset-0 pointer-events-none mix-blend-overlay z-10" />
+            <div className="bg-noise dark:opacity-5 opacity-20 fixed inset-0 pointer-events-none" />
+
+            {/* Abstract Gradient Orbs */}
+            <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/10 dark:bg-purple-900/10 blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/10 blur-[100px] pointer-events-none" />
 
             <div className="max-w-6xl mx-auto relative z-20">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-12">
-                    <Link href="/dashboard" className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors font-mono text-sm uppercase px-4 py-2 border border-slate-800 rounded-full bg-black/40 backdrop-blur-md">
+                    <Link href="/dashboard" className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors font-bold text-xs uppercase px-5 py-2.5 border border-slate-800 rounded-xl bg-black/40 backdrop-blur-md shadow-lg">
                         <ArrowLeft className="w-4 h-4" /> Hub
                     </Link>
-                    <h1 className="text-sm font-mono tracking-[0.3em] font-bold text-slate-500 border-b border-cyan-900/50 pb-2">
-                        SYS.PROFILE.DATA
+                    <h1 className="text-sm font-bold tracking-widest text-slate-500 uppercase border-b border-cyan-900/30 pb-2">
+                        Advanced Profile
                     </h1>
                 </div>
 
@@ -181,10 +201,10 @@ export default function ProfilePage() {
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="bg-black/60 backdrop-blur-xl border border-white/5 p-6 shadow-2xl relative overflow-hidden group"
+                            className="bg-black/40 backdrop-blur-2xl border border-white/5 p-8 rounded-3xl shadow-2xl relative overflow-hidden group"
                         >
                             {/* The Persona Image */}
-                            <div className="aspect-square w-full bg-slate-900 border border-slate-800 mb-6 relative overflow-hidden flex items-center justify-center">
+                            <div className="aspect-square w-full bg-slate-900/50 border border-white/10 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center shadow-inner">
                                 {viewMode === 'persona' ? (
                                     profileData?.persona_image_url ? (
                                         <img
@@ -193,9 +213,9 @@ export default function ProfilePage() {
                                             className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
                                         />
                                     ) : (
-                                        <div className="text-slate-700 font-mono text-xs text-center p-4">
-                                            <User className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                                            NO VISUAL ASSET<br />(Complete Onboarding)
+                                        <div className="text-slate-500 text-xs text-center p-6 flex flex-col items-center gap-3">
+                                            <User className="w-12 h-12 opacity-10" />
+                                            <p className="font-medium">Profile visual pending.<br /><span className="text-[10px] opacity-70">Complete onboarding to generate.</span></p>
                                         </div>
                                     )
                                 ) : (
@@ -206,102 +226,102 @@ export default function ProfilePage() {
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <div className="text-slate-700 font-mono text-xs text-center p-4">
-                                            <User className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                                            NO PHOTO UPLOADED
+                                        <div className="text-slate-500 text-xs text-center p-6 flex flex-col items-center gap-3">
+                                            <User className="w-12 h-12 opacity-10" />
+                                            <p className="font-medium">No photo uploaded.</p>
                                         </div>
                                     )
                                 )}
 
-                                <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md border border-cyan-500/30 px-2 py-1 flex items-center gap-1 font-mono text-[10px] text-cyan-400 z-10">
-                                    <Activity className="w-3 h-3" /> SYS.TRUST: {profileData?.trust_score || 100}
+                                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-bold text-cyan-400 z-10 shadow-lg">
+                                    <Activity className="w-3 h-3 text-cyan-400" /> Trust Score: {profileData?.trust_score || 100}
                                 </div>
-                                
-                                <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4 gap-2 px-4">
-                                    <button 
+
+                                <div className="absolute bottom-4 inset-x-4 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                    <button
                                         onClick={() => setViewMode(viewMode === 'persona' ? 'real' : 'persona')}
-                                        className="text-[9px] text-white font-mono bg-white/10 hover:bg-white/20 px-2 py-1 border border-white/20 backdrop-blur-sm"
+                                        className="flex-1 text-[10px] font-bold text-white bg-white/10 hover:bg-white/20 px-3 py-2.5 rounded-xl border border-white/10 backdrop-blur-md transition-all"
                                     >
-                                        [ {viewMode === 'persona' ? 'VIEW_REAL' : 'VIEW_AI'} ]
+                                        {viewMode === 'persona' ? 'View Real Photo' : 'View AI Persona'}
                                     </button>
-                                    <label className="text-[9px] text-cyan-400 font-mono bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-1 border border-cyan-500/20 backdrop-blur-sm cursor-pointer whitespace-nowrap">
-                                        [ {uploading ? 'UPLOADING...' : 'UPLOAD_PHOTO'} ]
+                                    <label className="flex-1 text-[10px] font-bold text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2.5 rounded-xl border border-cyan-500/20 backdrop-blur-md transition-all cursor-pointer text-center">
+                                        {uploading ? 'Processing...' : 'Upload Photo'}
                                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} />
                                     </label>
                                 </div>
                             </div>
 
                             {isEditing ? (
-                                <div className="space-y-4">
+                                <div className="space-y-5">
                                     <div>
-                                        <label className="text-xs text-slate-500 font-mono mb-1 block">BIO</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Biography</label>
                                         <textarea
                                             value={editBio}
                                             onChange={(e) => setEditBio(e.target.value)}
-                                            className="w-full bg-black border border-slate-700 focus:border-cyan-500 outline-none p-3 text-sm font-mono h-24"
-                                            placeholder="Write your system bio..."
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm leading-relaxed transition-all h-32"
+                                            placeholder="Introduce yourself to the network..."
                                         />
                                     </div>
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="text-xs text-slate-500 font-mono mb-1 block">GENDER</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Gender</label>
                                             <select
                                                 value={editGender}
                                                 onChange={(e) => setEditGender(e.target.value)}
-                                                className="w-full bg-black border border-slate-700 focus:border-cyan-500 outline-none p-3 text-sm font-mono appearance-none"
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm appearance-none cursor-pointer transition-all"
                                             >
-                                                <option value="M">MALE</option>
-                                                <option value="F">FEMALE</option>
-                                                <option value="O">OTHER</option>
+                                                <option value="M">Male</option>
+                                                <option value="F">Female</option>
+                                                <option value="O">Other</option>
                                             </select>
                                         </div>
-                                        <div className="flex-1">
-                                            <label className="text-xs text-slate-500 font-mono mb-1 block">AGE</label>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Age</label>
                                             <input
                                                 type="number"
                                                 value={editAge}
                                                 onChange={(e) => setEditAge(e.target.value)}
-                                                className="w-full bg-black border border-slate-700 focus:border-cyan-500 outline-none p-3 text-sm font-mono"
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm transition-all"
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 pt-2">
+                                    <div className="flex gap-3 pt-4">
                                         <button
                                             onClick={handleSave}
                                             disabled={saving}
-                                            className="flex-1 bg-cyan-900/40 hover:bg-cyan-800 text-cyan-100 font-mono text-xs py-2 border border-cyan-500/50 transition-colors"
+                                            className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs py-3.5 rounded-2xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.2)]"
                                         >
-                                            {saving ? 'SAVING...' : 'SAVE'}
+                                            {saving ? 'Saving...' : 'Save Changes'}
                                         </button>
                                         <button
                                             onClick={() => setIsEditing(false)}
-                                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-mono text-xs py-2 border border-slate-600 transition-colors"
+                                            className="px-6 bg-white/5 hover:bg-white/10 text-white font-bold text-xs py-3.5 rounded-2xl border border-white/10 transition-all"
                                         >
-                                            CANCEL
+                                            Cancel
                                         </button>
                                     </div>
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <h2 className="text-2xl font-black uppercase tracking-wider">{profileData?.user?.username}</h2>
-                                            <div className="text-xs font-mono text-slate-500 flex gap-2 mt-1">
-                                                <span>{profileData?.gender === 'M' ? 'MALE' : profileData?.gender === 'F' ? 'FEMALE' : 'OTHER'}</span>
-                                                <span>•</span>
-                                                <span>AGE {profileData?.age}</span>
+                                            <h2 className="text-3xl font-black text-white tracking-tight leading-none mb-1">{profileData?.user?.username}</h2>
+                                            <div className="text-xs font-bold text-slate-500 flex gap-2 items-center">
+                                                <span>{profileData?.gender === 'M' ? 'Male' : profileData?.gender === 'F' ? 'Female' : 'Other'}</span>
+                                                <span className="w-1 h-1 bg-slate-700 rounded-full" />
+                                                <span>{profileData?.age} Years Old</span>
                                             </div>
                                         </div>
                                         <button
                                             onClick={() => setIsEditing(true)}
-                                            className="text-slate-500 hover:text-white transition-colors"
+                                            className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
                                         >
                                             <Edit3 className="w-4 h-4" />
                                         </button>
                                     </div>
 
-                                    <div className="text-sm text-slate-300 leading-relaxed font-mono mt-6 border-l-2 border-slate-700 pl-4 py-1">
-                                        {profileData?.bio || <span className="text-slate-600 italic">No biographical data found.</span>}
+                                    <div className="text-[15px] text-slate-300 leading-relaxed mt-8 border-l-3 border-cyan-500/30 pl-6 py-1 italic font-medium">
+                                        {profileData?.bio || <span className="text-slate-600">Complete your bio to stand out.</span>}
                                     </div>
                                 </div>
                             )}
@@ -314,25 +334,25 @@ export default function ProfilePage() {
                             initial={{ y: 40, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.2 }}
-                            className="bg-cyan-950/20 border border-cyan-900/50 p-8 shadow-2xl relative overflow-hidden h-full"
+                            className="bg-indigo-500/5 backdrop-blur-3xl border border-indigo-500/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden h-full"
                         >
-                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                                <Brain className="w-32 h-32 text-cyan-400" />
+                            <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                                <Brain className="w-48 h-48 text-indigo-400" />
                             </div>
 
-                            <h3 className="text-sm font-bold font-mono text-cyan-500 tracking-[0.2em] mb-8 pb-4 border-b border-cyan-900/50 flex justify-between">
-                                <span>PSYCHOLOGICAL_ANALYSIS</span>
-                                <span className="opacity-50 font-normal">CLASSIFIED</span>
+                            <h3 className="text-xs font-bold text-indigo-400 tracking-[0.2em] mb-10 pb-4 border-b border-indigo-500/10 flex justify-between items-center uppercase">
+                                <span>Psychological Profile</span>
+                                <span className="text-[9px] opacity-40 font-medium px-2 py-0.5 border border-indigo-500/20 rounded-full">AI Insights</span>
                             </h3>
 
                             {Object.keys(psychologicalProfile).length > 0 ? (
                                 <div className="space-y-8 relative z-10">
                                     <div>
-                                        <h4 className="text-xs text-cyan-700 font-mono tracking-widest uppercase mb-3 text-shadow">CORE TRAITS</h4>
-                                        <div className="flex flex-wrap gap-2">
+                                        <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-4">Core Traits</h4>
+                                        <div className="flex flex-wrap gap-2.5">
                                             {(psychologicalProfile.core_traits || []).map((trait: string, idx: number) => (
-                                                <span key={idx} className="px-3 py-1 bg-black/50 border border-cyan-800 text-cyan-100 text-sm font-mono">
-                                                    {trait.toUpperCase()}
+                                                <span key={idx} className="px-4 py-2 bg-white/5 border border-white/10 text-white text-[13px] font-medium rounded-xl shadow-sm">
+                                                    {trait}
                                                 </span>
                                             ))}
                                         </div>
@@ -340,53 +360,53 @@ export default function ProfilePage() {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div>
-                                            <h4 className="text-xs text-cyan-700 font-mono tracking-widest uppercase mb-3 text-shadow">COMMUNICATION STYLE</h4>
-                                            <p className="font-mono text-sm text-cyan-100/80 leading-relaxed bg-black/30 p-4 border border-cyan-900">
+                                            <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-3">Communication Style</h4>
+                                            <p className="text-[14px] text-slate-300 leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/5">
                                                 {psychologicalProfile.communication_style || "Unspecified"}
                                             </p>
                                         </div>
                                         <div>
-                                            <h4 className="text-xs text-cyan-700 font-mono tracking-widest uppercase mb-3 text-shadow">ATTACHMENT STYLE</h4>
-                                            <p className="font-mono text-sm text-cyan-100/80 leading-relaxed bg-black/30 p-4 border border-cyan-900">
+                                            <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-3">Attachment Style</h4>
+                                            <p className="text-[14px] text-slate-300 leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/5">
                                                 {psychologicalProfile.attachment_style || "Unspecified"}
                                             </p>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <h4 className="text-xs text-cyan-700 font-mono tracking-widest uppercase mb-3 text-shadow">DEEP ANALYSIS</h4>
-                                        <p className="text-base text-slate-300 leading-loose border-l border-cyan-500/50 pl-6 my-4 italic">
+                                        <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-3">Deep Analysis</h4>
+                                        <p className="text-lg text-slate-200 leading-loose border-l-4 border-indigo-500/40 pl-8 my-6 italic font-medium">
                                             "{psychologicalProfile.deep_analysis}"
                                         </p>
                                     </div>
 
                                     {profileData?.interests && profileData.interests.length > 0 && (
-                                        <div className="pt-4 border-t border-cyan-900/30">
-                                            <h4 className="text-xs text-cyan-700 font-mono tracking-widest uppercase mb-3 text-shadow">EXTRACTED INTERESTS</h4>
-                                            <div className="flex flex-wrap gap-2 opacity-70">
+                                        <div className="pt-6 border-t border-white/5">
+                                            <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-4">Extracted Interests</h4>
+                                            <div className="flex flex-wrap gap-2 opacity-80">
                                                 {profileData.interests.map((interest: string, idx: number) => (
-                                                    <span key={idx} className="text-xs font-mono text-slate-400">
-                                                        [{interest.toUpperCase()}]
+                                                    <span key={idx} className="text-[11px] font-bold text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                        #{interest}
                                                     </span>
                                                 ))}
                                             </div>
                                         </div>
                                     )}
 
-                                    <div className="pt-6 border-t border-cyan-900/30 mt-4">
+                                    <div className="pt-8 border-t border-white/5 mt-4">
                                         <Link
                                             href="/onboarding?retake=true"
-                                            className="inline-block px-6 py-2.5 bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-700/50 hover:border-cyan-500 text-cyan-300 hover:text-cyan-100 font-mono text-xs tracking-widest transition-all duration-300"
+                                            className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-500 hover:bg-indigo-400 text-black font-black text-[11px] tracking-widest rounded-2xl transition-all shadow-lg hover:shadow-indigo-500/20 uppercase"
                                         >
-                                            ↻ RETAKE_ANALYSIS
+                                            ↻ Recalibrate Analysis
                                         </Link>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-center py-20 font-mono text-slate-500 border border-dashed border-slate-800">
-                                    <p className="mb-4">NEURAL PROFILE INCOMPLETE</p>
-                                    <Link href="/onboarding" className="text-cyan-500 hover:text-cyan-400 underline decoration-cyan-900 text-sm">
-                                        INITIATE ONBOARDING SEQUENCE to generate psychological model.
+                                <div className="text-center py-24 text-slate-500 border border-dashed border-white/10 rounded-3xl backdrop-blur-sm">
+                                    <p className="mb-6 font-bold uppercase tracking-widest text-[11px]">Personality Profile Incomplete</p>
+                                    <Link href="/onboarding" className="inline-block px-8 py-3.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold rounded-2xl border border-cyan-500/20 transition-all text-sm">
+                                        Initiate Onboarding Sequence
                                     </Link>
                                 </div>
                             )}
@@ -397,31 +417,39 @@ export default function ProfilePage() {
                             initial={{ y: 40, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.3 }}
-                            className="bg-black/40 border border-slate-800 p-8 shadow-2xl relative"
+                            className="bg-black/40 backdrop-blur-2xl border border-white/5 p-10 rounded-3xl shadow-2xl relative"
                         >
-                            <h3 className="text-sm font-bold font-mono text-slate-400 tracking-[0.2em] mb-6 pb-4 border-b border-slate-800 flex justify-between">
-                                <span>VERIFIED NETWORK LINKS</span>
-                                <span className="opacity-50 font-normal">[{friends.length}]</span>
+                            <h3 className="text-xs font-bold text-slate-400 tracking-[0.2em] mb-10 pb-4 border-b border-white/5 flex justify-between items-center uppercase">
+                                <span>Friends Network</span>
+                                <span className="text-[10px] opacity-40 font-bold px-2 py-0.5 border border-white/10 rounded-lg">{friends.length} Connections</span>
                             </h3>
 
                             {friends.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {friends.map((friend) => {
                                         const isOffline = !friend.is_online;
                                         const isRinging = ringingUsername === friend.username;
 
                                         return (
-                                            <div key={friend.id} className="bg-white/5 border border-white/10 p-4 flex flex-col justify-between group">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <h4 className="text-white font-black uppercase text-lg">{friend.username}</h4>
-                                                        <span className={`text-[10px] font-mono uppercase mt-1 block ${friend.is_online ? 'text-green-400' : 'text-slate-500'}`}>
-                                                            {friend.is_online ? '● Online' : '○ Offline'}
-                                                        </span>
+                                            <div key={friend.id} className="bg-white/5 border border-white/10 p-6 rounded-2xl flex flex-col justify-between group hover:bg-white/[0.08] transition-all duration-300 shadow-sm">
+                                                <div className="flex justify-between items-start mb-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-xl text-white">
+                                                            {friend.username.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-white font-bold text-lg tracking-tight leading-none mb-1">{friend.username}</h4>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${friend.is_online ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`} />
+                                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${friend.is_online ? 'text-green-400' : 'text-slate-500'}`}>
+                                                                    {friend.is_online ? 'Online' : 'Offline'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-2 mt-auto">
+                                                <div className="grid grid-cols-2 gap-3 mt-auto">
                                                     {[
                                                         { icon: Phone, mode: 'voice', label: 'Voice' },
                                                         { icon: Video, mode: 'video', label: 'Video' }
@@ -454,17 +482,17 @@ export default function ProfilePage() {
                                                                 };
                                                                 initiateCall();
                                                             }}
-                                                            className={`flex flex-col items-center justify-center py-2 bg-black/40 border border-slate-700 transition-all ${isOffline
-                                                                    ? 'opacity-30 cursor-not-allowed'
-                                                                    : isRinging
-                                                                        ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
-                                                                        : 'hover:bg-cyan-500 hover:text-black hover:border-cyan-400 text-slate-400 group-hover:text-white'
+                                                            className={`flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-xl transition-all ${isOffline
+                                                                ? 'opacity-30 cursor-not-allowed grayscale'
+                                                                : isRinging
+                                                                    ? 'bg-cyan-500 text-black border-cyan-500 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.4)]'
+                                                                    : 'hover:bg-cyan-500 hover:text-black hover:border-cyan-500 text-slate-300'
                                                                 }`}
-                                                            title={isOffline ? 'Node offline' : btn.label}
+                                                            title={isOffline ? 'User offline' : btn.label}
                                                         >
-                                                            <btn.icon className={`w-4 h-4 mb-1 ${isRinging ? 'opacity-100' : 'opacity-60'}`} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest">
-                                                                {isRinging ? 'Ringing...' : btn.label}
+                                                            <btn.icon className={`w-3.5 h-3.5 ${isRinging ? 'opacity-100' : 'opacity-60'}`} />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                                                {isRinging ? 'Ringing' : btn.label}
                                                             </span>
                                                         </button>
                                                     ))}
@@ -474,8 +502,8 @@ export default function ProfilePage() {
                                     })}
                                 </div>
                             ) : (
-                                <div className="text-center py-8 font-mono text-slate-600 border border-dashed border-slate-800 text-sm">
-                                    No direct links established yet.
+                                <div className="text-center py-12 text-slate-600 border border-dashed border-white/10 rounded-2xl text-sm font-medium">
+                                    No connections established yet.
                                 </div>
                             )}
                         </motion.div>

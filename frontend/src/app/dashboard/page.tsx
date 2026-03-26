@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from '@/components/Header';
 import { useNotification } from '@/components/NotificationProvider';
+import { useCall } from '@/components/CallProvider';
 
 export default function Dashboard() {
     const [isMatching, setIsMatching] = useState(false);
@@ -28,15 +29,16 @@ export default function Dashboard() {
     const chatEndRef = useRef<HTMLDivElement | null>(null);
     const [pollRef, setPollRef] = useState<ReturnType<typeof setInterval> | null>(null);
     const { sendSignal } = useNotification();
+    const { startCall, endCall, callState } = useCall();
     const [onlineCount, setOnlineCount] = useState<number>(0);
     const [totalUsers, setTotalUsers] = useState<number>(0);
     const [friendRequested, setFriendRequested] = useState<Set<string>>(new Set());
-    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
+    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string; isFriend?: boolean; isPending?: boolean }[]>([]);
+    const shownNotifsRef = useRef<Set<number>>(new Set());
 
     // Matchmaking Filters & Modes
     const [isOffline, setIsOffline] = useState(false);
     const [modePref, setModePref] = useState<'chat' | 'video'>('chat');
-    const [genderFilter, setGenderFilter] = useState<'A' | 'M' | 'F'>('A');
     const [locationFilter, setLocationFilter] = useState('');
 
     useEffect(() => {
@@ -49,7 +51,7 @@ export default function Dashboard() {
         // Check for exit notification from chat
         const params = new URLSearchParams(window.location.search);
         if (params.get('exit') === 'partner') {
-            setExitNotification("Connection severed by partner Node.");
+            setExitNotification("Connection severed by partner.");
             // Clear the URL param without refreshing
             window.history.replaceState({}, '', '/dashboard');
             setTimeout(() => setExitNotification(null), 5000);
@@ -69,52 +71,71 @@ export default function Dashboard() {
         // Fetch online count
         const fetchOnline = async () => {
             try {
-                const res = await fetch('http://127.0.0.1:8001/api/users/online-count/');
+                const res = await fetch('http://127.0.0.1:8000/api/users/online-count/');
                 if (res.ok) {
                     const data = await res.json();
                     setOnlineCount(data.online_count);
                     setTotalUsers(data.total_users);
                 }
-            } catch {}
+            } catch { }
             // Send heartbeat to keep this user's last_seen fresh
             const u = getUsername();
             if (u) {
                 try {
-                    await fetch('http://127.0.0.1:8001/api/users/heartbeat/', {
+                    await fetch('http://127.0.0.1:8000/api/users/heartbeat/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ username: u }),
                     });
-                } catch {}
+                } catch { }
             }
         };
         fetchOnline();
         const onlineInterval = setInterval(fetchOnline, 15000);
 
-        // Poll for chat notifications
         const fetchNotifs = async () => {
             const u = getUsername();
             if (!u) return;
             try {
-                const res = await fetch(`http://127.0.0.1:8001/api/matchmaking/notifications/?username=${encodeURIComponent(u)}`);
+                // Fetch friends list to check if sender is already a friend
+                const friendRes = await fetch(`http://127.0.0.1:8000/api/matchmaking/friends/?username=${encodeURIComponent(u)}`);
+                let friendData = { friends: [], sent: [] };
+                if (friendRes.ok) {
+                    friendData = await friendRes.json();
+                }
+
+                const res = await fetch(`http://127.0.0.1:8000/api/matchmaking/notifications/?username=${encodeURIComponent(u)}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (data.notifications?.length > 0) {
-                        setChatNotifs(data.notifications);
-                        const ids = data.notifications.map((n: any) => n.id);
-                        setTimeout(async () => {
-                            try {
-                                await fetch('http://127.0.0.1:8001/api/matchmaking/notifications/', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ids }),
+                        const unshown = data.notifications.filter((n: any) => !shownNotifsRef.current.has(n.id));
+                        if (unshown.length > 0) {
+                            const now = new Date().getTime();
+                            const freshNotifs = unshown.filter((n: any) => {
+                                const createdAt = new Date(n.created_at).getTime();
+                                return (now - createdAt) < 60000; // Only show toast if < 60s old
+                            });
+
+                            if (freshNotifs.length > 0) {
+                                // Annotate fresh notifs with friendship status
+                                const annotated = freshNotifs.map((n: any) => {
+                                    const isFriend = friendData.friends?.some((f: any) => (f.username === n.sender || f === n.sender));
+                                    const isPending = friendData.sent?.some((f: any) => (f.username === n.sender || f === n.sender));
+                                    return { ...n, isFriend, isPending };
                                 });
-                                setChatNotifs([]);
-                            } catch {}
-                        }, 8000);
+
+                                setChatNotifs(prev => [...prev, ...annotated]);
+                                setTimeout(() => {
+                                    setChatNotifs(prev => prev.filter(n => !annotated.find((nn: any) => nn.id === n.id)));
+                                }, 8000);
+                            }
+
+                            // Mark all as shown so they don't pop up again even if stale
+                            unshown.forEach((n: any) => shownNotifsRef.current.add(n.id));
+                        }
                     }
                 }
-            } catch {}
+            } catch { }
         };
         fetchNotifs();
         const notifInterval = setInterval(fetchNotifs, 5000);
@@ -127,18 +148,18 @@ export default function Dashboard() {
 
         const handleCallDeclined = () => {
             setRingingUsername(null);
-            alert("The node declined your connection request.");
+            alert("The user declined your connection request.");
         };
 
-        window.addEventListener('call_accepted', handleCallAccepted);
-        window.addEventListener('call_declined', handleCallDeclined);
+        window.addEventListener('sys_call_answered', handleCallAccepted);
+        window.addEventListener('sys_call_declined', handleCallDeclined);
 
         return () => {
             clearInterval(interval);
             clearInterval(onlineInterval);
             clearInterval(notifInterval);
-            window.removeEventListener('call_accepted', handleCallAccepted);
-            window.removeEventListener('call_declined', handleCallDeclined);
+            window.removeEventListener('sys_call_answered', handleCallAccepted);
+            window.removeEventListener('sys_call_declined', handleCallDeclined);
         };
     }, []);
 
@@ -161,12 +182,11 @@ export default function Dashboard() {
             try {
                 const response = await fetchApi('/matchmaking/join/', {
                     method: 'POST',
-                    body: JSON.stringify({ 
-                        intent: intentText, 
+                    body: JSON.stringify({
+                        intent: intentText,
                         username: getUsername(),
                         is_offline: isOffline,
                         mode: modePref,
-                        gender_filter: genderFilter,
                         location_filter: locationFilter
                     })
                 });
@@ -198,12 +218,11 @@ export default function Dashboard() {
         try {
             const response = await fetchApi('/matchmaking/join/', {
                 method: 'POST',
-                body: JSON.stringify({ 
-                    intent: intentText, 
+                body: JSON.stringify({
+                    intent: intentText,
                     username: getUsername(),
                     is_offline: isOffline,
                     mode: modePref,
-                    gender_filter: genderFilter,
                     location_filter: locationFilter
                 })
             });
@@ -283,9 +302,9 @@ export default function Dashboard() {
         try {
             const res = await fetchApi('/matchmaking/support-chat/', {
                 method: 'POST',
-                body: JSON.stringify({ 
-                    username: getUsername(), 
-                    message: '', 
+                body: JSON.stringify({
+                    username: getUsername(),
+                    message: '',
                     history: [],
                     persona: persona
                 })
@@ -399,11 +418,10 @@ export default function Dashboard() {
                                         <div className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-sm mr-2 mt-1 flex-shrink-0">💙</div>
                                     )}
                                     <div
-                                        className={`max-w-[75%] px-4 py-3 text-sm font-mono leading-relaxed ${
-                                            msg.role === 'user'
+                                        className={`max-w-[75%] px-4 py-3 text-sm font-mono leading-relaxed ${msg.role === 'user'
                                                 ? 'bg-white/8 border border-white/10 text-white rounded-l-2xl rounded-tr-2xl rounded-br-sm'
                                                 : 'bg-indigo-500/10 border border-indigo-400/20 text-indigo-100 rounded-r-2xl rounded-tl-2xl rounded-bl-sm'
-                                        }`}
+                                            }`}
                                     >
                                         {msg.text}
                                     </div>
@@ -522,30 +540,32 @@ export default function Dashboard() {
                                 >
                                     💬 Reply
                                 </Link>
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            await fetchApi('/matchmaking/friends/', {
-                                                method: 'POST',
-                                                body: JSON.stringify({
-                                                    username: getUsername(),
-                                                    target_username: notif.sender,
-                                                    action: 'request',
-                                                }),
-                                            });
-                                            // Mark this notif as read so it fades away
-                                            await fetch('http://127.0.0.1:8001/api/matchmaking/notifications/', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ ids: [notif.id] }),
-                                            });
-                                            setChatNotifs(prev => prev.filter(n => n.id !== notif.id));
-                                        } catch {}
-                                    }}
-                                    className="flex-1 py-2 text-center bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-purple-500 hover:text-white transition-colors"
-                                >
-                                    ➕ Add Friend
-                                </button>
+                                {!notif.isFriend && !notif.isPending && (
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await fetchApi('/matchmaking/friends/', {
+                                                    method: 'POST',
+                                                    body: JSON.stringify({
+                                                        username: getUsername(),
+                                                        target_username: notif.sender,
+                                                        action: 'request',
+                                                    }),
+                                                });
+                                                // Mark this notif as read so it fades away
+                                                await fetch('http://127.0.0.1:8000/api/matchmaking/notifications/', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ ids: [notif.id] }),
+                                                });
+                                                setChatNotifs(prev => prev.filter(n => n.id !== notif.id));
+                                            } catch { }
+                                        }}
+                                        className="flex-1 py-2 text-center bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-purple-500 hover:text-white transition-colors"
+                                    >
+                                        ➕ Add Friend
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     ))}
@@ -595,17 +615,17 @@ export default function Dashboard() {
                 </motion.div>
             )}
 
-            {/* ===== NEURAL SEARCH RESULTS OVERLAY ===== */}
+            {/* ===== SEARCH RESULTS OVERLAY ===== */}
             {discoveryResults.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl p-6 overflow-y-auto"
+                    className="fixed inset-0 z-[100] flex flex-col items-center justify-start bg-black/95 backdrop-blur-2xl p-6 py-20 overflow-y-auto"
                 >
-                    <div className="w-full max-w-5xl">
+                    <div className="w-full max-w-7xl">
                         <div className="flex justify-between items-center mb-12">
                             <div>
-                                <h2 className="text-3xl font-black font-mono tracking-widest text-white uppercase italic">Neural Search Results</h2>
+                                <h2 className="text-3xl font-black font-mono tracking-widest text-white uppercase italic">AI Search Results</h2>
                                 <p className="text-cyan-400 font-mono text-sm mt-1">AI-Ranked candidates for: &quot;{searchingIntent || intent}&quot;</p>
                             </div>
                             <button
@@ -686,7 +706,7 @@ export default function Dashboard() {
                                             <button
                                                 onClick={() => {
                                                     // Fire notification to target, then go directly to DM
-                                                    fetch('http://127.0.0.1:8001/api/matchmaking/notify/', {
+                                                    fetch('http://127.0.0.1:8000/api/matchmaking/notify/', {
                                                         method: 'POST',
                                                         headers: { 'Content-Type': 'application/json' },
                                                         body: JSON.stringify({
@@ -694,7 +714,7 @@ export default function Dashboard() {
                                                             receiver: result.username,
                                                             room_name: `direct_${[getUsername(), result.username].sort().join('_')}`,
                                                         }),
-                                                    }).catch(() => {});
+                                                    }).catch(() => { });
                                                     window.location.href = `/messages/${result.username}`;
                                                 }}
                                                 className="flex items-center justify-center gap-2 py-3 bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all font-mono text-[10px] uppercase tracking-widest"
@@ -715,20 +735,20 @@ export default function Dashboard() {
                                                             }),
                                                         });
                                                         setFriendRequested(prev => new Set([...prev, result.username]));
-                                                    } catch {}
+                                                    } catch { }
                                                 }}
-                                                className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${
-                                                    friendRequested.has(result.username)
+                                                className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${friendRequested.has(result.username)
                                                         ? 'bg-green-500/10 border-green-500/40 text-green-400 cursor-default'
                                                         : 'bg-purple-500/10 border-purple-500/40 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-purple-400'
-                                                }`}
+                                                    }`}
                                             >
                                                 <User className="w-4 h-4" />
                                                 {friendRequested.has(result.username) ? 'Requested ✓' : 'Add Friend'}
                                             </button>
                                         </div>
-                                        {/* Row 2: Voice + Video (online only) */}
-                                        <div className="grid grid-cols-2 gap-2">
+                                        {/* Row 2: Voice + Video (only if video mode) */}
+                                        {modePref === 'video' && (
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
                                             {[
                                                 { icon: Phone, mode: 'voice', label: 'Voice' },
                                                 { icon: Video, mode: 'video', label: 'Video' },
@@ -740,6 +760,13 @@ export default function Dashboard() {
                                                         key={btn.mode}
                                                         disabled={isOffline || isRinging}
                                                         onClick={async () => {
+                                                            if (isOffline) return;
+                                                            if (isRinging) {
+                                                                // User clicked again while ringing -> Cancel
+                                                                endCall();
+                                                                setRingingUsername(null);
+                                                                return;
+                                                            }
                                                             try {
                                                                 setRingingUsername(result.username);
                                                                 const res = await fetchApi('/matchmaking/join/', {
@@ -750,21 +777,17 @@ export default function Dashboard() {
                                                                     }),
                                                                 });
                                                                 if (res.room_name) {
-                                                                    sendSignal('initiate_call', {
-                                                                        target_user_id: result.id,
-                                                                        room_id: res.room_name,
-                                                                        mode: btn.mode,
-                                                                    });
+                                                                    // Use CallProvider to start the call properly
+                                                                    startCall(result.username, btn.mode, res.room_name);
                                                                 }
                                                             } catch { setRingingUsername(null); }
                                                         }}
-                                                        className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${
-                                                            isOffline
+                                                        className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${isOffline
                                                                 ? 'opacity-25 cursor-not-allowed border-white/10 text-gray-600'
                                                                 : isRinging
                                                                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
                                                                     : 'bg-white/5 border-white/10 text-gray-400 hover:bg-cyan-500 hover:text-black hover:border-cyan-400'
-                                                        }`}
+                                                            }`}
                                                         title={isOffline ? 'User offline' : btn.label}
                                                     >
                                                         <btn.icon className="w-4 h-4" />
@@ -773,6 +796,7 @@ export default function Dashboard() {
                                                 );
                                             })}
                                         </div>
+                                    )}
                                     </div>
                                 </motion.div>
                             ))}
@@ -796,7 +820,7 @@ export default function Dashboard() {
                 <div className="flex animate-marquee whitespace-nowrap">
                     {[...Array(8)].map((_, i) => (
                         <span key={i} className="text-xl md:text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-purple-500 dark:from-cyan-400 dark:to-purple-400 mx-8 uppercase">
-                            • Neural Hub Active • Find Your Node • Connect Now
+                            • AI Hub Active • Find Your Match • Connect Now
                         </span>
                     ))}
                 </div>
@@ -828,13 +852,13 @@ export default function Dashboard() {
                         </div>
 
                         <h2 className="text-6xl md:text-8xl lg:text-[100px] leading-[0.85] font-black tracking-tighter mb-6 text-slate-900 dark:text-white uppercase">
-                            Your<br />Neural<br />Hub.
+                            Your<br />Smart<br />Hub.
                         </h2>
 
                         <p className="text-lg md:text-xl text-slate-600 dark:text-gray-400 max-w-lg mb-12 font-mono leading-relaxed border-l-2 border-cyan-500/50 pl-6">
                             {username
                                 ? <>Welcome back, <span className="text-cyan-400 font-bold">{username.toUpperCase()}</span>.<br />Describe your intent or connect instantly.</>
-                                : <>Describe your intent. The Neural Engine finds the exact human.</>
+                                : <>Describe your intent. The AI Matchmaker finds the exact human.</>
                             }
                         </p>
 
@@ -846,7 +870,7 @@ export default function Dashboard() {
                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
                                 </span>
                                 <span className="text-green-400 font-bold">{onlineCount}</span>
-                                <span className="text-gray-500">nodes active now</span>
+                                <span className="text-gray-500">people active now</span>
                             </div>
                             <span className="text-gray-600 text-xs">/ {totalUsers} total</span>
 
@@ -866,20 +890,7 @@ export default function Dashboard() {
                                     {modePref === 'video' ? '📹 Video' : '💬 Text'}
                                 </button>
                                 <div className="w-px h-4 bg-white/10 mx-1" />
-                                <div className="flex items-center gap-1 bg-black/20 rounded-lg px-2">
-                                    <span className="text-[9px] text-gray-600 font-bold">BIO:</span>
-                                    <select 
-                                        value={genderFilter} 
-                                        onChange={(e) => setGenderFilter(e.target.value as any)}
-                                        className="bg-transparent text-[10px] text-cyan-400 focus:outline-none py-1.5 font-bold cursor-pointer"
-                                    >
-                                        <option value="A" className="bg-[#050511]">ANY</option>
-                                        <option value="M" className="bg-[#050511]">MALE</option>
-                                        <option value="F" className="bg-[#050511]">FEMALE</option>
-                                    </select>
-                                </div>
-                                <div className="w-px h-4 bg-white/10 mx-1" />
-                                <input 
+                                <input
                                     type="text"
                                     value={locationFilter}
                                     onChange={(e) => setLocationFilter(e.target.value)}
@@ -892,7 +903,7 @@ export default function Dashboard() {
                         {/* Mode 1: Intent Matchmaking Section */}
                         <div className="w-full max-w-xl space-y-4 mb-10">
                             <div className="flex justify-between items-end mb-2">
-                                <h3 className="text-xl font-bold uppercase tracking-widest text-slate-800 dark:text-cyan-400">01. Neural Search</h3>
+                                <h3 className="text-xl font-bold uppercase tracking-widest text-slate-800 dark:text-cyan-400">01. Smart Search</h3>
                             </div>
                             <div className="flex gap-3">
                                 <input
@@ -944,7 +955,7 @@ export default function Dashboard() {
                                     <span className="text-[10px] font-mono text-slate-500 mr-2 border border-slate-500/30 px-2 py-0.5">Strict Male/Female</span>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className={`grid ${modePref === 'video' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
@@ -955,17 +966,19 @@ export default function Dashboard() {
                                     <MessageSquare className="w-4 h-4 text-slate-500 dark:text-gray-400" />
                                     Text Chat
                                 </motion.button>
- 
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => startOmegleMatch('video')}
-                                    disabled={isMatching || isOffline}
-                                    className={`w-full py-4 bg-green-500/10 text-slate-800 dark:text-green-400 font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all border border-green-500/40 hover:bg-green-500/20 font-mono text-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                >
-                                    <Video className="w-4 h-4 text-green-500" />
-                                    Video Chat
-                                </motion.button>
+
+                                {modePref === 'video' && (
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={() => startOmegleMatch('video')}
+                                        disabled={isMatching || isOffline}
+                                        className={`w-full py-4 bg-green-500/10 text-slate-800 dark:text-green-400 font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all border border-green-500/40 hover:bg-green-500/20 font-mono text-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                    >
+                                        <Video className="w-4 h-4 text-green-500" />
+                                        Video Chat
+                                    </motion.button>
+                                )}
                             </div>
                         </div>
 
@@ -1011,8 +1024,8 @@ export default function Dashboard() {
                                         className="w-full max-w-lg bg-[#0a0a14] border border-white/10 p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
                                     >
                                         <h2 className="text-2xl font-black font-mono tracking-widest text-white uppercase italic mb-2">Choose Your Companion</h2>
-                                        <p className="text-slate-400 font-mono text-xs mb-8 border-l-2 border-rose-500/50 pl-4">Select the neural personality that fits your current state.</p>
-                                        
+                                        <p className="text-slate-400 font-mono text-xs mb-8 border-l-2 border-rose-500/50 pl-4">Select the AI personality that fits your current state.</p>
+
                                         <div className="grid grid-cols-1 gap-4">
                                             {[
                                                 { name: "Empathetic Listener", desc: "Warm, non-judgmental, focused on listening deeply.", icon: "💙", color: "text-blue-400" },
@@ -1074,14 +1087,14 @@ export default function Dashboard() {
                             <div className="flex justify-between items-start mb-12">
                                 <div className="flex items-center gap-2">
                                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                                    <span className="font-mono text-xs text-slate-500 dark:text-purple-400 uppercase">ACTIVE NODE</span>
+                                    <span className="font-mono text-xs text-slate-500 dark:text-purple-400 uppercase">ACTIVE PROFILE</span>
                                 </div>
                                 <span className="text-xs font-mono text-purple-600 dark:text-purple-300">02</span>
                             </div>
                             <h3 className="text-2xl font-black mb-2 text-purple-900 dark:text-purple-100 uppercase tracking-wider">
-                                {username ? username.toUpperCase() : 'YOUR NODE'}
+                                {username ? username.toUpperCase() : 'YOUR PROFILE'}
                             </h3>
-                            <p className="text-sm text-purple-700/80 dark:text-purple-200/70 font-mono leading-relaxed">Neural persona loaded. Ready for profile-based blind matching.</p>
+                            <p className="text-sm text-purple-700/80 dark:text-purple-200/70 font-mono leading-relaxed">User identity synced. Ready for profile-based blind matching.</p>
                         </motion.div>
 
                         {/* Card 3 — Roulette */}

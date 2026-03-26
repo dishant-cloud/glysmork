@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -15,9 +18,16 @@ const sizes = {
 
 export default function Logo({ size = 'md', showText = true, className = '' }: LogoProps) {
     const s = sizes[size];
+    const [href, setHref] = useState('/');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('user')) {
+            setHref('/dashboard');
+        }
+    }, []);
 
     return (
-        <Link href="/" className={`flex items-center gap-2.5 ${className}`}>
+        <Link href={href} className={`flex items-center gap-2.5 ${className}`}>
             <Image
                 src="/logo.png"
                 alt="Glysmork"

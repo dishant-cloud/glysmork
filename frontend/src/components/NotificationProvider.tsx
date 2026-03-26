@@ -19,26 +19,26 @@ export const useNotification = () => useContext(NotificationContext);
 export default function NotificationProvider({ children }: { children: React.ReactNode }) {
     const wsRef = useRef<WebSocket | null>(null);
     const [isOnline, setIsOnline] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
     const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Incoming call state
-    const [incomingCall, setIncomingCall] = useState<{
-        caller_username: string;
-        room_id: string;
-        mode: string;
-    } | null>(null);
+    // (Removed old incomingCall state as CallProvider handles it now)
 
     useEffect(() => {
         // Only connect if user is logged in
         const token = localStorage.getItem('access_token');
         const userStr = localStorage.getItem('user');
 
-        if (!token || !userStr) return;
+        if (!token || !userStr) {
+            // Unauthenticated user, just return silently
+            return;
+        }
 
         let user;
         try {
             user = JSON.parse(userStr);
         } catch {
+            window.dispatchEvent(new CustomEvent('ws_debug_sys', { detail: 'FATAL: Corrupted User String. WS Aborted.' }));
             return;
         }
 
@@ -49,9 +49,12 @@ export default function NotificationProvider({ children }: { children: React.Rea
 
         // Connect to the generic notifications channel
         const connect = () => {
+            window.dispatchEvent(new CustomEvent('ws_debug_sys', { detail: `Attempting WS auth with token: ${token.substring(0, 10)}...` }));
+            // Add timeout for connection
             const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/notifications/?token=${token}`);
 
             ws.onopen = () => {
+                window.dispatchEvent(new CustomEvent('ws_debug_sys', { detail: 'WEBSOCKET FULLY CONNECTED!' }));
                 setIsOnline(true);
                 // Start pinging every 30s to keep Redis standard online
                 pingIntervalRef.current = setInterval(() => {
@@ -64,26 +67,42 @@ export default function NotificationProvider({ children }: { children: React.Rea
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
+                    window.dispatchEvent(new CustomEvent('ws_debug_recv', { detail: data }));
 
                     if (data.type === 'incoming_call') {
-                        setIncomingCall({
-                            caller_username: data.caller_username,
-                            room_id: data.room_id,
-                            mode: data.mode
-                        });
-                    } else if (data.type === 'call_declined') {
-                        // A custom event we can listen to elsewhere if we want to dismiss outgoing rings
-                        window.dispatchEvent(new CustomEvent('call_declined'));
-                    } else if (data.type === 'call_accepted') {
-                        // For the caller side
-                        window.dispatchEvent(new CustomEvent('call_accepted', { detail: data.room_id }));
+                        window.dispatchEvent(new CustomEvent('sys_incoming_call', { detail: data }));
+                    } else if (data.type === 'call_answered') {
+                        window.dispatchEvent(new CustomEvent('sys_call_answered', { detail: data }));
+                    } else if (data.type === 'ice_candidate_forward') {
+                        window.dispatchEvent(new CustomEvent('sys_ice_candidate', { detail: data }));
+                    } else if (data.type === 'call_declined_signal') {
+                        window.dispatchEvent(new CustomEvent('sys_call_declined', { detail: data }));
+                    } else if (data.type === 'call_ended_signal') {
+                        window.dispatchEvent(new CustomEvent('sys_call_ended', { detail: data }));
+                    } else if (data.type === 'friend_message_recv' || data.type === 'session_message_recv') {
+                        // Add to pop-up notifications
+                        const newNotif = {
+                            id: Date.now(),
+                            sender: data.sender,
+                            text: data.text,
+                            type: data.type === 'friend_message_recv' ? 'Message' : 'Session'
+                        };
+                        setNotifications(prev => [...prev, newNotif]);
+                        // Auto-remove after 5s
+                        setTimeout(() => {
+                            setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
+                        }, 5000);
                     }
                 } catch (e) {
                     console.error("WS Parse error", e);
                 }
             };
 
-            ws.onclose = () => {
+            ws.onclose = (event) => {
+                window.dispatchEvent(new CustomEvent('ws_debug_sys', { 
+                    detail: `WEBSOCKET CLOSED! Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}` 
+                }));
+                console.warn(`WebSocket closed: ${event.code} ${event.reason}`);
                 setIsOnline(false);
                 if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
                 // Try reconnecting in 5s
@@ -107,84 +126,55 @@ export default function NotificationProvider({ children }: { children: React.Rea
 
     const sendSignal = (type: string, payload: any) => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type, ...payload }));
+            const data = { type, ...payload };
+            window.dispatchEvent(new CustomEvent('ws_debug_send', { detail: data }));
+            wsRef.current.send(JSON.stringify(data));
         } else {
             console.warn("Cannot send signal, WS not open");
         }
     };
 
-    const handleAccept = () => {
-        if (!incomingCall) return;
-        // We don't strictly *need* to send accept signal back right now, because 
-        // we'll just join the room, but it's good UX for the caller to know immediately
-        sendSignal('accept_call', {
-            room_id: incomingCall.room_id,
-            caller_username: incomingCall.caller_username // Just info
-        });
-
-        // Redirect to room
-        window.location.href = `/chat/room?id=${incomingCall.room_id}&mode=${incomingCall.mode}`;
-        setIncomingCall(null);
-    };
-
-    const handleDecline = () => {
-        if (!incomingCall) return;
-        // Here we'd need the caller ID ideally, but since we don't have it easily right now,
-        // we could just let them timeout, or we can add caller_id to the incoming_call payload later.
-        setIncomingCall(null);
-    };
+    // (Removed handleAccept and handleDecline as CallProvider handles it)
 
     return (
         <NotificationContext.Provider value={{ sendSignal, onlineStatus: isOnline }}>
             {children}
 
-            {/* Global Incoming Call Modal */}
-            <AnimatePresence>
-                {incomingCall && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 50 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 50 }}
-                        className="fixed bottom-6 right-6 z-[9999] bg-slate-900 border-2 border-cyan-500 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.3)] p-6 w-80 overflow-hidden"
-                    >
-                        {/* Background scanline effect */}
-                        <div className="absolute inset-0 bg-noise opacity-10 pointer-events-none" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/50 blur-[2px] animate-pulse" />
-
-                        <div className="flex flex-col items-center text-center relative z-10">
-                            <div className="w-16 h-16 bg-gradient-to-tr from-purple-600 to-cyan-500 rounded-full flex items-center justify-center text-white font-black text-2xl mb-4 border border-cyan-300 shadow-lg animate-bounce">
-                                {incomingCall.caller_username.charAt(0).toUpperCase()}
+            {/* Global Toasts / Popups */}
+            <div className="fixed top-20 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+                <AnimatePresence>
+                    {notifications.map((notif) => (
+                        <motion.div
+                            key={notif.id}
+                            initial={{ opacity: 0, x: 50, scale: 0.9 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                            className="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl shadow-2xl flex items-start gap-4 min-w-[300px] max-w-sm"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                                <Check className="w-5 h-5" />
                             </div>
-
-                            <h3 className="text-white font-black uppercase tracking-widest text-lg mb-1">
-                                Incoming Connection
-                            </h3>
-                            <p className="text-cyan-400 font-mono text-xs mb-6">
-                                Node: <span className="text-white bg-white/10 px-1 py-0.5 rounded">{incomingCall.caller_username}</span>
-                                <br />
-                                Mode: {incomingCall.mode.toUpperCase()}
-                            </p>
-
-                            <div className="flex w-full gap-3">
-                                <button
-                                    onClick={handleDecline}
-                                    className="flex-1 py-3 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/50 text-red-400 rounded-xl transition-all flex items-center justify-center"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                                <button
-                                    onClick={handleAccept}
-                                    className="flex-[2] py-3 bg-green-500 hover:bg-green-400 text-black font-black uppercase tracking-widest border border-green-400 rounded-xl transition-all shadow-[0_0_15px_rgba(74,222,128,0.4)] flex justify-center items-center gap-2"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    Accept
-                                    {incomingCall.mode === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
-                                </button>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-1">
+                                    New {notif.type}
+                                </p>
+                                <p className="text-white font-bold truncate">
+                                    {notif.sender}
+                                </p>
+                                <p className="text-slate-400 text-sm line-clamp-2 italic">
+                                    "{notif.text}"
+                                </p>
                             </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            <button 
+                                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                                className="text-slate-500 hover:text-white transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
         </NotificationContext.Provider>
     );
 }

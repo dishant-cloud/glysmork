@@ -11,6 +11,9 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///db.sqlite3")
 
 # Gemini Setup
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+print(f"DEBUG: GEMINI_API_KEY loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
+if GEMINI_API_KEY:
+    print(f"DEBUG: Key starts with: {GEMINI_API_KEY[:8]}...")
 
 
 # The Buckets definition as provided
