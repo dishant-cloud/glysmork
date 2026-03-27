@@ -32,8 +32,8 @@ export default function Dashboard() {
     const [isOffline, setIsOffline] = useState(false);
     const [modePref, setModePref] = useState<'chat' | 'video'>('chat');
     const [locationFilter, setLocationFilter] = useState('');
-    const [countryFilter, setCountryFilter] = useState('');
-    const [languageFilter, setLanguageFilter] = useState('');
+    const [countryFilter, setCountryFilter] = useState<string[]>([]);
+    const [languageFilter, setLanguageFilter] = useState<string[]>([]);
     const [distanceKm, setDistanceKm] = useState(0);
     const [showFilters, setShowFilters] = useState(false);
 
@@ -714,9 +714,9 @@ export default function Dashboard() {
                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all border ${showFilters ? 'bg-purple-500/20 border-purple-500/50 text-purple-300' : 'bg-transparent border-white/10 text-gray-500 hover:text-white hover:border-white/30'}`}
                                 >
                                     🌐 Filters
-                                    {(countryFilter || languageFilter || distanceKm > 0) && (
+                                    {(countryFilter.length > 0 || languageFilter.length > 0 || distanceKm > 0) && (
                                         <span className="w-4 h-4 rounded-full bg-cyan-500 text-black text-[8px] font-black flex items-center justify-center">
-                                            {[countryFilter, languageFilter, distanceKm > 0].filter(Boolean).length}
+                                            {[countryFilter.length > 0, languageFilter.length > 0, distanceKm > 0].filter(Boolean).length}
                                         </span>
                                     )}
                                 </button>
@@ -725,79 +725,49 @@ export default function Dashboard() {
                             {/* Expanded Filter Drawer */}
                             {showFilters && (
                                 <div className="w-full mt-2 p-4 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl flex flex-wrap gap-4 items-end">
-                                    {/* Country Filter */}
-                                    <div className="flex flex-col gap-1 min-w-[160px]">
-                                        <label className="text-[9px] font-mono text-purple-400 uppercase tracking-widest">Country</label>
-                                        <select
-                                            value={countryFilter}
-                                            onChange={(e) => setCountryFilter(e.target.value)}
-                                            className="bg-black/60 border border-white/10 text-white text-[11px] font-mono px-3 py-2 focus:outline-none focus:border-purple-500 rounded-lg"
-                                        >
-                                            <option value="">Any Country</option>
-                                            <option value="US">🇺🇸 United States</option>
-                                            <option value="IN">🇮🇳 India</option>
-                                            <option value="GB">🇬🇧 United Kingdom</option>
-                                            <option value="CA">🇨🇦 Canada</option>
-                                            <option value="AU">🇦🇺 Australia</option>
-                                            <option value="DE">🇩🇪 Germany</option>
-                                            <option value="FR">🇫🇷 France</option>
-                                            <option value="BR">🇧🇷 Brazil</option>
-                                            <option value="JP">🇯🇵 Japan</option>
-                                            <option value="KR">🇰🇷 South Korea</option>
-                                            <option value="CN">🇨🇳 China</option>
-                                            <option value="RU">🇷🇺 Russia</option>
-                                            <option value="MX">🇲🇽 Mexico</option>
-                                            <option value="NG">🇳🇬 Nigeria</option>
-                                            <option value="PK">🇵🇰 Pakistan</option>
-                                            <option value="ID">🇮🇩 Indonesia</option>
-                                            <option value="SA">🇸🇦 Saudi Arabia</option>
-                                            <option value="ZA">🇿🇦 South Africa</option>
-                                            <option value="TR">🇹🇷 Turkey</option>
-                                            <option value="EG">🇪🇬 Egypt</option>
-                                            <option value="NL">🇳🇱 Netherlands</option>
-                                            <option value="SE">🇸🇪 Sweden</option>
-                                            <option value="SG">🇸🇬 Singapore</option>
-                                            <option value="PH">🇵🇭 Philippines</option>
-                                            <option value="IT">🇮🇹 Italy</option>
-                                            <option value="ES">🇪🇸 Spain</option>
-                                            <option value="AR">🇦🇷 Argentina</option>
-                                            <option value="BD">🇧🇩 Bangladesh</option>
-                                        </select>
+                                    {/* Country Filter (Multi) */}
+                                    <div className="flex flex-col gap-2 min-w-[300px] max-w-md">
+                                        <label className="text-[9px] font-mono text-purple-400 uppercase tracking-widest flex justify-between">
+                                            Countries <span>{countryFilter.length > 0 && `(${countryFilter.length} selected)`}</span>
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5 p-2 bg-black/20 border border-white/5 rounded-lg max-h-32 overflow-y-auto custom-scrollbar">
+                                            {[
+                                                { id: 'US', label: '🇺🇸 US' }, { id: 'IN', label: '🇮🇳 IN' }, { id: 'GB', label: '🇬🇧 UK' },
+                                                { id: 'CA', label: '🇨🇦 CA' }, { id: 'AU', label: '🇦🇺 AU' }, { id: 'DE', label: '🇩🇪 DE' },
+                                                { id: 'FR', label: '🇫🇷 FR' }, { id: 'BR', label: '🇧🇷 BR' }, { id: 'JP', label: '🇯🇵 JP' },
+                                                { id: 'KR', label: '🇰🇷 KR' }, { id: 'CN', label: '🇨🇳 CN' }, { id: 'RU', label: '🇷🇺 RU' }
+                                            ].map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    onClick={() => setCountryFilter(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])}
+                                                    className={`px-2 py-1 rounded text-[10px] font-mono transition-all border ${countryFilter.includes(c.id) ? 'bg-purple-500 text-white border-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white'}`}
+                                                >
+                                                    {c.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    {/* Language Filter */}
-                                    <div className="flex flex-col gap-1 min-w-[160px]">
-                                        <label className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">Language</label>
-                                        <select
-                                            value={languageFilter}
-                                            onChange={(e) => setLanguageFilter(e.target.value)}
-                                            className="bg-black/60 border border-white/10 text-white text-[11px] font-mono px-3 py-2 focus:outline-none focus:border-cyan-500 rounded-lg"
-                                        >
-                                            <option value="">Any Language</option>
-                                            <option value="en">🌐 English</option>
-                                            <option value="hi">🇮🇳 Hindi</option>
-                                            <option value="es">🇪🇸 Spanish</option>
-                                            <option value="zh">🇨🇳 Chinese (Mandarin)</option>
-                                            <option value="ar">🇸🇦 Arabic</option>
-                                            <option value="fr">🇫🇷 French</option>
-                                            <option value="de">🇩🇪 German</option>
-                                            <option value="pt">🇧🇷 Portuguese</option>
-                                            <option value="ru">🇷🇺 Russian</option>
-                                            <option value="ja">🇯🇵 Japanese</option>
-                                            <option value="ko">🇰🇷 Korean</option>
-                                            <option value="id">🇮🇩 Indonesian</option>
-                                            <option value="tr">🇹🇷 Turkish</option>
-                                            <option value="te">Telugu</option>
-                                            <option value="ta">Tamil</option>
-                                            <option value="bn">Bengali</option>
-                                            <option value="ur">Urdu</option>
-                                            <option value="it">🇮🇹 Italian</option>
-                                            <option value="nl">🇳🇱 Dutch</option>
-                                            <option value="sv">🇸🇪 Swedish</option>
-                                            <option value="pl">Polish</option>
-                                            <option value="vi">Vietnamese</option>
-                                            <option value="fil">Filipino</option>
-                                        </select>
+                                    {/* Language Filter (Multi) */}
+                                    <div className="flex flex-col gap-2 min-w-[300px] max-w-md">
+                                        <label className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest flex justify-between">
+                                            Languages <span>{languageFilter.length > 0 && `(${languageFilter.length} selected)`}</span>
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5 p-2 bg-black/20 border border-white/5 rounded-lg max-h-32 overflow-y-auto custom-scrollbar">
+                                            {[
+                                                { id: 'en', label: '🌐 EN' }, { id: 'hi', label: '🇮🇳 HI' }, { id: 'es', label: '🇪🇸 ES' },
+                                                { id: 'zh', label: '🇨🇳 ZH' }, { id: 'fr', label: '🇫🇷 FR' }, { id: 'de', label: '🇩🇪 DE' },
+                                                { id: 'pt', label: '🇧🇷 PT' }, { id: 'ja', label: '🇯🇵 JA' }, { id: 'ru', label: '🇷🇺 RU' }
+                                            ].map(l => (
+                                                <button
+                                                    key={l.id}
+                                                    onClick={() => setLanguageFilter(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
+                                                    className={`px-2 py-1 rounded text-[10px] font-mono transition-all border ${languageFilter.includes(l.id) ? 'bg-cyan-500 text-black border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.3)]' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white'}`}
+                                                >
+                                                    {l.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {/* Distance Filter */}
@@ -821,7 +791,7 @@ export default function Dashboard() {
 
                                     {/* Clear All */}
                                     <button
-                                        onClick={() => { setCountryFilter(''); setLanguageFilter(''); setDistanceKm(0); }}
+                                        onClick={() => { setCountryFilter([]); setLanguageFilter([]); setDistanceKm(0); }}
                                         className="text-[9px] font-mono text-red-400/60 hover:text-red-400 uppercase tracking-widest transition-colors self-end pb-2"
                                     >
                                         ✕ Clear filters

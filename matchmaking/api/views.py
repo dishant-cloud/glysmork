@@ -84,8 +84,19 @@ class JoinMatchmakingView(APIView):
         mode_pref = request.data.get('mode', 'chat') # chat or video
         gender_filter = request.data.get('gender_filter', 'A') # M, F, or A (Any)
         location_filter = request.data.get('location_filter', '').strip()
-        country_filter = request.data.get('country_filter', '').strip().upper()   # ISO-2 code e.g. "IN"
-        language_filter = request.data.get('language_filter', '').strip().lower() # e.g. "hi", "en"
+        country_filter = request.data.get('country_filter', [])
+        language_filter = request.data.get('language_filter', [])
+
+        # Ensure they are lists (handle legacy single-string inputs if any)
+        if isinstance(country_filter, str) and country_filter:
+            country_filter = [country_filter.strip().upper()]
+        if isinstance(language_filter, str) and language_filter:
+            language_filter = [language_filter.strip().lower()]
+        
+        # Default to empty lists if they are None or weird types
+        if not isinstance(country_filter, list): country_filter = []
+        if not isinstance(language_filter, list): language_filter = []
+        
         distance_km = int(request.data.get('distance_km', 0) or 0)               # 0 = disabled
         
         if not intent and not is_offline:
@@ -232,13 +243,16 @@ class JoinMatchmakingView(APIView):
                 if location_filter:
                     query = query.filter(user__profile__location__icontains=location_filter)
 
-                # 2. Country filter (exact ISO-2 code)
+                # 2. Country filter (multiple allowed)
                 if country_filter:
-                    query = query.filter(user__profile__country=country_filter)
+                    query = query.filter(user__profile__country__in=country_filter)
 
-                # 3. Language filter (check if language is in the JSONField list)
+                # 3. Language filter (match ANY of the selected languages)
                 if language_filter:
-                    query = query.filter(user__profile__languages__contains=[language_filter])
+                    lang_q = Q()
+                    for lang in language_filter:
+                        lang_q |= Q(user__profile__languages__contains=[lang])
+                    query = query.filter(lang_q)
 
                 potential_match = query.order_by('?').first()
 
@@ -332,11 +346,13 @@ class JoinMatchmakingView(APIView):
             "mode": intent.lower().split()[-1] if intent.lower().startswith("random opposite gender") else "chat"
         })
 
-    def attempt_discovery(self, user, intent, country_filter='', language_filter='', distance_km=0):
+    def attempt_discovery(self, user, intent, country_filter=None, language_filter=None, distance_km=0):
         """
         AI Search & Discovery Engine: Scans all public profiles to find the best 5 matches.
         Applies country, language, and distance pre-filters before handing off to AI.
         """
+        if country_filter is None: country_filter = []
+        if language_filter is None: language_filter = []
         user_profile = user.profile
 
         # Start base queryset
@@ -345,13 +361,16 @@ class JoinMatchmakingView(APIView):
             is_banned=False
         ).exclude(user=user).select_related('user')
 
-        # --- PRE-FILTER: Country ---
+        # --- PRE-FILTER: Country (Multiple) ---
         if country_filter:
-            candidates_qs = candidates_qs.filter(country=country_filter)
+            candidates_qs = candidates_qs.filter(country__in=country_filter)
 
-        # --- PRE-FILTER: Language ---
+        # --- PRE-FILTER: Language (ANY of) ---
         if language_filter:
-            candidates_qs = candidates_qs.filter(languages__contains=[language_filter])
+            lang_q = Q()
+            for lang in language_filter:
+                lang_q |= Q(languages__contains=[lang])
+            candidates_qs = candidates_qs.filter(lang_q)
 
         candidates = list(candidates_qs.order_by('-last_seen')[:40])
 

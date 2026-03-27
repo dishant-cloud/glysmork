@@ -79,8 +79,8 @@ class OfflineSearch(models.Model):
     mode = models.CharField(max_length=10, default='chat') # chat or video
     gender_filter = models.CharField(max_length=1, default='A') # M(ale), F(emale), A(ny)
     location_filter = models.CharField(max_length=100, blank=True)
-    country_filter = models.CharField(max_length=2, blank=True)
-    language_filter = models.CharField(max_length=50, blank=True)
+    country_filter = models.JSONField(default=list, blank=True)
+    language_filter = models.JSONField(default=list, blank=True)
     distance_km_filter = models.IntegerField(default=0)
     
     daily_refresh_timestamp = models.DateTimeField(auto_now=True)
