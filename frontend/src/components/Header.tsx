@@ -35,8 +35,8 @@ export default function Header() {
         <header className="fixed top-0 left-0 right-0 p-6 z-50 flex justify-between items-center pointer-events-none">
             <div className="pointer-events-auto">
                 <Link href="/dashboard" replace={pathname !== '/dashboard'} className="flex items-center gap-2 group">
-                    <div className="w-10 h-10 bg-black dark:bg-white flex items-center justify-center rounded-xl group-hover:rotate-12 transition-transform duration-500 shadow-lg">
-                        <span className="text-white dark:text-black font-black text-xl tracking-tighter">G</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center rounded-xl group-hover:rotate-12 transition-transform duration-500 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                        <span className="text-white font-black text-xl tracking-tighter">G</span>
                     </div>
                 </Link>
             </div>

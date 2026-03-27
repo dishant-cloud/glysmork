@@ -58,6 +58,7 @@ export default function InboxPage() {
         };
     }, []);
 
+
     const fetchFriends = async (currUser: string) => {
         try {
             const res = await fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(currUser)}`);
@@ -92,9 +93,7 @@ export default function InboxPage() {
     };
 
     return (
-        <main className="min-h-screen bg-slate-50 dark:bg-[#050511] text-slate-900 dark:text-white transition-colors duration-300 overflow-hidden">
-            <div className="absolute top-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/10 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] left-[-10%] w-[30vw] h-[30vw] rounded-full bg-purple-500/10 dark:bg-purple-900/10 blur-[100px] pointer-events-none" />
+        <main className="min-h-screen bg-transparent text-slate-900 dark:text-white transition-colors duration-300 overflow-hidden">
 
             <Header />
 

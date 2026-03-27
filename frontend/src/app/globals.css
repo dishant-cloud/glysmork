@@ -37,14 +37,16 @@
   --font-mono: var(--font-inter);
 }
 
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   overflow-x: hidden;
-  background-image:
-    radial-gradient(at 0% 0%, var(--gradient-1) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, var(--gradient-2) 0px, transparent 50%);
   background-attachment: fixed;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
@@ -118,7 +120,7 @@ body {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  z-index: 50;
+  z-index: -1;
   mix-blend-mode: overlay;
 }
 
@@ -152,8 +154,9 @@ body {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
 }
 
 .animate-float {

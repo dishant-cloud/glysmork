@@ -20,6 +20,10 @@ export default function ProfilePage() {
     const [editBio, setEditBio] = useState('');
     const [editGender, setEditGender] = useState('');
     const [editAge, setEditAge] = useState('');
+    const [editCountry, setEditCountry] = useState('');
+    const [editLanguages, setEditLanguages] = useState<string[]>([]);
+    const [editLatitude, setEditLatitude] = useState<number | null>(null);
+    const [editLongitude, setEditLongitude] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [viewMode, setViewMode] = useState<'persona' | 'real'>('persona');
@@ -48,6 +52,7 @@ export default function ProfilePage() {
         };
     }, []);
 
+
     const getUsername = (): string | null => {
         try {
             const u = localStorage.getItem('user');
@@ -68,6 +73,10 @@ export default function ProfilePage() {
             setEditBio(data.bio || '');
             setEditGender(data.gender || 'O');
             setEditAge(data.age || '18');
+            setEditCountry(data.country || '');
+            setEditLanguages(data.languages || []);
+            setEditLatitude(data.latitude || null);
+            setEditLongitude(data.longitude || null);
         } catch (err) {
             console.error("Failed to load profile", err);
             setError('Could not load your AI profile insights.');
@@ -124,6 +133,10 @@ export default function ProfilePage() {
                     bio: editBio,
                     gender: editGender,
                     age: parseInt(editAge) || 18,
+                    country: editCountry,
+                    languages: editLanguages,
+                    latitude: editLatitude,
+                    longitude: editLongitude
                 })
             });
             setProfileData(data);
@@ -134,6 +147,23 @@ export default function ProfilePage() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setEditLatitude(position.coords.latitude);
+                setEditLongitude(position.coords.longitude);
+                alert("Neural coordinates synchronized.");
+            },
+            () => {
+                alert("Unable to retrieve your location. Please check your browser permissions.");
+            }
+        );
     };
 
     if (loading) {
@@ -173,14 +203,7 @@ export default function ProfilePage() {
     const psychologicalProfile = profileData?.psychological_profile || {};
 
     return (
-        <div className="min-h-screen bg-[#050511] text-white selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">
-
-            {/* Texture Layer */}
-            <div className="bg-noise dark:opacity-5 opacity-20 fixed inset-0 pointer-events-none" />
-
-            {/* Abstract Gradient Orbs */}
-            <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/10 dark:bg-purple-900/10 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/10 blur-[100px] pointer-events-none" />
+        <div className="min-h-screen bg-transparent text-white selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">
 
             <div className="max-w-6xl mx-auto relative z-20">
                 {/* Header */}
@@ -284,6 +307,42 @@ export default function ProfilePage() {
                                             />
                                         </div>
                                     </div>
+                                    
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Country & Region</label>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={editCountry}
+                                                onChange={(e) => setEditCountry(e.target.value)}
+                                                className="flex-1 bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm appearance-none cursor-pointer transition-all"
+                                            >
+                                                <option value="">Select Country</option>
+                                                <option value="IN">India</option>
+                                                <option value="US">United States</option>
+                                                <option value="GB">United Kingdom</option>
+                                                <option value="CA">Canada</option>
+                                                <option value="AU">Australia</option>
+                                                {/* Add more as needed */}
+                                            </select>
+                                            <button 
+                                                onClick={handleGetLocation}
+                                                className={`px-4 bg-white/5 border ${editLatitude ? 'border-green-500/50 text-green-400' : 'border-white/10 text-slate-400'} rounded-2xl hover:bg-white/10 transition-all font-mono text-[10px] uppercase`}
+                                            >
+                                                {editLatitude ? '✓ Fixed' : '📍 Sync GPS'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Languages (comma separated)</label>
+                                        <input
+                                            type="text"
+                                            value={editLanguages.join(', ')}
+                                            onChange={(e) => setEditLanguages(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                            placeholder="en, hi, es..."
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm transition-all font-mono"
+                                        />
+                                    </div>
                                     <div className="flex gap-3 pt-4">
                                         <button
                                             onClick={handleSave}
@@ -305,11 +364,24 @@ export default function ProfilePage() {
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
                                             <h2 className="text-3xl font-black text-white tracking-tight leading-none mb-1">{profileData?.user?.username}</h2>
-                                            <div className="text-xs font-bold text-slate-500 flex gap-2 items-center">
+                                            <div className="text-xs font-bold text-slate-500 flex flex-wrap gap-2 items-center">
                                                 <span>{profileData?.gender === 'M' ? 'Male' : profileData?.gender === 'F' ? 'Female' : 'Other'}</span>
                                                 <span className="w-1 h-1 bg-slate-700 rounded-full" />
                                                 <span>{profileData?.age} Years Old</span>
+                                                {profileData?.country && (
+                                                    <>
+                                                        <span className="w-1 h-1 bg-slate-700 rounded-full" />
+                                                        <span className="text-cyan-400/80">{profileData.country}</span>
+                                                    </>
+                                                )}
                                             </div>
+                                            {profileData?.languages?.length > 0 && (
+                                                <div className="flex gap-1.5 mt-3">
+                                                    {profileData.languages.map((l: string) => (
+                                                        <span key={l} className="text-[9px] font-mono border border-white/10 bg-white/5 px-2 py-0.5 rounded text-slate-400 uppercase tracking-widest">{l}</span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                         <button
                                             onClick={() => setIsEditing(true)}

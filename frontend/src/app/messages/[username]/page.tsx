@@ -61,6 +61,7 @@ export default function DMPage() {
         } catch { router.push('/login'); }
     }, [router]);
 
+
     // Load message history & connect WebSocket when roomName is ready
     useEffect(() => {
         if (!roomName || !myUsername) return;
@@ -264,7 +265,7 @@ export default function DMPage() {
     const friendInitial = friend.replace('session_', '').charAt(0).toUpperCase();
 
     return (
-        <div className="flex flex-col h-screen bg-[#0a0a0f] text-white" onClick={() => setContextMenu(null)}>
+        <div className="flex flex-col h-screen bg-transparent text-white" onClick={() => setContextMenu(null)}>
             {/* ── Header ── */}
             <div className="flex items-center gap-3 px-4 py-3 bg-[#111118]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-20">
                 <Link href="/messages" className="p-2 hover:bg-white/10 rounded-full transition-colors">

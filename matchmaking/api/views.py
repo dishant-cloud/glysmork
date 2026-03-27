@@ -17,6 +17,45 @@ from django.utils import timezone
 
 genai.configure(api_key="AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU")
 
+import math
+
+def get_commonality_reason(p1, p2):
+    """Calculates commonalities between two profiles based on structured data."""
+    interests1 = p1.interests if isinstance(p1.interests, list) else []
+    interests2 = p2.interests if isinstance(p2.interests, list) else []
+    expertise1 = p1.expertise_areas if isinstance(p1.expertise_areas, list) else []
+    expertise2 = p2.expertise_areas if isinstance(p2.expertise_areas, list) else []
+    topics1 = p1.conversation_topics if isinstance(p1.conversation_topics, list) else []
+    topics2 = p2.conversation_topics if isinstance(p2.conversation_topics, list) else []
+
+    common_interests = set(interests1) & set(interests2)
+    common_expertise = set(expertise1) & set(expertise2)
+    common_topics = set(topics1) & set(topics2)
+    
+    reasons = []
+    if common_interests:
+        reasons.append(f"shared interests in {', '.join(list(common_interests)[:3])}")
+    if common_expertise:
+        reasons.append(f"overlapping expertise in {', '.join(list(common_expertise)[:3])}")
+    if common_topics:
+        reasons.append(f"mutual curiosity about {', '.join(list(common_topics)[:3])}")
+        
+    if not reasons:
+        if p1.country and p1.country == p2.country:
+             return f"Neural connection established within {p1.country}. You both explore the same geographic sector."
+        return "Neural synchronization complete. Your profiles suggest a high-bandwidth intellectual connection."
+        
+    return f"Neural Overlap detected: You both have {', and '.join(reasons)}."
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Return the great-circle distance in km between two GPS points."""
+    R = 6371  # Earth radius km
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
 class JoinMatchmakingView(APIView):
     """
     Universal Connection Engine.
@@ -45,6 +84,9 @@ class JoinMatchmakingView(APIView):
         mode_pref = request.data.get('mode', 'chat') # chat or video
         gender_filter = request.data.get('gender_filter', 'A') # M, F, or A (Any)
         location_filter = request.data.get('location_filter', '').strip()
+        country_filter = request.data.get('country_filter', '').strip().upper()   # ISO-2 code e.g. "IN"
+        language_filter = request.data.get('language_filter', '').strip().lower() # e.g. "hi", "en"
+        distance_km = int(request.data.get('distance_km', 0) or 0)               # 0 = disabled
         
         if not intent and not is_offline:
             return Response(
@@ -61,6 +103,9 @@ class JoinMatchmakingView(APIView):
                     'mode': mode_pref,
                     'gender_filter': gender_filter,
                     'location_filter': location_filter,
+                    'country_filter': country_filter,
+                    'language_filter': language_filter,
+                    'distance_km_filter': distance_km,
                     'is_active': True,
                     'daily_refresh_timestamp': timezone.now()
                 }
@@ -82,23 +127,26 @@ class JoinMatchmakingView(APIView):
             except AuthUser.DoesNotExist:
                 return Response({"error": "Target node no longer available."}, status=status.HTTP_404_NOT_FOUND)
             
-            # Create a persistent direct room
+            # Create a persistent direct room with match reasoning
+            match_reason = request.data.get('reason') or get_commonality_reason(user.profile, match.profile)
             sorted_usernames = sorted([user.username, match.username])
             room_name = f"direct_{sorted_usernames[0]}_{sorted_usernames[1]}"
             room, _ = Room.objects.get_or_create(name=room_name)
             room.users.add(user, match)
             room.is_active = True
+            room.match_reason = match_reason
             room.save()
             
             import time
-            match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}'
+            match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}:{mode}:{match_reason}'
             match.profile.save(update_fields=['current_intent'])
 
             return Response({
                 "status": "match_found", 
                 "message": "Direct connection established.", 
                 "matched_user": match.username,
-                "room_name": room_name
+                "room_name": room_name,
+                "match_reason": match_reason
             })
 
         # --- CHECK IF WE ALREADY HAVE A ROOM WAITING FOR THIS USER ---
@@ -173,17 +221,39 @@ class JoinMatchmakingView(APIView):
                 intent_filter = "random opposite gender chat"
             
             if target_gender:
-                # Filter by Location if requested
+                # Build filtered query
                 query = active_loop.filter(
                     gender=target_gender,
                     user__profile__current_intent__icontains=mode
                 )
-                
+
+                # --- LOCATION FILTERS ---
+                # 1. Legacy plain-text location
                 if location_filter:
                     query = query.filter(user__profile__location__icontains=location_filter)
 
-                potential_match = query.order_by('?').first() # Random order
-                
+                # 2. Country filter (exact ISO-2 code)
+                if country_filter:
+                    query = query.filter(user__profile__country=country_filter)
+
+                # 3. Language filter (check if language is in the JSONField list)
+                if language_filter:
+                    query = query.filter(user__profile__languages__contains=[language_filter])
+
+                potential_match = query.order_by('?').first()
+
+                # 4. Distance filter (post-query, uses Haversine in Python)
+                if potential_match and distance_km > 0:
+                    my_lat = getattr(user.profile, 'latitude', None)
+                    my_lon = getattr(user.profile, 'longitude', None)
+                    if my_lat is not None and my_lon is not None:
+                        cand_lat = getattr(potential_match.user.profile, 'latitude', None)
+                        cand_lon = getattr(potential_match.user.profile, 'longitude', None)
+                        if cand_lat is None or cand_lon is None:
+                            potential_match = None  # Candidate has no location, skip
+                        elif haversine_km(my_lat, my_lon, cand_lat, cand_lon) > distance_km:
+                            potential_match = None  # Too far away
+
                 if potential_match:
                     match = potential_match.user
                     Loop.objects.filter(user__in=[user, match]).delete()
@@ -209,7 +279,12 @@ class JoinMatchmakingView(APIView):
         else:
             # --- THE AI DISCOVERY ENGINE ---
             # For personalized intent, we find a list of candidates instead of matching instantly.
-            candidates_with_reasons = self.attempt_discovery(user, intent)
+            candidates_with_reasons = self.attempt_discovery(
+                user, intent,
+                country_filter=country_filter,
+                language_filter=language_filter,
+                distance_km=distance_km
+            )
             if candidates_with_reasons:
                 return Response({
                     "status": "discovery_results",
@@ -229,13 +304,17 @@ class JoinMatchmakingView(APIView):
                 status='pending'
             )
             
+            # Found a match! Calculate commonality
+            reason = get_commonality_reason(user.profile, match.profile)
             session_id = uuid.uuid4().hex[:12]
             room_name = f"session_{session_id}"
-            # RANDOM MATCHES ARE EPHEMERAL: DO NOT CREATE Room OBJECTS in DB
-            # Just return the room_name so they can connect via WebSocket/Redis
+            
+            # Persist room to store match_reason
+            room = Room.objects.create(name=room_name, chat_type='session', match_reason=reason)
+            room.users.add(user, match)
 
             import time
-            match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}:{mode}'
+            match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}:{mode}:{reason}'
             match.profile.save(update_fields=['current_intent'])
 
             return Response({
@@ -243,7 +322,8 @@ class JoinMatchmakingView(APIView):
                 "message": "Connection established.", 
                 "matched_user": match.username,
                 "room_name": room_name,
-                "mode": mode
+                "mode": mode,
+                "match_reason": reason
             })
             
         return Response({
@@ -252,19 +332,37 @@ class JoinMatchmakingView(APIView):
             "mode": intent.lower().split()[-1] if intent.lower().startswith("random opposite gender") else "chat"
         })
 
-    def attempt_discovery(self, user, intent):
+    def attempt_discovery(self, user, intent, country_filter='', language_filter='', distance_km=0):
         """
         AI Search & Discovery Engine: Scans all public profiles to find the best 5 matches.
+        Applies country, language, and distance pre-filters before handing off to AI.
         """
         user_profile = user.profile
-        
-        # Expand pool to all public profiles, excluding the current user
-        # We'll take a larger burst to filter down with AI
-        candidates = Profile.objects.filter(
+
+        # Start base queryset
+        candidates_qs = Profile.objects.filter(
             is_profile_public=True,
             is_banned=False
-        ).exclude(user=user).select_related('user').order_by('-last_seen')[:40]
-        
+        ).exclude(user=user).select_related('user')
+
+        # --- PRE-FILTER: Country ---
+        if country_filter:
+            candidates_qs = candidates_qs.filter(country=country_filter)
+
+        # --- PRE-FILTER: Language ---
+        if language_filter:
+            candidates_qs = candidates_qs.filter(languages__contains=[language_filter])
+
+        candidates = list(candidates_qs.order_by('-last_seen')[:40])
+
+        # --- POST-FILTER: Distance (Haversine, Python-side) ---
+        if distance_km > 0 and user_profile.latitude is not None and user_profile.longitude is not None:
+            def within_range(p):
+                if p.latitude is None or p.longitude is None:
+                    return False
+                return haversine_km(user_profile.latitude, user_profile.longitude, p.latitude, p.longitude) <= distance_km
+            candidates = [p for p in candidates if within_range(p)]
+
         if not candidates:
             print("DEBUG: Neural Search - No candidates found in database!")
             return []

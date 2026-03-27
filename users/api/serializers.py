@@ -18,7 +18,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             'connection_preferences', 'interests', 'expertise_areas',
             'conversation_topics', 'current_intent',
             'last_quiz_taken', 'is_profile_public',
-            'show_ai_analysis', 'hidden_data_fields'
+            'show_ai_analysis', 'hidden_data_fields',
+            'country', 'state', 'languages', 'latitude', 'longitude',
+            'persona_image_url', 'trust_score',
         ]
         read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics']
 

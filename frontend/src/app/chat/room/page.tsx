@@ -38,6 +38,7 @@ export default function ChatRoom() {
     const [showExitModal, setShowExitModal] = useState(false);
     const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted'>('none');
     const [showToast, setShowToast] = useState<string | null>(null);
+    const [matchReason, setMatchReason] = useState<string | null>(null);
 
     const { startCall, endCall } = useCall();
     const router = useRouter();
@@ -93,6 +94,7 @@ export default function ChatRoom() {
             fetch(`http://127.0.0.1:8000/api/room/${rm}/`)
                 .then(r => r.json())
                 .then(data => {
+                    if (data.match_reason) setMatchReason(data.match_reason);
                     if (data.users) {
                         const partner = data.users.find((u: string) => u !== me);
                         setPartnerUsername(partner || null);
@@ -513,6 +515,26 @@ export default function ChatRoom() {
                         Secure Connection Established
                     </span>
                 </div>
+
+                {matchReason && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mx-auto max-w-2xl p-6 bg-gradient-to-br from-indigo-950/40 to-black/40 border border-indigo-500/30 rounded-2xl backdrop-blur-xl shadow-[0_0_40px_rgba(79,70,229,0.15)] mb-8"
+                    >
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-indigo-400/10 rounded-xl border border-indigo-500/20">
+                                <Activity className="w-5 h-5 text-indigo-400" />
+                            </div>
+                            <div className="text-left">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300 mb-1">Neural Connection Insights</h3>
+                                <p className="text-sm text-indigo-100/90 leading-relaxed font-mono">
+                                    {matchReason}
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
 
                 <AnimatePresence>
                     {messages.map((msg, index) => {

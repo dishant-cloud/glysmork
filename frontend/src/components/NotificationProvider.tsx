@@ -73,19 +73,19 @@ export default function NotificationProvider({ children }: { children: React.Rea
                         window.dispatchEvent(new CustomEvent('sys_incoming_call', { detail: data }));
                     } else if (data.type === 'call_answered') {
                         window.dispatchEvent(new CustomEvent('sys_call_answered', { detail: data }));
-                    } else if (data.type === 'ice_candidate_forward') {
+                    } else if (data.type === 'ice_candidate') {
                         window.dispatchEvent(new CustomEvent('sys_ice_candidate', { detail: data }));
-                    } else if (data.type === 'call_declined_signal') {
+                    } else if (data.type === 'call_declined') {
                         window.dispatchEvent(new CustomEvent('sys_call_declined', { detail: data }));
-                    } else if (data.type === 'call_ended_signal') {
+                    } else if (data.type === 'call_ended') {
                         window.dispatchEvent(new CustomEvent('sys_call_ended', { detail: data }));
-                    } else if (data.type === 'friend_message_recv' || data.type === 'session_message_recv') {
+                    } else if (data.type === 'friend_message' || data.type === 'session_message') {
                         // Add to pop-up notifications
                         const newNotif = {
                             id: Date.now(),
                             sender: data.sender,
                             text: data.text,
-                            type: data.type === 'friend_message_recv' ? 'Message' : 'Session'
+                            type: data.type === 'friend_message' ? 'Message' : 'Session'
                         };
                         setNotifications(prev => [...prev, newNotif]);
                         // Auto-remove after 5s

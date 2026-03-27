@@ -20,6 +20,9 @@ class Profile(models.Model):
     from django_countries.fields import CountryField
     country = CountryField(blank=True)
     state = models.CharField(max_length=100, blank=True)
+    languages = models.JSONField(default=list, blank=True, help_text="Languages the user speaks, e.g. ['en', 'hi']")
+    latitude = models.FloatField(null=True, blank=True, help_text="GPS latitude for distance-based matching")
+    longitude = models.FloatField(null=True, blank=True, help_text="GPS longitude for distance-based matching")
     
     diamonds = models.IntegerField(default = 20)
     age = models.PositiveIntegerField(default = 18)
@@ -76,7 +79,8 @@ class Profile(models.Model):
         if cache.get(f'user_online_{self.user.id}'):
             return True
         # Fallback to database last_seen
-        return timezone.now() - self.last_seen < timezone.timedelta(minutes = 5)
+        # Tightened from 5m to 1m for more accurate 'live' feel
+        return timezone.now() - self.last_seen < timezone.timedelta(minutes = 1)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

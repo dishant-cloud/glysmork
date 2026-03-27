@@ -423,6 +423,7 @@ Rules:
   - If they say they're lonely/sad: gently explore that.
   - If they're excited/curious: explore what they want to discover.
   - If they mention a topic: dig into it naturally.
+- Focus on who they are — their personality, values, passions, humor, vibe, and what kind of connection they want.
 - Keep questions conversational, not clinical. Friendly but interesting.
 - Don't repeat similar questions. Each turn should go deeper or in a new direction.
 - After the user has answered 5 or more questions, respond with this JSON structure:
@@ -500,15 +501,6 @@ Before that point (step < 5), respond ONLY with:
         try:
             import ollama as ollama_client
 
-            QUESTION_ANGLES = [
-                "why they joined / what brought them here today",
-                "their current emotional state or what's going on in their life",
-                "the kind of people or connections they're hoping to find",
-                "their interests, passions, or what they love talking about",
-                "how they usually connect — deep 1-on-1s, group chats, light fun, etc.",
-                "something personal — a goal, a hidden talent, or what makes them them",
-            ]
-
             # Build full transcript
             transcript = ""
             for m in history:
@@ -516,9 +508,6 @@ Before that point (step < 5), respond ONLY with:
                 transcript += f"\n{role_label}: {m['text']}"
             if message:
                 transcript += f"\nUser: {message}"
-
-            already_covered = [QUESTION_ANGLES[i] for i in range(min(step, len(QUESTION_ANGLES)))]
-            next_angle = QUESTION_ANGLES[min(step, len(QUESTION_ANGLES) - 1)]
 
             if not message:
                 prompt = (
@@ -542,15 +531,12 @@ Before that point (step < 5), respond ONLY with:
                     '  }\n}'
                 )
             else:
-                already_str = ", ".join(already_covered) if already_covered else "nothing yet"
                 prompt = (
                     f"You are conducting a warm onboarding conversation for GLYSMORK.\n"
                     f"Conversation so far:\n{transcript}\n\n"
-                    f"Topics already explored: {already_str}\n"
-                    f"Next topic to explore: {next_angle}\n\n"
-                    f"Write ONE short, conversational question that:\n"
+                    f"Write ONE short, conversational follow-up question that:\n"
                     f"- Directly references what the user just said\n"
-                    f"- Explores the next topic: {next_angle}\n"
+                    f"- Goes deeper into something they seem passionate or emotional about\n"
                     f"- Feels like a natural follow-up, NOT generic\n"
                     f"- Is different from all previous questions\n\n"
                     f"RESPOND ONLY with this JSON (no markdown, no extra text):\n"

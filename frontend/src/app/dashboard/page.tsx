@@ -32,6 +32,10 @@ export default function Dashboard() {
     const [isOffline, setIsOffline] = useState(false);
     const [modePref, setModePref] = useState<'chat' | 'video'>('chat');
     const [locationFilter, setLocationFilter] = useState('');
+    const [countryFilter, setCountryFilter] = useState('');
+    const [languageFilter, setLanguageFilter] = useState('');
+    const [distanceKm, setDistanceKm] = useState(0);
+    const [showFilters, setShowFilters] = useState(false);
 
     useEffect(() => {
         const u = localStorage.getItem('user');
@@ -155,6 +159,7 @@ export default function Dashboard() {
         };
     }, []);
 
+
     const getUsername = () => {
         try {
             const u = localStorage.getItem('user');
@@ -179,7 +184,10 @@ export default function Dashboard() {
                         username: getUsername(),
                         is_offline: isOffline,
                         mode: modePref,
-                        location_filter: locationFilter
+                        location_filter: locationFilter,
+                        country_filter: countryFilter,
+                        language_filter: languageFilter,
+                        distance_km: distanceKm
                     })
                 });
                 if (response.match_found || response.room_name) {
@@ -215,7 +223,10 @@ export default function Dashboard() {
                     username: getUsername(),
                     is_offline: isOffline,
                     mode: modePref,
-                    location_filter: locationFilter
+                    location_filter: locationFilter,
+                    country_filter: countryFilter,
+                    language_filter: languageFilter,
+                    distance_km: distanceKm
                 })
             });
             if (response.status === 'offline_activated') {
@@ -240,7 +251,16 @@ export default function Dashboard() {
         try {
             const response = await fetchApi('/matchmaking/join/', {
                 method: 'POST',
-                body: JSON.stringify({ intent: intentText, username: getUsername() })
+                body: JSON.stringify({
+                    intent: intentText,
+                    username: getUsername(),
+                    is_offline: isOffline,
+                    mode: modePref,
+                    location_filter: locationFilter,
+                    country_filter: countryFilter,
+                    language_filter: languageFilter,
+                    distance_km: distanceKm
+                })
             });
             if (response.match_found || response.room_name) {
                 setIsMatching(false);
@@ -262,7 +282,16 @@ export default function Dashboard() {
         try {
             const response = await fetchApi('/matchmaking/join/', {
                 method: 'POST',
-                body: JSON.stringify({ intent: intentText, username: getUsername() })
+                body: JSON.stringify({
+                    intent: intentText,
+                    username: getUsername(),
+                    is_offline: isOffline,
+                    mode: modePref,
+                    location_filter: locationFilter,
+                    country_filter: countryFilter,
+                    language_filter: languageFilter,
+                    distance_km: distanceKm
+                })
             });
             if (response.match_found || response.room_name) {
                 setIsMatching(false);
@@ -286,7 +315,7 @@ export default function Dashboard() {
 
 
     return (
-        <main className="min-h-screen relative bg-slate-50 dark:bg-[#050511] text-slate-900 dark:text-white selection:bg-purple-500/30 overflow-hidden transition-colors duration-300">
+        <main className="min-h-screen relative bg-transparent text-slate-900 dark:text-white selection:bg-cyan-500/30 overflow-hidden transition-colors duration-300">
 
 
 
@@ -531,8 +560,8 @@ export default function Dashboard() {
                                                     } catch { }
                                                 }}
                                                 className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${friendRequested.has(result.username)
-                                                        ? 'bg-green-500/10 border-green-500/40 text-green-400 cursor-default'
-                                                        : 'bg-purple-500/10 border-purple-500/40 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-purple-400'
+                                                    ? 'bg-green-500/10 border-green-500/40 text-green-400 cursor-default'
+                                                    : 'bg-purple-500/10 border-purple-500/40 text-purple-400 hover:bg-purple-500 hover:text-white hover:border-purple-400'
                                                     }`}
                                             >
                                                 <User className="w-4 h-4" />
@@ -542,54 +571,54 @@ export default function Dashboard() {
                                         {/* Row 2: Voice + Video (only if video mode) */}
                                         {modePref === 'video' && (
                                             <div className="grid grid-cols-2 gap-2 mt-2">
-                                            {[
-                                                { icon: Phone, mode: 'voice', label: 'Voice' },
-                                                { icon: Video, mode: 'video', label: 'Video' },
-                                            ].map((btn) => {
-                                                const isOffline = !result.is_online;
-                                                const isRinging = ringingUsername === result.username;
-                                                return (
-                                                    <button
-                                                        key={btn.mode}
-                                                        disabled={isOffline || isRinging}
-                                                        onClick={async () => {
-                                                            if (isOffline) return;
-                                                            if (isRinging) {
-                                                                // User clicked again while ringing -> Cancel
-                                                                endCall();
-                                                                setRingingUsername(null);
-                                                                return;
-                                                            }
-                                                            try {
-                                                                setRingingUsername(result.username);
-                                                                const res = await fetchApi('/matchmaking/join/', {
-                                                                    method: 'POST',
-                                                                    body: JSON.stringify({
-                                                                        intent: `DIRECT_CONNECT:${result.username}:${btn.mode}`,
-                                                                        username: getUsername(),
-                                                                    }),
-                                                                });
-                                                                if (res.room_name) {
-                                                                    // Use CallProvider to start the call properly
-                                                                    startCall(result.username, btn.mode, res.room_name);
+                                                {[
+                                                    { icon: Phone, mode: 'audio', label: 'Voice' },
+                                                    { icon: Video, mode: 'video', label: 'Video' },
+                                                ].map((btn) => {
+                                                    const isOffline = !result.is_online;
+                                                    const isRinging = ringingUsername === result.username;
+                                                    return (
+                                                        <button
+                                                            key={btn.mode}
+                                                            disabled={isOffline || isRinging}
+                                                            onClick={async () => {
+                                                                if (isOffline) return;
+                                                                if (isRinging) {
+                                                                    // User clicked again while ringing -> Cancel
+                                                                    endCall();
+                                                                    setRingingUsername(null);
+                                                                    return;
                                                                 }
-                                                            } catch { setRingingUsername(null); }
-                                                        }}
-                                                        className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${isOffline
+                                                                try {
+                                                                    setRingingUsername(result.username);
+                                                                    const res = await fetchApi('/matchmaking/join/', {
+                                                                        method: 'POST',
+                                                                        body: JSON.stringify({
+                                                                            intent: `DIRECT_CONNECT:${result.username}:${btn.mode}`,
+                                                                            username: getUsername(),
+                                                                        }),
+                                                                    });
+                                                                    if (res.room_name) {
+                                                                        // Use CallProvider to start the call properly
+                                                                        startCall(result.username, btn.mode as 'audio' | 'video', res.room_name);
+                                                                    }
+                                                                } catch { setRingingUsername(null); }
+                                                            }}
+                                                            className={`flex items-center justify-center gap-2 py-3 border transition-all font-mono text-[10px] uppercase tracking-widest ${isOffline
                                                                 ? 'opacity-25 cursor-not-allowed border-white/10 text-gray-600'
                                                                 : isRinging
                                                                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse'
                                                                     : 'bg-white/5 border-white/10 text-gray-400 hover:bg-cyan-500 hover:text-black hover:border-cyan-400'
-                                                            }`}
-                                                        title={isOffline ? 'User offline' : btn.label}
-                                                    >
-                                                        <btn.icon className="w-4 h-4" />
-                                                        {isRinging ? 'Ringing...' : btn.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                                }`}
+                                                            title={isOffline ? 'User offline' : btn.label}
+                                                        >
+                                                            <btn.icon className="w-4 h-4" />
+                                                            {isRinging ? 'Ringing...' : btn.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             ))}
@@ -600,10 +629,6 @@ export default function Dashboard() {
 
             {/* Texture Layer */}
             <div className="bg-noise dark:opacity-5 opacity-20" />
-
-            {/* Abstract Gradient Orbs */}
-            <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/10 dark:bg-purple-900/20 blur-[120px] pointer-events-none transition-colors duration-500" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/20 blur-[100px] pointer-events-none transition-colors duration-500" />
 
             {/* Shared Header */}
             <Header />
@@ -683,14 +708,126 @@ export default function Dashboard() {
                                     {modePref === 'video' ? '📹 Video' : '💬 Text'}
                                 </button>
                                 <div className="w-px h-4 bg-white/10 mx-1" />
-                                <input
-                                    type="text"
-                                    value={locationFilter}
-                                    onChange={(e) => setLocationFilter(e.target.value)}
-                                    placeholder="LOCATION FILTER"
-                                    className="bg-transparent text-[10px] text-cyan-400 placeholder-gray-700 px-3 py-1.5 font-bold focus:outline-none w-32 uppercase"
-                                />
+                                {/* Premium Collapsible Filters */}
+                                <button
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all border ${showFilters ? 'bg-purple-500/20 border-purple-500/50 text-purple-300' : 'bg-transparent border-white/10 text-gray-500 hover:text-white hover:border-white/30'}`}
+                                >
+                                    🌐 Filters
+                                    {(countryFilter || languageFilter || distanceKm > 0) && (
+                                        <span className="w-4 h-4 rounded-full bg-cyan-500 text-black text-[8px] font-black flex items-center justify-center">
+                                            {[countryFilter, languageFilter, distanceKm > 0].filter(Boolean).length}
+                                        </span>
+                                    )}
+                                </button>
                             </div>
+
+                            {/* Expanded Filter Drawer */}
+                            {showFilters && (
+                                <div className="w-full mt-2 p-4 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl flex flex-wrap gap-4 items-end">
+                                    {/* Country Filter */}
+                                    <div className="flex flex-col gap-1 min-w-[160px]">
+                                        <label className="text-[9px] font-mono text-purple-400 uppercase tracking-widest">Country</label>
+                                        <select
+                                            value={countryFilter}
+                                            onChange={(e) => setCountryFilter(e.target.value)}
+                                            className="bg-black/60 border border-white/10 text-white text-[11px] font-mono px-3 py-2 focus:outline-none focus:border-purple-500 rounded-lg"
+                                        >
+                                            <option value="">Any Country</option>
+                                            <option value="US">🇺🇸 United States</option>
+                                            <option value="IN">🇮🇳 India</option>
+                                            <option value="GB">🇬🇧 United Kingdom</option>
+                                            <option value="CA">🇨🇦 Canada</option>
+                                            <option value="AU">🇦🇺 Australia</option>
+                                            <option value="DE">🇩🇪 Germany</option>
+                                            <option value="FR">🇫🇷 France</option>
+                                            <option value="BR">🇧🇷 Brazil</option>
+                                            <option value="JP">🇯🇵 Japan</option>
+                                            <option value="KR">🇰🇷 South Korea</option>
+                                            <option value="CN">🇨🇳 China</option>
+                                            <option value="RU">🇷🇺 Russia</option>
+                                            <option value="MX">🇲🇽 Mexico</option>
+                                            <option value="NG">🇳🇬 Nigeria</option>
+                                            <option value="PK">🇵🇰 Pakistan</option>
+                                            <option value="ID">🇮🇩 Indonesia</option>
+                                            <option value="SA">🇸🇦 Saudi Arabia</option>
+                                            <option value="ZA">🇿🇦 South Africa</option>
+                                            <option value="TR">🇹🇷 Turkey</option>
+                                            <option value="EG">🇪🇬 Egypt</option>
+                                            <option value="NL">🇳🇱 Netherlands</option>
+                                            <option value="SE">🇸🇪 Sweden</option>
+                                            <option value="SG">🇸🇬 Singapore</option>
+                                            <option value="PH">🇵🇭 Philippines</option>
+                                            <option value="IT">🇮🇹 Italy</option>
+                                            <option value="ES">🇪🇸 Spain</option>
+                                            <option value="AR">🇦🇷 Argentina</option>
+                                            <option value="BD">🇧🇩 Bangladesh</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Language Filter */}
+                                    <div className="flex flex-col gap-1 min-w-[160px]">
+                                        <label className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">Language</label>
+                                        <select
+                                            value={languageFilter}
+                                            onChange={(e) => setLanguageFilter(e.target.value)}
+                                            className="bg-black/60 border border-white/10 text-white text-[11px] font-mono px-3 py-2 focus:outline-none focus:border-cyan-500 rounded-lg"
+                                        >
+                                            <option value="">Any Language</option>
+                                            <option value="en">🌐 English</option>
+                                            <option value="hi">🇮🇳 Hindi</option>
+                                            <option value="es">🇪🇸 Spanish</option>
+                                            <option value="zh">🇨🇳 Chinese (Mandarin)</option>
+                                            <option value="ar">🇸🇦 Arabic</option>
+                                            <option value="fr">🇫🇷 French</option>
+                                            <option value="de">🇩🇪 German</option>
+                                            <option value="pt">🇧🇷 Portuguese</option>
+                                            <option value="ru">🇷🇺 Russian</option>
+                                            <option value="ja">🇯🇵 Japanese</option>
+                                            <option value="ko">🇰🇷 Korean</option>
+                                            <option value="id">🇮🇩 Indonesian</option>
+                                            <option value="tr">🇹🇷 Turkish</option>
+                                            <option value="te">Telugu</option>
+                                            <option value="ta">Tamil</option>
+                                            <option value="bn">Bengali</option>
+                                            <option value="ur">Urdu</option>
+                                            <option value="it">🇮🇹 Italian</option>
+                                            <option value="nl">🇳🇱 Dutch</option>
+                                            <option value="sv">🇸🇪 Swedish</option>
+                                            <option value="pl">Polish</option>
+                                            <option value="vi">Vietnamese</option>
+                                            <option value="fil">Filipino</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Distance Filter */}
+                                    <div className="flex flex-col gap-1 min-w-[200px]">
+                                        <label className="text-[9px] font-mono text-green-400 uppercase tracking-widest">
+                                            Distance {distanceKm > 0 ? `— within ${distanceKm} km` : '— any'}
+                                        </label>
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={500}
+                                            step={25}
+                                            value={distanceKm}
+                                            onChange={(e) => setDistanceKm(Number(e.target.value))}
+                                            className="w-full accent-green-400 cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-[9px] font-mono text-gray-600">
+                                            <span>Any</span><span>250km</span><span>500km</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Clear All */}
+                                    <button
+                                        onClick={() => { setCountryFilter(''); setLanguageFilter(''); setDistanceKm(0); }}
+                                        className="text-[9px] font-mono text-red-400/60 hover:text-red-400 uppercase tracking-widest transition-colors self-end pb-2"
+                                    >
+                                        ✕ Clear filters
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Mode 1: Intent Matchmaking Section */}

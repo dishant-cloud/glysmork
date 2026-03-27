@@ -33,6 +33,7 @@ class Room(models.Model):
     )
     # For session-type rooms: when should the room expire (set on creation)
     session_expires_at = models.DateTimeField(null=True, blank=True)
+    match_reason        = models.TextField(blank=True, null=True, help_text="AI-generated reason why these users were matched.")
 
     def __str__(self):
         return self.name

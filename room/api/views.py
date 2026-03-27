@@ -49,6 +49,9 @@ class RoomDetailView(APIView):
                         u1 = User.objects.get(username=parts[1])
                         u2 = User.objects.get(username=parts[2])
                         room.users.add(u1, u2)
+                        from matchmaking.api.views import get_commonality_reason
+                        room.match_reason = get_commonality_reason(u1.profile, u2.profile)
+                        room.save()
                     except User.DoesNotExist:
                         pass
             else:
@@ -58,7 +61,8 @@ class RoomDetailView(APIView):
         return Response({
             "room": room_name, 
             "users": usernames,
-            "is_active": room.is_active
+            "is_active": room.is_active,
+            "match_reason": room.match_reason
         })
 
 class RoomStatusView(APIView):
@@ -517,6 +521,9 @@ class MessageListView(APIView):
                         u1 = User.objects.get(username=parts[1])
                         u2 = User.objects.get(username=parts[2])
                         room.users.add(u1, u2)
+                        from matchmaking.api.views import get_commonality_reason
+                        room.match_reason = get_commonality_reason(u1.profile, u2.profile)
+                        room.save()
                     except User.DoesNotExist:
                         pass
             else:

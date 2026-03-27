@@ -33,6 +33,7 @@ export default function SignUp() {
         }
     }, [router]);
 
+
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg('');
@@ -66,23 +67,9 @@ export default function SignUp() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#020205] text-cyan-50 p-4">
-            {/* Dynamic Background Elements */}
-            <div className="absolute inset-0 bg-[url('/glysmork_signup.png')] bg-cover bg-center opacity-20 mix-blend-screen" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-[#020205] z-0" />
-            <div className="absolute inset-0 bg-noise z-10" />
-
-            {/* Floating Orbs */}
-            <motion.div
-                animate={{ x: [-20, 20, -20], y: [-20, 30, -20], scale: [1, 1.3, 1] }}
-                transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-                className="absolute top-1/4 -left-1/4 w-[50vw] h-[50vw] min-w-[400px] min-h-[400px] bg-emerald-600/10 blur-[120px] rounded-full z-0"
-            />
-            <motion.div
-                animate={{ x: [20, -20, 20], y: [20, -30, 20], scale: [1, 1.2, 1] }}
-                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                className="absolute bottom-[-10%] right-[-10%] w-[45vw] h-[45vw] min-w-[500px] min-h-[500px] bg-cyan-900/20 blur-[150px] rounded-full z-0"
-            />
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-transparent text-cyan-50 p-4">
+            {/* Texture Layer */}
+            <div className="bg-noise dark:opacity-5 opacity-20 fixed inset-0 pointer-events-none" />
 
             <motion.div
                 initial={{ opacity: 0, y: 30 }}

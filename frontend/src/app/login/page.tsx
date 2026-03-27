@@ -30,6 +30,7 @@ export default function Login() {
         }
     }, [router]);
 
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -51,23 +52,9 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#020205] text-cyan-50">
-            {/* Dynamic Background Elements */}
-            <div className="absolute inset-0 bg-[url('/glysmork_signup.png')] bg-cover bg-center opacity-30 mix-blend-screen" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-[#020205] z-0" />
-            <div className="absolute inset-0 bg-noise z-10" />
-
-            {/* Floating Orbs */}
-            <motion.div
-                animate={{ x: [0, 30, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
-                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                className="absolute top-[20%] left-[20%] w-[30vw] h-[30vw] min-w-[300px] min-h-[300px] bg-cyan-600/20 blur-[120px] rounded-full z-0"
-            />
-            <motion.div
-                animate={{ x: [0, -40, 0], y: [0, 40, 0], scale: [1, 1.5, 1] }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="absolute bottom-[10%] right-[10%] w-[40vw] h-[40vw] min-w-[400px] min-h-[400px] bg-purple-900/20 blur-[150px] rounded-full z-0"
-            />
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-transparent text-cyan-50">
+            {/* Texture Layer */}
+            <div className="bg-noise dark:opacity-5 opacity-20 fixed inset-0 pointer-events-none" />
 
             <motion.div
                 initial={{ opacity: 0, y: 30 }}

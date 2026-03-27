@@ -17,21 +17,15 @@ export default function Home() {
       window.location.href = '/dashboard';
       return;
     }
-    const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % 8); // 8 is length of "GLYSMORK"
-    }, 1000);
-    return () => clearInterval(interval);
   }, []);
 
+
   return (
-    <main className="min-h-screen relative bg-slate-50 dark:bg-[#050511] text-slate-900 dark:text-white selection:bg-purple-500/30 overflow-hidden transition-colors duration-300">
+    <main className="min-h-screen relative bg-transparent text-slate-900 dark:text-white selection:bg-cyan-500/30 overflow-hidden transition-colors duration-300">
 
       {/* Texture Layer */}
       <div className="bg-noise dark:opacity-5 opacity-20" />
 
-      {/* Abstract Gradient Orbs for depth */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/10 dark:bg-purple-900/20 blur-[120px] pointer-events-none transition-colors duration-500" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/10 dark:bg-cyan-900/20 blur-[100px] pointer-events-none transition-colors duration-500" />
 
       {/* Shared Header */}
       <Header />
@@ -62,7 +56,7 @@ export default function Home() {
                     key={index}
                     className={`transition-all duration-300 inline-block bg-clip-text text-transparent ${index === activeIndex
                       ? 'bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 dark:from-cyan-300 dark:via-green-400 dark:to-purple-500 -translate-y-2 drop-shadow-[0_0_15px_rgba(168,85,247,0.4)] dark:drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]'
-                      : 'bg-gradient-to-r from-slate-400 to-slate-500 dark:from-gray-700 dark:to-gray-500'
+                      : 'bg-gradient-to-r from-slate-400 to-slate-500 dark:from-gray-500 dark:to-gray-400'
                       }`}
                   >
                     {letter}
