@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LogOut, User, Mail, Users } from 'lucide-react';
+import { LogOut, User, Mail, Users, BarChart3 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from 'next/navigation'; 
@@ -64,6 +64,14 @@ export default function Header() {
                                 className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-gray-400 hover:text-cyan-400"
                             >
                                 <Mail size={18} />
+                            </Link>
+                            <Link
+                                href="/analytics"
+                                replace={pathname !== '/dashboard'}
+                                title="System Analytics"
+                                className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:border-green-500/50 hover:bg-green-500/5 transition-all text-gray-400 hover:text-green-400"
+                            >
+                                <BarChart3 size={18} />
                             </Link>
                             <Link
                                 href="/profile"

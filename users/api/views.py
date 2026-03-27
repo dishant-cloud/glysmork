@@ -629,8 +629,8 @@ class AnalyticsView(APIView):
         one_week_ago = now - timedelta(days=7)
         five_minutes_ago = now - timedelta(minutes=5)
 
-        total_nodes = Profile.objects.count()
-        active_nodes = Profile.objects.filter(last_seen__gte=five_minutes_ago).count()
+        total_users = Profile.objects.count()
+        active_users = Profile.objects.filter(last_seen__gte=five_minutes_ago).count()
 
         # Gender Distribution
         gender_data = Profile.objects.values('gender').annotate(count=Count('gender'))
@@ -656,13 +656,30 @@ class AnalyticsView(APIView):
             })
         growth_stats.reverse()
 
+        # Interests & Expertise Aggregation
+        import collections
+        all_interests = Profile.objects.exclude(interests=None).values_list('interests', flat=True)
+        interest_counts = collections.Counter()
+        for interests_list in all_interests:
+            if isinstance(interests_list, list):
+                interest_counts.update(interests_list)
+        top_interests = dict(interest_counts.most_common(10))
+
+        all_expertise = Profile.objects.exclude(expertise_areas=None).values_list('expertise_areas', flat=True)
+        expertise_counts = collections.Counter()
+        for expertise_list in all_expertise:
+            if isinstance(expertise_list, list):
+                expertise_counts.update(expertise_list)
+        top_expertise = dict(expertise_counts.most_common(10))
+
         return Response({
-            "total_nodes": total_nodes,
-            "active_nodes": active_nodes,
+            "total_users": total_users,
+            "active_users": active_users,
             "gender_distribution": gender_stats,
             "top_locations": location_stats,
             "growth_trends": growth_stats,
-            "system_status": "OPERATIONAL"
+            "top_interests": top_interests,
+            "top_expertise": top_expertise
         })
 
 

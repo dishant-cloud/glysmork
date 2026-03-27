@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
-import { Activity, Users, Globe, PieChart, TrendingUp, Cpu, Server, Shield, ArrowLeft } from 'lucide-react';
+import { Activity, Users, Globe, PieChart, TrendingUp, Cpu, Server, Shield, ArrowLeft, Brain } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '@/components/Header';
@@ -13,7 +13,8 @@ interface AnalyticsData {
     gender_distribution: Record<string, number>;
     top_locations: Record<string, number>;
     growth_trends: { date: string; joins: number }[];
-    system_status: string;
+    top_interests: Record<string, number>;
+    top_expertise: Record<string, number>;
 }
 
 export default function AnalyticsPage() {
@@ -73,32 +74,20 @@ export default function AnalyticsPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         
                         {/* Summary Stats */}
-                        <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+                        <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                             <MetricCard 
                                 icon={<Users className="w-5 h-5" />} 
                                 label="Total Users" 
                                 value={data.total_users} 
                                 color="cyan"
+                                subValue="NODE_COUNT_TOTAL"
                             />
                             <MetricCard 
                                 icon={<Activity className="w-5 h-5" />} 
                                 label="Active Now" 
                                 value={data.active_users} 
                                 color="green"
-                            />
-                            <MetricCard 
-                                icon={<Server className="w-5 h-5" />} 
-                                label="Server Status" 
-                                value={data.system_status} 
-                                color="white"
-                                subValue="LATENCY: 24ms"
-                            />
-                            <MetricCard 
-                                icon={<Shield className="w-5 h-5" />} 
-                                label="Security Layer" 
-                                value="ENCRYPTED" 
-                                color="purple"
-                                subValue="TRUST CORE ACTIVE"
+                                subValue="LIVE_SIGNALS_DETECTED"
                             />
                         </div>
 
@@ -171,33 +160,54 @@ export default function AnalyticsPage() {
                             <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-rose-400 mb-8">
                                 <PieChart className="w-4 h-4" /> Gender Matrix
                             </h3>
-                            <div className="flex flex-col gap-4">
-                                {Object.entries(data.gender_distribution).map(([gender, count]) => (
-                                    <div key={gender} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5">
+                            <div className="grid grid-cols-1 gap-4">
+                                {['Male', 'Female', 'Other'].map(gender => (
+                                    <div key={gender} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-lg group hover:border-rose-500/30 transition-all">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] text-slate-500 font-mono uppercase">Category</span>
                                             <span className="text-sm font-black uppercase tracking-wider">{gender}</span>
                                         </div>
-                                        <div className="text-xl font-black text-rose-500/80">
-                                            {count}
+                                        <div className="text-2xl font-black text-rose-500/80 group-hover:text-rose-400 transition-colors">
+                                            {data.gender_distribution[gender] || 0}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* System Logs */}
-                        <div className="lg:col-span-8 bg-white/5 border border-white/10 p-8">
-                            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-400 mb-8">
-                                <Cpu className="w-4 h-4" /> Activity Logs
-                            </h3>
-                            <div className="space-y-3 font-mono text-[10px]">
-                                <div className="text-green-500/80">{"[SUCCESS]"} ALL SYSTEMS OPERATIONAL</div>
-                                <div className="text-cyan-500/60">{"[INFO]"} REDIS CLUSTER AT 12% LOAD</div>
-                                <div className="text-purple-500/60">{"[INFO]"} AI PAIRING ENGINE READY</div>
-                                <div className="text-slate-500">{"[LOG]"} HEARTBEAT RECEIVED FROM {data.active_users} ACTIVE USERS</div>
-                                <div className="text-slate-500">{"[LOG]"} SYSTEM CACHE FLUSHED AT {new Date().toLocaleTimeString()}</div>
-                                <div className="text-slate-600 border-t border-white/5 pt-3">{"[BOOT]"} DISTRIBUTED NETWORK INITIALIZED VIA GLYSMORK CORE</div>
+                        {/* Community Pulse: Interests & Expertise */}
+                        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white/5 border border-white/10 p-8">
+                                <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-cyan-400 mb-8">
+                                    <Brain className="w-4 h-4" /> Top Interests
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(data.top_interests).map(([interest, count]) => (
+                                        <div key={interest} className="px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full flex items-center gap-2">
+                                            <span className="text-[11px] font-bold uppercase tracking-tight">{interest}</span>
+                                            <span className="text-[9px] text-cyan-400/60 font-mono font-black">{count}</span>
+                                        </div>
+                                    ))}
+                                    {Object.keys(data.top_interests).length === 0 && (
+                                        <div className="w-full text-center py-10 opacity-20 italic">No community interest data yet</div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="bg-white/5 border border-white/10 p-8">
+                                <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-purple-400 mb-8">
+                                    <Cpu className="w-4 h-4" /> Core Expertise
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(data.top_expertise).map(([exp, count]) => (
+                                        <div key={exp} className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-full flex items-center gap-2">
+                                            <span className="text-[11px] font-bold uppercase tracking-tight">{exp}</span>
+                                            <span className="text-[9px] text-purple-400/60 font-mono font-black">{count}</span>
+                                        </div>
+                                    ))}
+                                    {Object.keys(data.top_expertise).length === 0 && (
+                                        <div className="w-full text-center py-10 opacity-20 italic">No expertise data found</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

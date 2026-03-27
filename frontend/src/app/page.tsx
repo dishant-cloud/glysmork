@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Search, Brain, Network, ArrowUpRight } from 'lucide-react';
+import { Zap, Search, Brain, Network, ArrowUpRight, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import Header from '@/components/Header';
@@ -86,9 +86,16 @@ export default function Home() {
                       <ArrowUpRight className="w-6 h-6" />
                     </motion.button>
                   </Link>
-                  <button onClick={() => alert("Discover phase loading...")} className="w-full sm:w-auto px-10 py-5 rounded-none bg-transparent text-slate-800 dark:text-white font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/30 hover:bg-white/5">
-                    Discover Users
-                  </button>
+                  <Link href="/analytics" className="w-full sm:w-auto">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-transparent text-slate-800 dark:text-white font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/30 hover:bg-white/5"
+                    >
+                      System Analytics
+                      <BarChart3 className="w-6 h-6" />
+                    </motion.button>
+                  </Link>
                 </>
               ) : (
                 <>
