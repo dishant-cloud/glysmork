@@ -67,22 +67,22 @@ export default function SignUp() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-transparent text-cyan-50 p-4">
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] text-slate-900 p-4">
             {/* Texture Layer */}
-            <div className="bg-noise dark:opacity-5 opacity-20 fixed inset-0 pointer-events-none" />
+            <div className="absolute top-[10%] left-[20%] w-[600px] h-[600px] bg-white/60 blur-[150px] rounded-full mix-blend-overlay pointer-events-none" />
 
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="w-full max-w-2xl p-6 sm:p-10 relative z-20 ultra-glass rounded-3xl"
+                className="w-full max-w-2xl p-6 sm:p-10 relative z-20 bg-white/70 backdrop-blur-2xl border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] rounded-3xl"
             >
                 {/* Branding & Header */}
                 <div className="flex flex-col items-center mb-8 relative">
                     <button
                         type="button"
                         onClick={() => router.push('/login')}
-                        className="absolute left-0 top-0 text-cyan-600 hover:text-cyan-400 transition-colors p-2"
+                        className="absolute left-0 top-0 text-cyan-600 hover:text-slate-500 transition-colors p-2"
                         title="Return to Login"
                     >
                         <ArrowLeft className="w-5 h-5" />
@@ -90,7 +90,7 @@ export default function SignUp() {
                     <div className="scale-100 mb-2 opacity-90 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
                         <Logo />
                     </div>
-                    <div className="text-[10px] uppercase tracking-[0.3em] text-emerald-500/80 font-mono mt-2">
+                    <div className="text-[10px] uppercase tracking-[0.3em] text-slate-600/80 font-sans text-[13px] font-medium mt-2">
                         Create Your Account
                     </div>
                 </div>
@@ -101,7 +101,7 @@ export default function SignUp() {
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
-                            className="bg-red-950/40 border border-red-500/50 rounded-lg p-4 flex items-start gap-3 text-red-300 font-mono text-xs shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                            className="bg-red-950/40 border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-red-300 font-sans text-[13px] font-medium text-xs shadow-[0_0_15px_rgba(239,68,68,0.2)]"
                         >
                             <Terminal className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
                             <span>{errorMsg}</span>
@@ -112,7 +112,7 @@ export default function SignUp() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Username Input */}
                         <div className="space-y-2 group">
-                            <label className="text-[10px] font-mono tracking-[0.2em] text-emerald-500 uppercase flex items-center justify-between">
+                            <label className="text-[13px] font-semibold text-slate-600 flex items-center justify-between">
                                 <span>Username</span>
                                 <Network className="w-3 h-3 opacity-50" />
                             </label>
@@ -121,7 +121,7 @@ export default function SignUp() {
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono text-emerald-50 placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:bg-emerald-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                                    className="w-full bg-white/60 border border-white shadow-inner rounded-xl px-4 py-3.5 text-sm font-sans text-[13px] font-medium text-slate-800 placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all shadow-inner group-focus-within:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
                                     placeholder="Enter Handle"
                                     required
                                 />
@@ -130,7 +130,7 @@ export default function SignUp() {
 
                         {/* Email Input */}
                         <div className="space-y-2 group">
-                            <label className="text-[10px] font-mono tracking-[0.2em] text-emerald-500 uppercase flex items-center justify-between">
+                            <label className="text-[13px] font-semibold text-slate-600 flex items-center justify-between">
                                 <span>Email Address</span>
                                 <AtSign className="w-3 h-3 opacity-50" />
                             </label>
@@ -139,7 +139,7 @@ export default function SignUp() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono text-emerald-50 placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:bg-emerald-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                                    className="w-full bg-white/60 border border-white shadow-inner rounded-xl px-4 py-3.5 text-sm font-sans text-[13px] font-medium text-slate-800 placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all shadow-inner group-focus-within:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
                                     placeholder="user@example.com"
                                     required
                                 />
@@ -148,7 +148,7 @@ export default function SignUp() {
 
                         {/* Password Input */}
                         <div className="space-y-2 group">
-                            <label className="text-[10px] font-mono tracking-[0.2em] text-purple-500 uppercase flex items-center justify-between">
+                            <label className="text-[13px] font-semibold text-slate-600 flex items-center justify-between">
                                 <span>Password</span>
                                 <Fingerprint className="w-3 h-3 opacity-50" />
                             </label>
@@ -157,19 +157,19 @@ export default function SignUp() {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono tracking-widest text-emerald-50 placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:bg-purple-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(168,85,247,0.15)]"
+                                    className="w-full bg-white/60 border border-white shadow-inner rounded-xl px-4 py-3.5 text-sm font-sans text-[13px] font-medium tracking-widest text-slate-800 placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:bg-white transition-all shadow-inner group-focus-within:shadow-[0_0_20px_rgba(168,85,247,0.15)]"
                                     placeholder="••••••••••••"
                                     required
                                 />
                             </div>
-                            <p className="text-[9px] font-mono text-slate-500 text-right opacity-70">Min 8 chars, mixed type.</p>
+                            <p className="text-[9px] font-sans text-[13px] font-medium text-slate-500 text-right opacity-70">Min 8 chars, mixed type.</p>
                         </div>
 
                         {/* Demographics Row */}
                         <div className="grid grid-cols-2 gap-4">
                             {/* Gender */}
                             <div className="space-y-2 group">
-                                <label className="text-[10px] font-mono tracking-[0.2em] text-cyan-500 uppercase flex items-center justify-between">
+                                <label className="text-[13px] font-semibold text-slate-600 flex items-center justify-between">
                                     <span>Gender</span>
                                     <Dna className="w-3 h-3 opacity-50" />
                                 </label>
@@ -177,18 +177,18 @@ export default function SignUp() {
                                     <select
                                         value={gender}
                                         onChange={(e) => setGender(e.target.value)}
-                                        className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono text-cyan-50 focus:outline-none focus:border-cyan-500 focus:bg-cyan-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)] appearance-none cursor-pointer"
+                                        className="w-full bg-white/60 border border-white shadow-inner rounded-xl px-4 py-3.5 text-sm font-sans text-[13px] font-medium text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-inner group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)] appearance-none cursor-pointer"
                                     >
-                                        <option value="M" className="bg-[#0f172a] text-cyan-400">MALE</option>
-                                        <option value="F" className="bg-[#0f172a] text-cyan-400">FEMALE</option>
-                                        <option value="O" className="bg-[#0f172a] text-cyan-400">OTHER</option>
+                                        <option value="M" className="bg-[#0f172a] text-slate-500">MALE</option>
+                                        <option value="F" className="bg-[#0f172a] text-slate-500">FEMALE</option>
+                                        <option value="O" className="bg-[#0f172a] text-slate-500">OTHER</option>
                                     </select>
                                 </div>
                             </div>
 
                             {/* Age */}
                             <div className="space-y-2 group">
-                                <label className="text-[10px] font-mono tracking-[0.2em] text-cyan-500 uppercase flex items-center justify-between">
+                                <label className="text-[13px] font-semibold text-slate-600 flex items-center justify-between">
                                     <span>Age</span>
                                     <Hourglass className="w-3 h-3 opacity-50" />
                                 </label>
@@ -199,7 +199,7 @@ export default function SignUp() {
                                         max="100"
                                         value={age}
                                         onChange={(e) => setAge(e.target.value)}
-                                        className="w-full bg-black/40 border border-slate-700/50 rounded-xl px-4 py-3.5 text-sm font-mono text-cyan-50 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:bg-cyan-950/20 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]"
+                                        className="w-full bg-white/60 border border-white shadow-inner rounded-xl px-4 py-3.5 text-sm font-sans text-[13px] font-medium text-slate-800 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-inner group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]"
                                         placeholder="18"
                                         required
                                     />
@@ -223,7 +223,7 @@ export default function SignUp() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                         <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                                        <span className="text-[10px] font-mono font-bold text-red-400 tracking-widest uppercase">Community Guidelines</span>
+                                        <span className="text-[10px] font-sans text-[13px] font-medium font-bold text-red-400 tracking-widest uppercase">Community Guidelines</span>
                                     </div>
                                     <p className="text-xs font-sans text-slate-300 leading-relaxed text-justify pr-2">
                                         I agree to use this platform for friendly connections only. I will not broadcast explicit or sexual content. I understand that violating these rules will result in an immediate account ban.
@@ -238,7 +238,7 @@ export default function SignUp() {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className={`relative w-full overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/40 via-cyan-900/40 to-emerald-900/40 py-4 font-mono text-sm tracking-widest text-emerald-100 uppercase transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black ${isSubmitting ? 'opacity-70 scale-95 hover:scale-95' : ''}`}
+                            className={`relative w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 py-4 font-sans text-[13px] font-medium text-sm tracking-widest text-white uppercase transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-black ${isSubmitting ? 'opacity-70 scale-95 hover:scale-95' : ''}`}
                         >
                             <span className="relative z-10 flex items-center justify-center gap-2">
                                 {isSubmitting ? 'INITIALIZING...' : (

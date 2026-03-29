@@ -703,3 +703,71 @@ class ImageUploadView(APIView):
             "image_url": profile.image.url
         }, status=status.HTTP_200_OK)
 
+
+class TrustScoreView(APIView):
+    """
+    Returns only the user's trust score, tier, and badge visibility status.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, username, *args, **kwargs):
+        from django.contrib.auth.models import User
+        try:
+            user = User.objects.get(username=username)
+            profile = getattr(user, 'profile', None)
+            if not profile:
+                return Response({"error": "User profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+            return Response({
+                "trust_score": profile.trust_score,
+                "trust_tier": profile.trust_tier,
+                "badge_visible": profile.trust_score >= 80,
+                "flagged": profile.flagged_for_review
+            }, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ReportUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, username, *args, **kwargs):
+        from django.contrib.auth.models import User
+        from users.models import Report
+        try:
+            target_user = User.objects.get(username=username)
+            if target_user == request.user:
+                return Response({"error": "Cannot report yourself."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            reason = request.data.get('reason', 'No reason provided')
+            Report.objects.create(reporter=request.user, reported_user=target_user, reason=reason)
+            
+            from users.trust import apply_trust_event
+            apply_trust_event(target_user.id, 'reported', 0, f"Reported by {request.user.username} for {reason}")
+            
+            return Response({"message": f"User {username} has been reported."}, status=status.HTTP_201_CREATED)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class BlockUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, username, *args, **kwargs):
+        from django.contrib.auth.models import User
+        from users.models import Block
+        try:
+            target_user = User.objects.get(username=username)
+            if target_user == request.user:
+                return Response({"error": "Cannot block yourself."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            reason = request.data.get('reason', 'No reason provided')
+            Block.objects.get_or_create(blocker=request.user, blocked_user=target_user, defaults={'reason': reason})
+            
+            from users.trust import apply_trust_event
+            apply_trust_event(target_user.id, 'blocked', 0, f"Blocked by {request.user.username}")
+            
+            # Future: Delete ongoing sessions or friend requests related to this block if necessary.
+            return Response({"message": f"User {username} has been blocked."}, status=status.HTTP_201_CREATED)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)

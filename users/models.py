@@ -62,6 +62,32 @@ class Profile(models.Model):
     reports_received = models.IntegerField(default=0)
     is_banned = models.BooleanField(default=False)
     
+    # Trust Score Tracking
+    TRUST_TIER_CHOICES = [
+        ('trusted', 'Trusted'),
+        ('established', 'Established'),
+        ('new', 'New'),
+        ('flagged', 'Flagged')
+    ]
+    trust_tier = models.CharField(max_length=20, choices=TRUST_TIER_CHOICES, default='new')
+    
+    phone_verified = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
+    has_profile_photo = models.BooleanField(default=False)
+    has_face_in_photo = models.BooleanField(default=False)
+    
+    total_sessions = models.IntegerField(default=0)
+    qualifying_sessions = models.IntegerField(default=0)  # over 2min with messages
+    friendships_made = models.IntegerField(default=0)
+    
+    calls_received = models.IntegerField(default=0)
+    calls_answered = models.IntegerField(default=0)
+    
+    blocks_received = models.IntegerField(default=0)
+    device_fingerprint = models.CharField(max_length=255, blank=True, null=True)
+    flagged_for_review = models.BooleanField(default=False)
+    trust_last_calculated_at = models.DateTimeField(default=timezone.now)
+
     # Verification (Voting)
     male_votes = models.IntegerField(default=0)
     female_votes = models.IntegerField(default=0)
@@ -109,4 +135,24 @@ class Report(models.Model):
 
     def __str__(self):
         return f"{self.reporter} reported {self.reported_user}"
-        
+
+class Block(models.Model):
+    blocker = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blocking')
+    blocked_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blocked_by')
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ('blocker', 'blocked_user')
+
+    def __str__(self):
+        return f"{self.blocker} blocked {self.blocked_user}"
+
+class TrustEvent(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trust_events')
+    event_type = models.CharField(max_length=50) # e.g., 'report_received', 'friendship', 'session_end'
+    points_change = models.IntegerField()
+    reason = models.CharField(max_length=255)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.user.username} {self.event_type} ({self.points_change})"

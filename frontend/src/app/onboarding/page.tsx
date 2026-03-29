@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, ShieldAlert, Phone } from 'lucide-react';
+import { ArrowRight, Loader2, ShieldAlert, Phone, Sparkles } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 
 type Message = { role: 'model' | 'user'; text: string; isCrisis?: boolean };
@@ -264,8 +264,8 @@ export default function OnboardingChat() {
                         />
                     </div>
                     <div className="w-full flex justify-between items-center mt-2 px-1">
-                        <span className="text-[10px] font-mono text-cyan-500/50 uppercase tracking-widest leading-none">AI Integration Active</span>
-                        <span className="text-[10px] font-mono text-white/30 uppercase tracking-tighter leading-none">{step} / {totalSteps} Sync Points</span>
+                        <span className="text-[10px] font-sans text-[13px] font-medium text-slate-800/50 uppercase tracking-widest leading-none">AI Integration Active</span>
+                        <span className="text-[10px] font-sans text-[13px] font-medium text-white/30 uppercase tracking-tighter leading-none">{step} / {totalSteps} Sync Points</span>
                     </div>
                 </motion.div>
             </div>
@@ -286,9 +286,9 @@ export default function OnboardingChat() {
                                 {msg.role === 'model' && (
                                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg mb-1 shadow-lg border backdrop-blur-md transition-all duration-500 ${msg.isCrisis
                                             ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse'
-                                            : 'bg-white/5 border-white/10 text-cyan-400 group-hover:border-cyan-500/50'
+                                            : 'bg-white/80 border-slate-200/60 shadow-sm text-slate-500 group-hover:border-slate-200'
                                         }`}>
-                                        <span className={msg.isCrisis ? "" : "animate-pulse"}>{msg.isCrisis ? '🆘' : '✦'}</span>
+                                        {msg.isCrisis ? <ShieldAlert className="w-5 h-5 text-red-400" /> : <Sparkles className="w-4 h-4 text-slate-400 animate-pulse" />}
                                     </div>
                                 )}
                                 
@@ -296,7 +296,7 @@ export default function OnboardingChat() {
                                         ? 'bg-cyan-500/10 border border-cyan-500/30 text-white rounded-2xl rounded-tr-none shadow-[0_4px_20px_rgba(34,211,238,0.1)]'
                                         : msg.isCrisis
                                             ? 'bg-red-500/10 border border-red-500/30 text-red-50 rounded-2xl rounded-tl-none'
-                                            : 'ultra-glass text-gray-100 rounded-2xl rounded-tl-none hover:border-white/20'
+                                            : 'bg-white/70 backdrop-blur-2xl border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] text-gray-100 rounded-2xl rounded-tl-none hover:border-white/20'
                                     }`}>
                                     {msg.text}
                                     {/* Subtle highlight for user messages */}
@@ -317,10 +317,10 @@ export default function OnboardingChat() {
                             exit={{ opacity: 0 }}
                             className="flex justify-start items-center gap-3"
                         >
-                            <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 backdrop-blur-md">
+                            <div className="w-9 h-9 rounded-xl bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-center text-slate-500 backdrop-blur-md">
                                 <Loader2 className="w-4 h-4 animate-spin shadow-cyan-500" />
                             </div>
-                            <div className="ultra-glass px-5 py-4 rounded-2xl rounded-tl-none border border-white/5 flex gap-2 items-center">
+                            <div className="bg-white/70 backdrop-blur-2xl border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] px-5 py-4 rounded-2xl rounded-tl-none border border-white/5 flex gap-2 items-center">
                                 <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                                 <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                                 <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 rounded-full bg-purple-400" />
@@ -338,13 +338,13 @@ export default function OnboardingChat() {
                         >
                             <div className="relative">
                                 <div className="absolute inset-0 bg-cyan-500/20 blur-2xl animate-pulse rounded-full" />
-                                <Loader2 className="w-16 h-16 text-cyan-400 animate-spin relative z-10" />
+                                <Loader2 className="w-16 h-16 text-slate-500 animate-spin relative z-10" />
                             </div>
                             <div className="text-center">
                                 <h2 className="text-2xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-500 mb-2">
                                     Synthesizing Persona
                                 </h2>
-                                <p className="text-white/40 font-mono text-[10px] uppercase tracking-[0.2em]">Neural Architect at work</p>
+                                <p className="text-white/40 font-sans text-[13px] font-medium text-[10px] uppercase tracking-[0.2em]">Neural Architect at work</p>
                             </div>
                         </motion.div>
                     )}
@@ -354,7 +354,7 @@ export default function OnboardingChat() {
                 {capDetected && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="ultra-glass border border-red-500/30 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(239,68,68,0.1)]"
+                        className="bg-white/70 backdrop-blur-2xl border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] border border-red-500/30 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(239,68,68,0.1)]"
                     >
                         <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4 animate-bounce" />
                         <h2 className="text-3xl font-black text-white mb-2 tracking-tighter uppercase italic">Inconsistency Detected</h2>
@@ -380,7 +380,7 @@ export default function OnboardingChat() {
                         className="group relative"
                     >
                         <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-3xl blur opacity-25 group-focus-within:opacity-100 transition duration-500" />
-                        <div className="relative flex items-center gap-4 bg-[#0a0a0f]/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 pl-5 focus-within:border-cyan-500/50 transition-all duration-300">
+                        <div className="relative flex items-center gap-4 bg-[#0a0a0f]/80 backdrop-blur-2xl border border-slate-200/60 shadow-sm rounded-2xl p-2.5 pl-5 focus-within:border-slate-200 transition-all duration-300">
                             <input
                                 type="text"
                                 value={input}
@@ -402,7 +402,7 @@ export default function OnboardingChat() {
                             </motion.button>
                         </div>
                     </motion.div>
-                    <p className="text-center text-[9px] text-white/20 font-mono mt-4 uppercase tracking-[0.3em] font-black">Neural Link Established</p>
+                    <p className="text-center text-[9px] text-white/20 font-sans text-[13px] font-medium mt-4 uppercase tracking-[0.3em] font-black">Neural Link Established</p>
                 </div>
             )}
         </div>

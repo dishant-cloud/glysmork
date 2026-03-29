@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Search, Brain, Network, ArrowUpRight, BarChart3 } from 'lucide-react';
+import { Search, Brain, Network, ArrowUpRight, ArrowRight, Star } from 'lucide-react';
 import Link from 'next/link';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import Header from '@/components/Header';
 
 export default function Home() {
-  const [activeIndex, setActiveIndex] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -19,159 +16,155 @@ export default function Home() {
     }
   }, []);
 
+  // Subtle floating animation for cards
+  const floatingAnimation = {
+    y: ["-5px", "10px", "-5px"],
+    transition: {
+      duration: 6,
+      repeat: Infinity,
+      ease: "easeInOut"
+    }
+  };
 
   return (
-    <main className="min-h-screen relative bg-transparent text-slate-900 dark:text-white selection:bg-cyan-500/30 overflow-hidden transition-colors duration-300">
+    <main className="min-h-screen w-full font-sans text-slate-900 bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] overflow-hidden relative selection:bg-cyan-500/30">
+      
+      {/* Dynamic Ambient Background Elements */}
+      <div className="absolute top-[10%] right-[-5%] w-[800px] h-[800px] bg-white/70 blur-[150px] rounded-full mix-blend-overlay pointer-events-none" />
+      <div className="absolute bottom-[20%] left-[30%] w-[600px] h-[600px] bg-orange-100/30 blur-[130px] rounded-full mix-blend-overlay pointer-events-none" />
+      <div className="absolute top-[40%] right-[30%] w-[400px] h-[400px] bg-cyan-200/20 blur-[100px] rounded-full mix-blend-overlay pointer-events-none" />
 
-      {/* Texture Layer */}
-      <div className="bg-noise dark:opacity-5 opacity-20" />
-
-
-      {/* Shared Header */}
-      <Header />
-
-      {/* Marquee Banner */}
-      <div className="absolute top-32 w-[200%] -left-[50%] -rotate-2 overflow-hidden bg-purple-100/50 dark:bg-purple-900/10 border-y border-purple-200 dark:border-purple-500/20 py-3 z-0 flex pointer-events-none transition-colors">
-        <div className="flex animate-marquee whitespace-nowrap">
-          {[...Array(8)].map((_, i) => (
-            <span key={i} className="text-xl md:text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-600 mx-8 uppercase">
-              • Universal Connection Engine • No Cap • Pure Intent
-            </span>
-          ))}
+      {/* Navbar */}
+      <nav className="flex justify-between items-center px-6 md:px-12 py-8 relative z-20 max-w-[1600px] mx-auto">
+        <div className="flex items-center gap-2 text-[26px] font-bold tracking-tight text-slate-800">
+          Glysmork
+          <Network className="w-6 h-6 text-slate-500" />
         </div>
-      </div>
+        
+        <ul className="hidden md:flex gap-10 text-[15px] font-medium text-slate-600">
+          <li><Link href="/connections" className="hover:text-black transition-colors">Connections</Link></li>
+          <li><Link href="/help" className="hover:text-black transition-colors">Help</Link></li>
+          <li><Link href="/premium" className="hover:text-black transition-colors">Pricing</Link></li>
+          <li><Link href="/events" className="hover:text-black transition-colors">Events</Link></li>
+        </ul>
 
-      <div className="relative z-10 w-full max-w-[1400px] mx-auto min-h-screen flex flex-col justify-center px-6 md:px-12 pt-40 pb-20 pointer-events-none">
+        <div className="hidden md:flex items-center gap-4">
+          <Link href="/login" className="text-[14px] font-semibold text-slate-700 hover:text-black transition-colors px-4 py-2">
+            Sign In
+          </Link>
+          <Link href="/signup" className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-800 text-white text-[14px] font-semibold hover:bg-slate-900 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
+            Get Started
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </nav>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center pointer-events-auto">
+      {/* Hero Content */}
+      <div className="relative z-10 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 px-6 md:px-12 pt-16 pb-24 items-center min-h-[calc(100vh-100px)]">
+        
+        {/* Left Col: Main Text & CTA */}
+        <div className="lg:col-span-6 flex flex-col items-start xl:pl-8 relative z-20">
+          
+          <div className="flex gap-1.5 mb-6 opacity-90 drop-shadow-sm">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-6 h-6 text-amber-500 fill-amber-500 opacity-90" />
+            ))}
+          </div>
+          
+          <h1 className="text-[64px] md:text-[90px] leading-[0.95] font-semibold tracking-[-0.03em] text-slate-900 mb-8 drop-shadow-sm">
+            Find Exactly<br />Who You<br />Need.
+          </h1>
 
-          {/* Left Col: Massive Typography & CTA */}
-          <div className="lg:col-span-7 flex flex-col items-start mt-12 md:mt-0">
+          <p className="text-[18px] text-slate-600 mb-10 max-w-[480px] leading-relaxed font-medium">
+            Not another algorithm. Describe a topic, a mindset, or an expertise. Our smart engine connects you to the exact person you need to scale your growth instantly.
+          </p>
 
-            {/* The Animated Logo integrated as a pre-title */}
-            <div className="mb-8 flex items-end">
-              <h1 className="text-3xl md:text-4xl font-black tracking-[0.25em] flex gap-1">
-                {['G', 'L', 'Y', 'S', 'M', 'O', 'R', 'K'].map((letter, index) => (
-                  <span
-                    key={index}
-                    className={`transition-all duration-300 inline-block bg-clip-text text-transparent ${index === activeIndex
-                      ? 'bg-gradient-to-r from-cyan-400 via-green-500 to-purple-600 dark:from-cyan-300 dark:via-green-400 dark:to-purple-500 -translate-y-2 drop-shadow-[0_0_15px_rgba(168,85,247,0.4)] dark:drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]'
-                      : 'bg-gradient-to-r from-slate-400 to-slate-500 dark:from-gray-500 dark:to-gray-400'
-                      }`}
-                  >
-                    {letter}
-                  </span>
-                ))}
-              </h1>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-5 w-full sm:w-auto mb-14">
+            <Link href="/signup" className="w-full sm:w-auto">
+              <button className="w-full sm:w-auto px-9 py-4 rounded-full bg-slate-900 text-white text-[16px] font-semibold flex items-center justify-center gap-3 transition-all shadow-[0_10px_30px_rgba(15,23,42,0.15)] hover:shadow-[0_15px_40px_rgba(15,23,42,0.25)] hover:-translate-y-1">
+                Join Network 
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </Link>
+            <Link href="/login" className="w-full sm:w-auto">
+              <button className="w-full sm:w-auto px-9 py-4 rounded-full bg-white/50 backdrop-blur-md text-slate-800 text-[16px] font-semibold flex items-center justify-center transition-all border border-white/60 shadow-sm hover:bg-white/80 hover:shadow-md hover:-translate-y-1">
+                Learn More
+              </button>
+            </Link>
+          </div>
+
+          {/* Connected Social Proof Line */}
+          <div className="flex items-center gap-4 bg-white/40 backdrop-blur-xl px-4 py-2 rounded-full border border-white/60 shadow-sm w-max">
+            <div className="flex -space-x-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-100 bg-slate-200 overflow-hidden relative z-10 transition-transform hover:z-20 hover:scale-110 object-cover">
+                  <img src={`https://i.pravatar.cc/100?img=${i + 22}`} className="w-full h-full object-cover" alt="User" />
+                </div>
+              ))}
             </div>
+            <span className="text-[14px] font-medium text-slate-700 pr-2">
+              Joined by <strong className="text-slate-900 font-bold">25k+</strong> professionals
+            </span>
+          </div>
+        </div>
 
-            <h2 className="text-6xl md:text-8xl lg:text-[110px] leading-[0.85] font-black tracking-tighter mb-10 text-slate-900 dark:text-white uppercase mix-blend-normal dark:mix-blend-difference transition-colors">
-              Find<br />Exactly<br />Who You<br />Need.
-            </h2>
-
-            <p className="text-lg md:text-xl text-slate-600 dark:text-gray-400 max-w-lg mb-12 leading-relaxed border-l-3 border-purple-500/50 pl-6 transition-colors">
-              Not another algorithm. Not a dating app.<br />Describe a topic, a mindset, or an expertise. Our smart engine connects you to the exact person you need.
+        {/* Right Col: Layered "Cluster" of Feature Cards */}
+        <div className="lg:col-span-6 relative h-full w-full min-h-[600px] flex justify-center items-center mt-12 lg:mt-0 xl:mr-10">
+          
+          {/* Main Central Card (Smart Matching) */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }} 
+            animate={{ opacity: 1, scale: 1, ...floatingAnimation }} 
+            transition={{ delay: 0.2 }}
+            className="absolute z-10 w-[360px] bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[36px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]"
+          >
+            <div className="bg-slate-50/80 rounded-[24px] p-6 mb-8 w-full flex justify-center items-center shadow-inner relative overflow-hidden h-[160px] border border-slate-100/50">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50" />
+              <div className="relative z-10 w-20 h-20 bg-white rounded-[20px] shadow-sm flex items-center justify-center border border-slate-100">
+                 <Brain className="w-10 h-10 text-purple-600" />
+              </div>
+            </div>
+            <h3 className="text-[26px] font-semibold mb-3 text-slate-800 tracking-[-0.03em]">Smart Matching</h3>
+            <p className="text-[15px] text-slate-500 font-medium leading-relaxed">
+              Every profile is analyzed for pure conceptual compatibility and personality resonance.
             </p>
+          </motion.div>
 
-            <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
-              {isLoggedIn ? (
-                <>
-                  <Link href="/dashboard" className="w-full sm:w-auto">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-cyan-500 text-black font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all shadow-[8px_8px_0px_rgba(34,211,238,0.5)] border border-cyan-400 hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_rgba(34,211,238,0.5)]"
-                    >
-                      Return to Hub
-                      <ArrowUpRight className="w-6 h-6" />
-                    </motion.button>
-                  </Link>
-                  <Link href="/analytics" className="w-full sm:w-auto">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-10 py-5 rounded-none bg-transparent text-slate-800 dark:text-white font-black uppercase tracking-widest flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/30 hover:bg-white/5"
-                    >
-                      System Analytics
-                      <BarChart3 className="w-6 h-6" />
-                    </motion.button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/signup" className="w-full sm:w-auto">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-bold flex items-center justify-center gap-4 transition-all shadow-[0_10px_30px_rgba(168,85,247,0.3)] border border-black dark:border-white hover:y-[-2px]"
-                    >
-                      Get Started
-                      <ArrowUpRight className="w-6 h-6" />
-                    </motion.button>
-                  </Link>
-                  <Link href="/login" className="w-full sm:w-auto">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-transparent text-slate-800 dark:text-white font-bold flex items-center justify-center gap-4 transition-all border border-slate-300 dark:border-white/20 hover:bg-white/5"
-                    >
-                      Sign In
-                    </motion.button>
-                  </Link>
-                </>
-              )}
+          {/* Top Left Overlapping Card (Intent Search) */}
+          <motion.div 
+            initial={{ opacity: 0, x: -30, y: -30 }} 
+            animate={{ opacity: 1, x: 0, y: 0, ...{...floatingAnimation, transition: {...floatingAnimation.transition, delay: 1}} }} 
+            transition={{ delay: 0.4 }}
+            className="absolute z-20 top-[8%] left-[0%] xl:left-[-10%] w-[280px] bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-5 rounded-[28px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center border border-cyan-100">
+                <Search className="text-cyan-500 w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400">01</span>
             </div>
-          </div>
+            <h3 className="text-[16px] font-semibold mb-1 text-slate-800 tracking-tight">Intent Search</h3>
+            <p className="text-[13px] text-slate-500 font-medium leading-relaxed">Specify exactly who you need to meet instantly.</p>
+          </motion.div>
 
-          {/* Right Col: Asymmetrical Floating Cards */}
-          <div className="lg:col-span-5 relative mt-20 lg:mt-0 h-[600px] w-full hidden md:block border-slate-200">
-
-            {/* Card 1 */}
-            <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="absolute top-10 right-0 w-72 bg-white/60 dark:bg-black/60 backdrop-blur-xl border border-black/10 dark:border-white/20 p-8 rounded-3xl z-20 shadow-2xl transition-colors"
-            >
-              <div className="flex justify-between items-start mb-12">
-                <Search className="text-cyan-600 dark:text-cyan-400 w-6 h-6 transition-colors" />
-                <span className="text-xs font-bold text-slate-400 dark:text-gray-500 transition-colors">01</span>
+          {/* Bottom Right Overlapping Card (Direct Connection) */}
+          <motion.div 
+            initial={{ opacity: 0, x: 30, y: 30 }} 
+            animate={{ opacity: 1, x: 0, y: 0, ...{...floatingAnimation, transition: {...floatingAnimation.transition, delay: 2}} }} 
+            transition={{ delay: 0.6 }}
+            className="absolute z-20 bottom-[8%] right-[-5%] xl:right-[-12%] w-[300px] bg-white/90 backdrop-blur-xl border border-white/80 p-5 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
+                <Network className="text-orange-500 w-4 h-4" />
               </div>
-              <h3 className="text-xl font-bold mb-2 tracking-tight text-slate-800 dark:text-white transition-colors">Intent Search</h3>
-              <p className="text-sm text-slate-600 dark:text-gray-400 font-medium transition-colors">Specify who you need. The engine searches the network.</p>
-            </motion.div>
+              <span className="text-[10px] font-bold text-slate-400">03</span>
+            </div>
+            <h3 className="text-[16px] font-semibold mb-1 text-slate-800 tracking-tight">Direct Connection</h3>
+            <p className="text-[13px] text-slate-500 font-medium leading-relaxed">Get instantly routed, bypassing all the noise.</p>
+          </motion.div>
 
-            {/* Card 2 */}
-            <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="absolute top-64 left-0 lg:-left-12 w-80 bg-purple-100/60 dark:bg-purple-900/30 backdrop-blur-xl border border-purple-300/40 dark:border-purple-500/40 p-8 rounded-3xl z-30 shadow-2xl transition-colors"
-            >
-              <div className="flex justify-between items-start mb-12">
-                <Brain className="text-purple-600 dark:text-purple-400 w-6 h-6 transition-colors" />
-                <span className="text-xs font-bold text-purple-400 dark:text-purple-300 transition-colors">02</span>
-              </div>
-              <h3 className="text-2xl font-bold mb-2 text-purple-900 dark:text-purple-100 tracking-tight transition-colors">Smart Matching</h3>
-              <p className="text-sm text-purple-700/80 dark:text-purple-200/70 font-medium leading-relaxed transition-colors">Every profile analyzed for pure conceptual compatibility and personality resonance.</p>
-            </motion.div>
-
-            {/* Card 3 */}
-            <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              className="absolute bottom-10 right-10 w-64 bg-slate-50/80 dark:bg-black/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-8 rounded-3xl z-10 shadow-xl transition-colors"
-            >
-              <div className="flex justify-between items-start mb-8">
-                <Network className="text-slate-500 dark:text-gray-500 w-6 h-6 transition-colors" />
-                <span className="text-xs font-bold text-slate-400 dark:text-gray-600 transition-colors">03</span>
-              </div>
-              <h3 className="text-lg font-bold mb-2 text-slate-800 dark:text-gray-300 transition-colors">Direct Connection</h3>
-              <p className="text-xs text-slate-500 dark:text-gray-500 font-medium transition-colors">Instant routing to the right person.</p>
-            </motion.div>
-
-          </div>
         </div>
       </div>
     </main>

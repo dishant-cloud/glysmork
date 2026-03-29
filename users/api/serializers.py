@@ -7,8 +7,11 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email']
 
+from django_countries.serializer_fields import CountryField
+
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    country = CountryField()
 
     class Meta:
         model = Profile
@@ -20,9 +23,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             'last_quiz_taken', 'is_profile_public',
             'show_ai_analysis', 'hidden_data_fields',
             'country', 'state', 'languages', 'latitude', 'longitude',
-            'persona_image_url', 'trust_score',
+            'persona_image_url', 'trust_score', 'trust_tier',
         ]
-        read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics']
+        read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics', 'trust_score', 'trust_tier']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

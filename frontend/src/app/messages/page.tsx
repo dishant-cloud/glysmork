@@ -22,6 +22,8 @@ export default function InboxPage() {
     }>({ friends: [], received: [], sent: [] });
     const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
 
+
+
     useEffect(() => {
         const u = localStorage.getItem('user');
         if (!u) {
@@ -93,7 +95,7 @@ export default function InboxPage() {
     };
 
     return (
-        <main className="min-h-screen bg-transparent text-slate-900 dark:text-white transition-colors duration-300 overflow-hidden">
+        <main className="min-h-screen bg-[#fafaf9] text-slate-900 transition-colors duration-300 overflow-hidden">
 
             <Header />
 
@@ -101,13 +103,13 @@ export default function InboxPage() {
                 <header className="mb-12">
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-cyan-400 transition-colors mb-6 uppercase tracking-widest"
+                        className="flex items-center gap-2 text-xs font-sans text-[13px] font-medium text-gray-400 hover:text-slate-500 transition-colors mb-6 uppercase tracking-widest"
                     >
                         <ArrowLeft className="w-3 h-3" /> Back to Dashboard
                     </button>
-                    <h1 className="text-4xl font-black tracking-tighter uppercase mb-2 italic">Messages</h1>
+                    <h1 className="text-4xl font-bold tracking-tight mb-2 italic">Messages</h1>
                     <div className="h-1 w-20 bg-gradient-to-r from-cyan-500 to-purple-600 mb-6" />
-                    <p className="font-mono text-sm text-slate-500 dark:text-gray-400">
+                    <p className="font-sans text-[13px] font-medium text-sm text-slate-500 ">
                         Persistent human connections verified by the AI engine.
                     </p>
                 </header>
@@ -115,24 +117,24 @@ export default function InboxPage() {
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 opacity-30">
                         <div className="w-10 h-10 border-2 border-t-cyan-500 border-r-transparent border-b-cyan-500 border-l-transparent rounded-full animate-spin mb-4" />
-                        <span className="font-mono text-xs uppercase tracking-widest">Accessing Logs...</span>
+                        <span className="font-sans text-[13px] font-medium text-xs uppercase tracking-widest">Accessing Logs...</span>
                     </div>
                 ) : (
                     <div className="space-y-12">
                         {/* Unread Messages (Notifications) */}
                         {chatNotifs.length > 0 && (
                             <section>
-                                <h2 className="text-xs font-mono text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-2">Unread Messages</h2>
+                                <h2 className="text-xs font-sans text-[13px] font-medium text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-2">Unread Messages</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {chatNotifs.map(n => (
-                                        <div key={n.id} className="p-4 bg-white/5 border border-purple-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+                                        <div key={n.id} className="p-4 bg-white/80 border border-purple-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-black text-white rounded-none border border-purple-400/50">
                                                     {n.sender.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{n.sender}</span>
-                                                    <p className="text-[10px] text-gray-400 font-mono italic">
+                                                    <span className="font-bold text-slate-900  uppercase tracking-tight">{n.sender}</span>
+                                                    <p className="text-[10px] text-gray-400 font-sans text-[13px] font-medium italic">
                                                         {n.message.includes('missed') ? 'Missed connection attempt' : 'Wants to communicate with you!'}
                                                     </p>
                                                 </div>
@@ -140,7 +142,7 @@ export default function InboxPage() {
                                             <div className="flex gap-2">
                                                 <Link
                                                     href={`/messages/${n.sender}`}
-                                                    className="px-3 py-1.5 bg-purple-500/20 text-purple-300 font-mono text-[10px] uppercase tracking-widest border border-purple-500/50 hover:bg-purple-500 hover:text-white transition-all"
+                                                    className="px-3 py-1.5 bg-purple-500/20 text-purple-300 font-sans text-[13px] font-medium text-[10px] uppercase tracking-widest border border-slate-200 hover:bg-purple-500 hover:text-white transition-all"
                                                     onClick={async () => {
                                                         await fetchApi('/matchmaking/notifications/', {
                                                             method: 'POST', body: JSON.stringify({ ids: [n.id] })
@@ -156,7 +158,7 @@ export default function InboxPage() {
                                                         });
                                                         setChatNotifs(prev => prev.filter(x => x.id !== n.id));
                                                     }}
-                                                    className="px-2 py-1.5 bg-red-500/10 text-red-400 font-mono text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                    className="px-2 py-1.5 bg-red-500/10 text-red-400 font-sans text-[13px] font-medium text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm"
                                                     title="Dismiss"
                                                 >
                                                     <X className="w-3 h-3" />
@@ -171,13 +173,13 @@ export default function InboxPage() {
                         {/* Pending Requests Received */}
                         {friendsData.received.length > 0 && (
                             <section>
-                                <h2 className="text-xs font-mono text-cyan-400 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Inbound Connection Requests</h2>
+                                <h2 className="text-xs font-sans text-[13px] font-medium text-slate-500 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Inbound Connection Requests</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {friendsData.received.map(f => (
-                                        <div key={f.id} className="p-4 bg-white/5 border border-white/10 flex items-center justify-between">
+                                        <div key={f.id} className="p-4 bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-white/10 flex items-center justify-center font-bold text-slate-900 dark:text-white">{f.username.charAt(0).toUpperCase()}</div>
-                                                <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{f.username}</span>
+                                                <div className="w-10 h-10 bg-white/10 flex items-center justify-center font-bold text-slate-900 ">{f.username.charAt(0).toUpperCase()}</div>
+                                                <span className="font-bold text-slate-900  uppercase tracking-tight">{f.username}</span>
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
@@ -202,10 +204,10 @@ export default function InboxPage() {
                         {/* Your Connections (Friends) */}
                         {friendsData.friends.length > 0 && (
                             <section>
-                                <h2 className="text-xs font-mono text-cyan-400 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Your Connections</h2>
+                                <h2 className="text-xs font-sans text-[13px] font-medium text-slate-500 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Your Connections</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {friendsData.friends.map(f => (
-                                        <div key={f.id} className="p-4 bg-white/5 border border-white/10 flex items-center justify-between shadow-sm">
+                                        <div key={f.id} className="p-4 bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-between shadow-sm">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
                                                     <div className="w-10 h-10 bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white rounded-none border border-cyan-400/50 shadow-md">
@@ -216,8 +218,8 @@ export default function InboxPage() {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight block leading-tight">{f.username}</span>
-                                                    <span className={`text-[9px] font-mono uppercase ${f.is_online ? 'text-green-400' : 'text-gray-500'}`}>
+                                                    <span className="font-bold text-slate-900  uppercase tracking-tight block leading-tight">{f.username}</span>
+                                                    <span className={`text-[9px] font-sans text-[13px] font-medium uppercase ${f.is_online ? 'text-green-400' : 'text-gray-500'}`}>
                                                         {f.is_online ? 'Online' : 'Offline'}
                                                     </span>
                                                 </div>
@@ -225,7 +227,7 @@ export default function InboxPage() {
                                             <div className="flex gap-2">
                                                 <Link
                                                     href={`/messages/${f.username}`}
-                                                    className="p-2 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all border border-cyan-500/20"
+                                                    className="p-2 bg-cyan-500/10 text-slate-500 hover:bg-cyan-500 hover:text-black transition-all border border-cyan-500/20"
                                                     title="Send Message"
                                                 >
                                                     <MessageSquare className="w-4 h-4" />

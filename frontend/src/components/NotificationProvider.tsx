@@ -151,11 +151,11 @@ export default function NotificationProvider({ children }: { children: React.Rea
                             exit={{ opacity: 0, x: 20, scale: 0.95 }}
                             className="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl shadow-2xl flex items-start gap-4 min-w-[300px] max-w-sm"
                         >
-                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-slate-500 flex-shrink-0">
                                 <Check className="w-5 h-5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-1">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                                     New {notif.type}
                                 </p>
                                 <p className="text-white font-bold truncate">

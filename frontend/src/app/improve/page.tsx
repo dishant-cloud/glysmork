@@ -107,7 +107,7 @@ export default function ImprovementBot() {
             <header className="h-16 glass-panel rounded-none border-x-0 border-t-0 flex items-center gap-4 px-6 z-10 shrink-0">
                 <Logo size="sm" showText={false} />
                 <div className="h-8 w-px bg-white/10" />
-                <Link href="/dashboard" className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
+                <Link href="/dashboard" className="p-2 -ml-2 rounded-full hover:bg-white/80 transition-colors">
                     <ArrowLeft className="w-5 h-5 text-gray-400" />
                 </Link>
 
@@ -118,9 +118,9 @@ export default function ImprovementBot() {
                     <div>
                         <h2 className="font-semibold text-white flex items-center gap-2">
                             Improvement Bot
-                            <span className="px-2 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30 font-mono uppercase tracking-wider">AI</span>
+                            <span className="px-2 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full border border-slate-800 font-sans text-[13px] font-medium uppercase tracking-wider">AI</span>
                         </h2>
-                        <p className="text-xs text-emerald-400 font-mono">Uses your profile insights</p>
+                        <p className="text-xs text-emerald-400 font-sans text-[13px] font-medium">Uses your profile insights</p>
                     </div>
                 </div>
             </header>
@@ -153,7 +153,7 @@ export default function ImprovementBot() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.1 * i }}
                                     onClick={() => sendMessage(s.text)}
-                                    className="glass-panel p-4 text-left hover:bg-white/5 transition-all hover:-translate-y-1 duration-300 flex items-start gap-3 group"
+                                    className="glass-panel p-4 text-left hover:bg-white/80 transition-all hover:-translate-y-1 duration-300 flex items-start gap-3 group"
                                 >
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${s.color === 'purple' ? 'bg-purple-500/20' :
                                         s.color === 'pink' ? 'bg-pink-500/20' :
@@ -232,7 +232,7 @@ export default function ImprovementBot() {
                             <div className="glass-panel px-5 py-3 rounded-2xl rounded-bl-sm border-emerald-500/10">
                                 <div className="flex items-center gap-2">
                                     <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                                    <span className="text-sm text-gray-400 font-mono">Reflecting on your journey...</span>
+                                    <span className="text-sm text-gray-400 font-sans text-[13px] font-medium">Reflecting on your journey...</span>
                                 </div>
                             </div>
                         </motion.div>
@@ -252,7 +252,7 @@ export default function ImprovementBot() {
                         onKeyDown={(e) => e.key === 'Enter' && !isTyping && sendMessage(inputText)}
                         placeholder="Ask anything about self-improvement..."
                         disabled={isTyping}
-                        className="w-full bg-white/5 border border-white/10 rounded-full py-4 pl-6 pr-16 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-gray-500 disabled:opacity-50"
+                        className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-full py-4 pl-6 pr-16 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-gray-500 disabled:opacity-50"
                     />
                     <button
                         onClick={() => sendMessage(inputText)}
@@ -262,7 +262,7 @@ export default function ImprovementBot() {
                         <Send className="w-5 h-5 ml-0.5" />
                     </button>
                 </div>
-                <p className="text-center text-[10px] text-gray-600 font-mono mt-3 uppercase tracking-widest">
+                <p className="text-center text-[10px] text-gray-600 font-sans text-[13px] font-medium mt-3 uppercase tracking-widest">
                     Powered by your psychological profile insights
                 </p>
             </footer>

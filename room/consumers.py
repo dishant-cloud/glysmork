@@ -244,6 +244,20 @@ def _save_call_log(call_id, caller_username, receiver_username, mode, status, st
     except User.DoesNotExist:
         receiver = None
 
+    if receiver and hasattr(receiver, 'profile'):
+        # Trust Score Tracking for Receiver
+        if status == 'ended':
+            receiver.profile.calls_received += 1
+            receiver.profile.calls_answered += 1
+            receiver.profile.save(update_fields=['calls_received', 'calls_answered'])
+            from users.trust import apply_trust_event
+            apply_trust_event(receiver.id, 'call_answered', 0, "Answered a call")
+        elif status in ['declined', 'no_answer', 'cancelled', 'unavailable']:
+            receiver.profile.calls_received += 1
+            receiver.profile.save(update_fields=['calls_received'])
+            from users.trust import apply_trust_event
+            apply_trust_event(receiver.id, 'call_missed', 0, "Missed or declined a call")
+
     CallLog.objects.create(
         call_id=call_id,
         caller=caller,
@@ -1059,6 +1073,40 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.room_name.startswith('session_') and self.user and self.user.is_authenticated:
             session_id = self.room_name.replace('session_', '')
             users = await _cache_get_list(f'session:{session_id}:active')
+
+            # --- TRUST SCORE: Session Quality Tracking ---
+            try:
+                from room.models import Room
+                from django.utils import timezone
+                room = await sync_to_async(Room.objects.get)(name=self.room_name)
+                delta = (timezone.now() - (room.created_at or timezone.now())).total_seconds()
+                
+                msgs_raw = await _cache_get(f'session:{session_id}:messages')
+                has_messages = False
+                if msgs_raw:
+                    try:
+                        has_messages = len(json.loads(msgs_raw)) > 0
+                    except: pass
+                
+                # Check if session lasted over 2 mins and had messages
+                # Avoid double counting if we already tracked it for this user
+                tracked_key = f'tracked_qual_session_{session_id}_{self.user.id}'
+                already_tracked = await _cache_get(tracked_key)
+
+                if delta > 120 and has_messages and not already_tracked:
+                    await _cache_set(tracked_key, True, timeout=86400)
+                    @sync_to_async
+                    def _update_qual_session(u):
+                        if hasattr(u, 'profile'):
+                            u.profile.qualifying_sessions += 1
+                            u.profile.save(update_fields=['qualifying_sessions'])
+                            from users.trust import apply_trust_event
+                            apply_trust_event(u.id, 'session_end_qualified', 0, "Completed a 2+ min session")
+                    await _update_qual_session(self.user)
+            except Exception as e:
+                print(f"DEBUG: Session Qualify Tracking Error: {e}")
+            # ---------------------------------------------
+
             if self.user.id in users:
                 users.remove(self.user.id)
                 await _cache_set(f'session:{session_id}:active', json.dumps(users), timeout=86400)
@@ -1184,7 +1232,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
 
     async def force_exit(self, event):
-        await self.send(text_data=json.dumps({'type': 'force_exit'}))
+        if self.channel_name != event.get('sender'):
+            await self.send(text_data=json.dumps({'type': 'force_exit'}))
 
     async def user_left(self, event):
         await self.send(text_data=json.dumps({

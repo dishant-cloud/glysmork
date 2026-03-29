@@ -99,9 +99,16 @@ export default function DMPage() {
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                const newMsgs = data.results || [];
+                const newMsgs = (data.results || []).map((m: any) => ({
+                    ...m,
+                    timestamp: m.date_iso ? new Date(m.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.timestamp
+                }));
                 if (cursor) {
-                    setMessages(prev => [...newMsgs, ...prev]);
+                    setMessages(prev => {
+                        const existingIds = new Set(prev.map(m => m.id));
+                        const uniqueNew = newMsgs.filter((m: any) => !existingIds.has(m.id));
+                        return [...uniqueNew, ...prev];
+                    });
                 } else {
                     setMessages(newMsgs);
                 }
@@ -137,7 +144,7 @@ export default function DMPage() {
                     client_id: data.client_id,
                     sender: data.username || data.sender,
                     text: data.message || data.text || "",
-                    timestamp: data.timestamp ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    timestamp: data.date_iso ? new Date(data.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.timestamp ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
                     status: (data.username || data.sender) === myUsername ? 'sent' : 'read',
                     isRead: true,
                     deletedForEveryone: false,
@@ -265,21 +272,21 @@ export default function DMPage() {
     const friendInitial = friend.replace('session_', '').charAt(0).toUpperCase();
 
     return (
-        <div className="flex flex-col h-screen bg-transparent text-white" onClick={() => setContextMenu(null)}>
+        <div className="flex flex-col h-screen bg-[#fafaf9] text-slate-900 font-sans" onClick={() => setContextMenu(null)}>
             {/* ── Header ── */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-[#111118]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-20">
-                <Link href="/messages" className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                    <ArrowLeft className="w-5 h-5 text-gray-400" />
+            <div className="flex items-center gap-3 px-4 py-3 bg-white/80 backdrop-blur-2xl border-b border-slate-200/60 sticky top-0 z-20 shadow-sm">
+                <Link href="/dashboard" className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <ArrowLeft className="w-5 h-5 text-slate-600" />
                 </Link>
                 <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center font-black text-white text-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+                    <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center font-bold text-white text-sm shadow-sm">
                         {friendInitial}
                     </div>
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#111118]" />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h2 className="font-bold text-sm uppercase tracking-wider truncate">{friend.replace('session_', 'Guest ')}</h2>
-                    <p className="text-[10px] font-mono text-cyan-500/50">{roomName?.startsWith('session_') ? 'Discovery Session' : 'Direct Message'}</p>
+                    <h2 className="font-bold text-[15px] uppercase tracking-wide text-slate-800 truncate">{friend.replace('session_', 'Guest ')}</h2>
+                    <p className="text-[12px] font-medium text-slate-500">{roomName?.startsWith('session_') ? 'Discovery Session' : 'Direct Message'}</p>
                 </div>
                 <div className="flex items-center gap-1">
                     {!roomName?.startsWith('session_') && (
@@ -295,33 +302,33 @@ export default function DMPage() {
                                     setFriendStatus('pending');
                                 } catch { }
                             }}
-                            className={`p-2 rounded-full transition-colors ${friendStatus === 'accepted' ? 'text-green-400 bg-green-400/10' : friendStatus === 'pending' ? 'text-yellow-400' : 'text-gray-400 hover:bg-white/10'}`}
+                            className={`p-2 rounded-full transition-colors ${friendStatus === 'accepted' ? 'text-emerald-500 bg-emerald-50' : friendStatus === 'pending' ? 'text-amber-500' : 'text-slate-500 hover:bg-slate-100'}`}
                         >
                             {friendStatus === 'accepted' ? <Check className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
                         </button>
                     )}
-                    <button onClick={() => startCall(friend.replace('session_', ''), 'audio', roomName || undefined)} className="p-2 text-gray-400 hover:text-cyan-400"><Phone className="w-5 h-5" /></button>
-                    <button onClick={() => startCall(friend.replace('session_', ''), 'video', roomName || undefined)} className="p-2 text-gray-400 hover:text-cyan-400"><Video className="w-5 h-5" /></button>
+                    <button onClick={() => startCall(friend.replace('session_', ''), 'audio', roomName || undefined)} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"><Phone className="w-5 h-5" /></button>
+                    <button onClick={() => startCall(friend.replace('session_', ''), 'video', roomName || undefined)} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"><Video className="w-5 h-5" /></button>
                 </div>
             </div>
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
                 {hasMore && (
                     <div className="flex justify-center pb-4">
                         <button 
                             onClick={() => loadMessages(nextCursor)}
                             disabled={loadingMore}
-                            className="text-[10px] font-mono text-cyan-400/50 hover:text-cyan-400 uppercase tracking-widest flex items-center gap-2"
+                            className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 uppercase tracking-widest flex items-center gap-2 bg-white px-4 py-2 border border-slate-200 rounded-full shadow-sm transition-colors"
                         >
-                            {loadingMore ? 'Syncing...' : 'Show older messages'}
+                            {loadingMore ? 'Syncing...' : 'Older messages'}
                             <MoreHorizontal className="w-3 h-3" />
                         </button>
                     </div>
                 )}
 
                 {loading ? (
-                    <div className="flex justify-center py-10 opacity-20"><div className="w-6 h-6 border-2 border-t-cyan-400 rounded-full animate-spin" /></div>
+                    <div className="flex justify-center py-10 opacity-40"><div className="w-6 h-6 border-2 border-t-slate-800 rounded-full animate-spin" /></div>
                 ) : (
                     <>
                         {messages.map((msg, idx) => {
@@ -330,20 +337,20 @@ export default function DMPage() {
                             
                             if (msg.is_call_log) {
                                 const Icon = msg.call_mode === 'video' ? Video : Phone;
-                                const statusColor = msg.call_status === 'ended' ? 'text-green-400' : 'text-red-400';
+                                const statusColor = msg.call_status === 'ended' ? 'text-emerald-600' : 'text-rose-500';
                                 const durationDisp = msg.call_duration ? `${Math.floor(msg.call_duration/60)}:${(msg.call_duration%60).toString().padStart(2, '0')}` : '';
                                 
                                 return (
                                     <motion.div key={msg.id || idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center my-4">
-                                        <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-3 backdrop-blur-sm">
-                                            <div className={`p-2 rounded-full bg-white/5 ${statusColor}`}>
+                                        <div className="bg-white border border-slate-200/80 shadow-sm rounded-[20px] px-5 py-3 flex items-center gap-4">
+                                            <div className={`p-2.5 rounded-full bg-slate-50 ${statusColor}`}>
                                                 <Icon className="w-4 h-4" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                                <span className="text-[12px] font-bold text-slate-800 uppercase tracking-wider">
                                                     {msg.call_mode} call {msg.call_status}
                                                 </span>
-                                                <span className="text-[10px] font-mono text-gray-400 flex items-center gap-2">
+                                                <span className="text-[11px] font-medium text-slate-500 flex items-center gap-2 mt-0.5">
                                                     {msg.timestamp} {durationDisp && `• ${durationDisp}`}
                                                 </span>
                                             </div>
@@ -355,16 +362,22 @@ export default function DMPage() {
                             return (
                                 <motion.div key={msg.id || idx} initial={{ opacity: 0, x: isMe ? 10 : -10 }} animate={{ opacity: 1, x: 0 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                     <div 
-                                        className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                                        className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                                         onContextMenu={(e) => { if (isMe && !isDeleted) { e.preventDefault(); setContextMenu({ id: msg.id, x: e.clientX, y: e.clientY }); } }}
                                     >
-                                        <div className={`px-4 py-2 text-sm rounded-2xl ${isDeleted ? 'bg-white/5 text-gray-600 italic' : isMe ? 'bg-cyan-600 shadow-[0_2px_10px_rgba(34,211,238,0.2)]' : 'bg-white/10'}`}>
+                                        <div className={`px-5 py-3 text-[15px] leading-relaxed shadow-sm ${isDeleted ? 'bg-slate-100 text-slate-500 italic rounded-[24px]' : isMe ? 'bg-slate-900 text-white rounded-[24px] rounded-br-sm' : 'bg-white text-slate-800 border border-slate-200/60 rounded-[24px] rounded-bl-sm'}`}>
                                             {msg.text}
                                         </div>
-                                        <div className="flex items-center gap-1.5 mt-1 px-1">
-                                            <span className="text-[9px] font-mono text-gray-600 uppercase">{msg.timestamp}</span>
+                                        <div className="flex items-center gap-1.5 mt-1.5 px-2">
+                                            <span className="text-[11px] font-medium text-slate-400">
+                                                {msg.timestamp}
+                                            </span>
                                             {isMe && !isDeleted && (
-                                                <Check className={`w-3 h-3 ${msg.status === 'read' ? 'text-cyan-400' : 'text-gray-600'}`} />
+                                                msg.status === 'read' || msg.isRead ? (
+                                                    <CheckCheck className="w-[14px] h-[14px] text-emerald-500" />
+                                                ) : (
+                                                    <Check className="w-[14px] h-[14px] text-slate-400" />
+                                                )
                                             )}
                                         </div>
                                     </div>
@@ -373,21 +386,21 @@ export default function DMPage() {
                         })}
                         {peerTyping && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                                <div className="bg-white/5 px-3 py-1.5 rounded-full flex gap-1 items-center">
-                                    <span className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <span className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <span className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                <div className="bg-white border border-slate-200/60 px-4 py-3 rounded-[24px] rounded-bl-sm flex gap-1.5 items-center shadow-sm">
+                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                                 </div>
                             </motion.div>
                         )}
                     </>
                 )}
-                <div ref={bottomRef} />
+                <div ref={bottomRef} className="h-4" />
             </div>
 
             {/* ── Input bar ── */}
-            <div className="p-4 bg-[#111118]/80 backdrop-blur-xl border-t border-white/5">
-                <div className="flex items-end gap-2 bg-white/5 rounded-2xl px-3 py-2 border border-white/5 focus-within:border-cyan-500/30 transition-colors">
+            <div className="p-4 bg-white/90 backdrop-blur-2xl border-t border-slate-200/60 z-20">
+                <div className="flex items-end gap-3 bg-[#fafaf9] rounded-[24px] px-4 py-2 border border-slate-200 focus-within:border-slate-400 focus-within:shadow-sm transition-all shadow-inner">
                     <textarea
                         value={input}
                         onChange={e => {
@@ -399,9 +412,9 @@ export default function DMPage() {
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                         placeholder="Type a message..."
                         rows={1}
-                        className="flex-1 bg-transparent text-sm p-1 focus:outline-none resize-none max-h-32"
+                        className="flex-1 bg-transparent text-[15px] font-medium text-slate-800 placeholder-slate-400 p-2 focus:outline-none resize-none max-h-32"
                     />
-                    <button onClick={sendMessage} disabled={!input.trim() || sending} className="p-2 bg-cyan-500 rounded-xl disabled:opacity-20 shadow-lg shadow-cyan-500/20">
+                    <button onClick={sendMessage} disabled={!input.trim() || sending} className="p-3 mb-0.5 bg-slate-900 text-white rounded-full disabled:opacity-40 disabled:bg-slate-300 hover:bg-slate-800 hover:-translate-y-0.5 transition-all shadow-md">
                         <Send className="w-4 h-4" />
                     </button>
                 </div>
@@ -410,8 +423,8 @@ export default function DMPage() {
             {/* Context Menu */}
             <AnimatePresence>
                 {contextMenu && (
-                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="fixed z-50 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-2xl p-1" style={{ top: contextMenu.y, left: contextMenu.x }}>
-                        <button onClick={() => deleteForEveryone(contextMenu.id)} className="flex items-center gap-2 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 w-full rounded"><Trash2 className="w-3.5 h-3.5" /> Delete for everyone</button>
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed z-50 bg-white border border-slate-200 shadow-xl rounded-xl p-1.5" style={{ top: contextMenu.y, left: contextMenu.x - 150 }}>
+                        <button onClick={() => deleteForEveryone(contextMenu.id)} className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-rose-600 hover:bg-rose-50 w-full rounded-lg transition-colors"><Trash2 className="w-4 h-4" /> Delete for everyone</button>
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -32,6 +32,7 @@ export default function ChatRoom() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [roomId, setRoomId] = useState<string | null>(null);
+    const [urlMode, setUrlMode] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<string | null>(null);
     const [partnerUsername, setPartnerUsername] = useState<string | null>(null);
     const [alert, setAlert] = useState<AnalysisAlert | null>(null);
@@ -46,28 +47,19 @@ export default function ChatRoom() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const wsRef = useRef<WebSocket | null>(null);
+    const isExitingRef = useRef(false);
 
-    // Back Button: always go to /messages
+    // Use standard beforeunload instead of breaking browser history
     useEffect(() => {
-        const handlePopState = () => {
-            if (roomId?.startsWith('session_')) {
-                // Ephemeral session: show exit modal instead of going back silently
-                window.history.pushState(null, '', window.location.href);
-                setShowExitModal(true);
-            } else {
-                // Direct/friend chat: go back to inbox
-                router.push('/messages');
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (roomId?.startsWith('session_') && !isExitingRef.current) {
+                e.preventDefault();
+                e.returnValue = ''; // Shows standard browser warning
             }
         };
-
-        // Ensure navigating back from session rooms shows modal
-        if (roomId?.startsWith('session_')) {
-            window.history.pushState(null, '', window.location.href);
-        }
-
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [roomId, router]);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [roomId]);
 
     // Initialize Room Data
     useEffect(() => {
@@ -81,6 +73,8 @@ export default function ChatRoom() {
 
         const params = new URLSearchParams(window.location.search);
         const rm = params.get('id');
+        const md = params.get('mode');
+        if (md) setUrlMode(md);
         if (rm) {
             setRoomId(rm);
             fetchApi(`/room/${rm}/status/`)
@@ -139,19 +133,31 @@ export default function ChatRoom() {
         }
     };
 
-    const fetchMessages = useCallback(async () => {
-        if (!roomId || !currentUser) return;
+    // Merge-fetch: updates state without dropping optimistic messages
+    const fetchAndMergeMessages = useCallback(async (rid: string, user: string) => {
         try {
-            const data = await fetchApi(`/room/${roomId}/messages/?username=${encodeURIComponent(currentUser)}`);
-            setMessages(Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []));
+            const data = await fetchApi(`/room/${rid}/messages/?username=${encodeURIComponent(user)}`);
+            const fetched: ChatMessage[] = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+            if (fetched.length === 0) return;
+            setMessages(prev => {
+                const fetchedIds = new Set(fetched.map(m => m.id));
+                const fetchedClientIds = new Set(fetched.map(m => m.client_id).filter(Boolean));
+                // Keep optimistic messages not yet in DB
+                const optimistic = prev.filter(m =>
+                    (m.id > 1e12) && // temp ID (Date.now() based)
+                    !fetchedIds.has(m.id) &&
+                    (!m.client_id || !fetchedClientIds.has(m.client_id))
+                );
+                return [...fetched, ...optimistic];
+            });
         } catch { }
-    }, [roomId, currentUser]);
+    }, []);
 
     // WebSocket and initial fetch setup
     useEffect(() => {
         if (!roomId || !currentUser) return;
-        fetchMessages();
-        const pollInterval = setInterval(fetchMessages, 3000);
+        fetchAndMergeMessages(roomId, currentUser);
+        const pollInterval = setInterval(() => fetchAndMergeMessages(roomId, currentUser), 3000);
 
         try {
             const token = localStorage.getItem('access_token');
@@ -177,7 +183,8 @@ export default function ChatRoom() {
                             text: data.message || data.text || "",
                             isRead: data.isRead || false,
                             deletedForEveryone: data.deletedForEveryone || false,
-                            timestamp: data.timestamp ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            timestamp: data.date_iso ? new Date(data.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.timestamp ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                            status: (data.username || data.sender) === currentUser ? 'sent' : 'read',
                             is_call_log: data.is_call_log,
                             call_mode: data.call_mode,
                             call_status: data.call_status,
@@ -192,9 +199,11 @@ export default function ChatRoom() {
                     });
                 } else if (data.type === 'force_exit') {
                     if (!roomId.startsWith('direct_')) {
+                        isExitingRef.current = true;
                         window.location.replace('/dashboard?exit=partner');
                     }
                 } else if (data.type === 'user_left') {
+                    isExitingRef.current = true;
                     window.location.replace('/dashboard?exit=partner');
                 }
             };
@@ -202,32 +211,31 @@ export default function ChatRoom() {
             console.log("WebSocket failed", e);
         }
 
-        const pollInt = setInterval(async () => {
+        // Separate status check every 5s (doesn't touch message state)
+        const statusInt = setInterval(async () => {
             try {
                 const statusRes = await fetchApi(`/room/${roomId}/status/`);
                 if (statusRes.is_active === false && !roomId.startsWith('direct_')) {
+                    isExitingRef.current = true;
                     window.location.replace('/dashboard?exit=partner');
-                    return;
                 }
-                const res = await fetchApi(`/room/${roomId}/messages/?username=${encodeURIComponent(currentUser || '')}`);
-                if (res && Array.isArray(res.results)) setMessages(res.results);
-                else if (Array.isArray(res)) setMessages(res);
-            } catch (e) { }
-        }, 3000);
+            } catch { }
+        }, 5000);
 
         return () => {
             if (wsRef.current) wsRef.current.close();
-            clearInterval(pollInt);
-            // End call if it's a session room being closed
+            clearInterval(pollInterval);
+            clearInterval(statusInt);
             if (roomId?.startsWith('session_')) {
                 endCall();
             }
         };
-    }, [roomId, currentUser, fetchMessages, endCall]);
+    }, [roomId, currentUser, fetchAndMergeMessages, endCall]);
 
 
 
     const performExit = async () => {
+        isExitingRef.current = true;
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({ type: 'force_exit' }));
         }
@@ -262,7 +270,8 @@ export default function ChatRoom() {
             text: text,
             isRead: false,
             deletedForEveryone: false,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: 'sent'
         }]);
 
         try {
@@ -284,14 +293,7 @@ export default function ChatRoom() {
     };
 
     return (
-        <div className="fixed inset-0 flex flex-col bg-[#020205] text-cyan-50 font-sans transition-colors duration-300 overflow-hidden z-[50]">
-            {/* Dynamic Background Elements */}
-            <div className="absolute inset-0 bg-noise z-0" />
-            <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 150, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-[url('/glysmork_signup.png')] bg-cover opacity-5 mix-blend-screen pointer-events-none"
-            />
+        <div className="fixed inset-0 flex flex-col bg-slate-50 text-slate-900 font-sans overflow-hidden z-[50]">
 
             {/* Toast Notification */}
             <AnimatePresence>
@@ -300,7 +302,7 @@ export default function ChatRoom() {
                         initial={{ y: -50, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -50, opacity: 0 }}
-                        className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-emerald-500/90 text-black font-black uppercase text-[10px] tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.5)] border border-emerald-400 rounded-lg backdrop-blur-md"
+                        className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-emerald-500 text-white font-semibold text-sm shadow-lg rounded-2xl"
                     >
                         {showToast}
                     </motion.div>
@@ -314,33 +316,25 @@ export default function ChatRoom() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                        className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
                     >
                         <motion.div
-                            initial={{ scale: 0.9, y: 50 }}
+                            initial={{ scale: 0.9, y: 30 }}
                             animate={{ scale: 1, y: 0 }}
-                            className="bg-red-950/90 border-2 border-red-500 rounded-2xl p-8 max-w-lg shadow-[0_0_50px_rgba(239,68,68,0.5)] flex flex-col items-center text-center"
+                            className="bg-white border border-sky-200 rounded-2xl p-8 max-w-lg shadow-2xl flex flex-col items-center text-center"
                         >
-                            <AlertTriangle className="w-16 h-16 text-red-500 mb-6 animate-pulse" />
-                            <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-widest">AI Safety Warning</h2>
-                            <p className="text-red-200 mb-6 font-mono text-sm border-l-2 border-red-500 pl-4 text-left">
-                                Our AI Safety System has detected suspicious or manipulative behavior originating from <strong>{alert.username}</strong>.
-                                <br /><br />
-                                <em className="text-red-400">Reason: {alert.reason}</em>
+                            <AlertTriangle className="w-12 h-12 text-sky-500 mb-4" />
+                            <h2 className="text-xl font-bold text-slate-900 mb-2">AI Safety Warning</h2>
+                            <p className="text-slate-600 mb-6 text-sm border-l-4 border-sky-400 pl-4 text-left">
+                                Suspicious behavior detected from <strong>{alert.username}</strong>.
+                                <br /><em className="text-sky-500">Reason: {alert.reason}</em>
                             </p>
-                            <div className="w-full relative mb-8 overflow-hidden rounded-xl border border-red-500/50 group">
-                                <img
-                                    src={alert.image_url}
-                                    alt="AI Perception of Fraudster"
-                                    className="w-full h-auto object-cover grayscale mix-blend-luminosity group-hover:grayscale-0 transition-all duration-1000"
-                                />
-                                <div className="absolute inset-x-0 bottom-0 bg-black/80 p-2 text-xs font-mono text-red-400 uppercase">
-                                    AI Visual Perception of User Intent
-                                </div>
+                            <div className="w-full mb-6 overflow-hidden rounded-xl border border-slate-200">
+                                <img src={alert.image_url} alt="AI Perception" className="w-full h-auto object-cover" />
                             </div>
                             <button
                                 onClick={() => setAlert(null)}
-                                className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest transition-colors rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                                className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-semibold transition-colors rounded-xl"
                             >
                                 Acknowledge & Proceed with Caution
                             </button>
@@ -349,11 +343,11 @@ export default function ChatRoom() {
                 )}
             </AnimatePresence>
 
-            {/* Header: Cyberpunk Glass Navbar */}
-            <header className="h-20 ultra-glass border-b border-cyan-900/40 flex items-center justify-between px-6 z-20 shrink-0 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-                <div className="flex items-center gap-6">
+            {/* Header */}
+            <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 z-20 shrink-0 shadow-sm">
+                <div className="flex items-center gap-3">
                     {/* Back Button */}
-                    <button 
+                    <button
                         onClick={() => {
                             if (roomId?.startsWith('session_')) {
                                 setShowExitModal(true);
@@ -361,107 +355,76 @@ export default function ChatRoom() {
                                 window.location.replace('/dashboard');
                             }
                         }}
-                        className="p-2 hover:bg-white/10 rounded-full transition-colors hidden md:block"
+                        className="p-2 hover:bg-slate-100 rounded-full transition-colors"
                         title="Return to Dashboard"
                     >
-                        <ArrowLeft className="w-5 h-5 text-cyan-500" />
+                        <ArrowLeft className="w-5 h-5 text-slate-600" />
                     </button>
-                    
-                    {/* HUD Data */}
-                    <div className="text-[10px] text-cyan-500/50 font-medium tracking-tight hidden lg:flex flex-col gap-1 border-x border-cyan-900/30 px-6">
-                        <span className="flex items-center gap-2">
-                            <Activity className="w-3 h-3 text-emerald-400/80 animate-pulse" />
-                            NETWORK STATUS: STABLE
-                        </span>
-                        <span className="text-emerald-400/70 flex items-center gap-1.5 font-bold uppercase text-[9px]">
-                            SECURE CHANNEL
-                        </span>
+
+                    {/* Avatar */}
+                    <div className="w-9 h-9 rounded-full bg-violet-100 border-2 border-violet-200 flex items-center justify-center text-violet-600 font-bold text-base shrink-0">
+                        {partnerUsername?.[0]?.toUpperCase() ?? '?'}
                     </div>
 
                     {/* Partner Info */}
-                    <div className="flex items-center gap-4 lg:pl-4 relative">
-                        {/* Avatar */}
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-purple-500/20 blur-md rounded-xl animate-pulse"></div>
-                            <div className="w-12 h-12 rounded-xl bg-black/80 border border-purple-500/50 flex items-center justify-center text-purple-400 font-bold text-xl shrink-0 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)] relative z-10">
-                                {partnerUsername?.[0]?.toUpperCase() ?? '?'}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h2 className="font-bold text-cyan-50 flex flex-col">
-                                {partnerUsername ? (
-                                    <>
-                                        <span className="text-purple-400 tracking-tight text-xl drop-shadow-[0_0_12px_rgba(168,85,247,0.5)] flex items-center gap-2">
-                                            {partnerUsername}
-                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-900/50 border border-purple-500/50 text-purple-200">ACTIVE</span>
-                                        </span>
-                                    </>
-                                ) : (
-                                    <span className="text-cyan-500/50 text-sm tracking-wide animate-pulse italic">Connecting...</span>
-                                )}
-                            </h2>
-                            <p className="text-xs text-cyan-400/60 font-medium mt-0.5 flex items-center gap-1">
-                                <Fingerprint className="w-3 h-3" />
-                                Identified as <span className="text-cyan-400 font-bold">{currentUser || '...'}</span>
-                            </p>
-                        </div>
+                    <div>
+                        <p className="font-semibold text-slate-900 text-sm leading-tight">
+                            {partnerUsername ?? <span className="text-slate-400 italic font-normal animate-pulse">Connecting...</span>}
+                        </p>
+                        <p className="text-xs text-slate-600 font-medium flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block" />
+                            Active now
+                        </p>
                     </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-3">
-                    {/* Always show Link option if we have a partner, even in Roulette */}
+                <div className="flex items-center gap-2">
                     {partnerUsername && (
                         <button
                             onClick={handleAddFriend}
                             disabled={friendStatus !== 'none'}
-                            className={`hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-xs font-bold tracking-tight border backdrop-blur-md ${friendStatus === 'accepted'
-                                    ? 'bg-emerald-900/30 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                            className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold border ${
+                                friendStatus === 'accepted'
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
                                     : friendStatus === 'pending'
-                                        ? 'bg-cyan-900/30 border-cyan-500/50 text-cyan-400 opacity-70'
-                                        : 'bg-black/40 border-slate-700 hover:border-emerald-500 hover:text-emerald-400 text-slate-400 hover:bg-emerald-900/20 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                                }`}
+                                        ? 'bg-blue-50 border-blue-200 text-blue-500 opacity-70'
+                                        : 'bg-white border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-slate-600 hover:text-violet-600'
+                            }`}
                         >
-                            {friendStatus === 'accepted' ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                            {friendStatus === 'accepted' ? <Check className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
                             <span>{friendStatus === 'accepted' ? 'Friends' : friendStatus === 'pending' ? 'Requested' : 'Add Friend'}</span>
                         </button>
                     )}
 
-                    {/* ONLY show Calls for Direct/Friend Chats */}
-                    {roomId?.startsWith('direct_') && (
+                    {(roomId?.startsWith('direct_') || (roomId?.startsWith('session_') && urlMode === 'video')) && (
                         <>
                             <button
-                                onClick={() => {
-                                    if (partnerUsername) startCall(partnerUsername, 'video', roomId || undefined);
-                                }}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-xs font-bold tracking-tight shadow-lg border backdrop-blur-md bg-purple-900/40 hover:bg-purple-800/60 text-cyan-50 border-purple-500/60 hover:border-purple-400 shadow-[inset_0_0_10px_rgba(168,85,247,0.2)]"
+                                onClick={() => { if (partnerUsername) startCall(partnerUsername, 'video', roomId || undefined); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-600 border border-violet-200"
                                 title="Video Call"
                             >
                                 <Video className="w-4 h-4" />
-                                <span className="hidden sm:inline">Video Call</span>
+                                <span className="hidden sm:inline">Video</span>
                             </button>
-
                             <button
-                                onClick={() => {
-                                    if (partnerUsername) startCall(partnerUsername, 'audio', roomId || undefined);
-                                }}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-xs font-bold tracking-tight shadow-lg border backdrop-blur-md bg-white/5 hover:bg-white/10 text-cyan-50 border-white/10 hover:border-white/20 shadow-[inset_0_0_10px_rgba(255,255,255,0.05)]"
+                                onClick={() => { if (partnerUsername) startCall(partnerUsername, 'audio', roomId || undefined); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200"
                                 title="Audio Call"
                             >
                                 <Phone className="w-4 h-4" />
-                                <span className="hidden sm:inline">Audio Call</span>
+                                <span className="hidden sm:inline">Call</span>
                             </button>
                         </>
                     )}
 
                     <button
                         onClick={() => setShowExitModal(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-xs font-bold tracking-tight bg-red-950/20 hover:bg-red-950/50 text-red-500 border border-red-900/30 hover:border-red-500/50 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-500 border border-sky-200"
                         title="Leave Chat"
                     >
                         <LogOut className="w-4 h-4" />
-                        <span className="hidden sm:inline">Leave Chat</span>
+                        <span className="hidden sm:inline">Leave</span>
                     </button>
                 </div>
             </header>
@@ -473,31 +436,30 @@ export default function ChatRoom() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 backdrop-blur-sm"
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
-                            className="bg-[#050511] border border-red-500/50 rounded-2xl p-8 max-w-sm w-full shadow-[0_0_40px_rgba(239,68,68,0.2)] text-center relative overflow-hidden"
+                            className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center"
                         >
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-red-400 to-red-600 animate-pulse" />
-                            <div className="w-16 h-16 bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/30">
-                                <LogOut className="w-8 h-8 text-red-500" />
+                            <div className="w-14 h-14 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-5 border border-sky-100">
+                                <LogOut className="w-7 h-7 text-sky-500" />
                             </div>
-                            <h3 className="text-2xl font-bold tracking-tight mb-2 text-white">Leave the chat?</h3>
-                            <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Leave the chat?</h3>
+                            <p className="text-slate-500 text-sm mb-7 leading-relaxed">
                                 You are about to end this session. All local history for this match will be lost.
                             </p>
                             <div className="flex flex-col gap-3">
                                 <button
                                     onClick={performExit}
-                                    className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl transition-all tracking-tight text-sm shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                                    className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-xl transition-colors text-sm"
                                 >
                                     End Session
                                 </button>
                                 <button
                                     onClick={() => setShowExitModal(false)}
-                                    className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-2xl transition-all tracking-tight text-sm border border-white/10"
+                                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors text-sm"
                                 >
                                     Stay Here
                                 </button>
@@ -508,29 +470,28 @@ export default function ChatRoom() {
             </AnimatePresence>
 
             {/* Messages Area */}
-            <main ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 p-4 md:p-8 space-y-6 custom-scrollbar relative z-10 overscroll-contain">
-                <div className="text-center my-8 relative flex-shrink-0">
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
-                    <span className="relative px-6 py-1.5 rounded-full bg-[#0a0a1a] text-cyan-400/80 text-[11px] font-bold border border-cyan-900/30 tracking-wide shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+            <main ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 p-4 md:p-6 space-y-3 bg-slate-50 overscroll-contain">
+
+                {/* Session start marker */}
+                <div className="text-center my-4">
+                    <span className="px-4 py-1.5 rounded-full bg-slate-200 text-slate-500 text-xs font-medium">
                         Secure Connection Established
                     </span>
                 </div>
 
                 {matchReason && (
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.97 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="mx-auto max-w-2xl p-6 bg-gradient-to-br from-indigo-950/40 to-black/40 border border-indigo-500/30 rounded-2xl backdrop-blur-xl shadow-[0_0_40px_rgba(79,70,229,0.15)] mb-8"
+                        className="mx-auto max-w-2xl p-4 bg-white border border-violet-100 rounded-2xl shadow-sm mb-4"
                     >
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 bg-indigo-400/10 rounded-xl border border-indigo-500/20">
-                                <Activity className="w-5 h-5 text-indigo-400" />
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-violet-50 rounded-xl border border-violet-100 shrink-0">
+                                <Activity className="w-4 h-4 text-violet-500" />
                             </div>
-                            <div className="text-left">
-                                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300 mb-1">Neural Connection Insights</h3>
-                                <p className="text-sm text-indigo-100/90 leading-relaxed font-mono">
-                                    {matchReason}
-                                </p>
+                            <div>
+                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-1">Neural Connection Insights</h3>
+                                <p className="text-sm text-slate-700 leading-relaxed">{matchReason}</p>
                             </div>
                         </div>
                     </motion.div>
@@ -539,26 +500,22 @@ export default function ChatRoom() {
                 <AnimatePresence>
                     {messages.map((msg, index) => {
                         const isMe = currentUser ? msg.sender === currentUser : false;
+                        const isDeleted = msg.deletedForEveryone;
 
                         if (msg.is_call_log) {
                             const Icon = msg.call_mode === 'video' ? Video : Phone;
-                            const statusColor = msg.call_status === 'ended' ? 'text-emerald-400' : 'text-red-400';
+                            const statusColor = msg.call_status === 'ended' ? 'text-slate-600' : 'text-sky-500';
                             const durationDisp = msg.call_duration ? `${Math.floor(msg.call_duration/60)}:${(msg.call_duration%60).toString().padStart(2, '0')}` : '';
-                            
+
                             return (
-                                <motion.div key={msg.id || index} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} layout className="flex justify-center w-full my-4">
-                                    <div className="bg-black/40 border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-3 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-                                        <div className={`p-2 rounded-full bg-white/5 ${statusColor} shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]`}>
-                                            <Icon className="w-4 h-4" />
+                                <motion.div key={msg.id || index} initial={{ opacity: 0 }} animate={{ opacity: 1 }} layout className="flex justify-center w-full my-2">
+                                    <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-3 shadow-sm text-sm">
+                                        <div className={`p-1.5 rounded-full bg-slate-50 ${statusColor}`}>
+                                            <Icon className="w-3.5 h-3.5" />
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-white tracking-tight">
-                                                {msg.call_mode === 'video' ? 'Video' : 'Audio'} call {msg.call_status}
-                                            </span>
-                                            <span className="text-[10px] text-cyan-500/50 font-medium flex items-center gap-2">
-                                                {msg.timestamp} {durationDisp && `• ${durationDisp}`}
-                                            </span>
-                                        </div>
+                                        <span className="text-slate-600 text-xs font-medium">
+                                            {msg.call_mode === 'video' ? 'Video' : 'Audio'} call {msg.call_status} {durationDisp && `· ${durationDisp}`}
+                                        </span>
                                     </div>
                                 </motion.div>
                             );
@@ -567,76 +524,55 @@ export default function ChatRoom() {
                         return (
                             <motion.div
                                 key={msg.id || index}
-                                initial={{ opacity: 0, y: 15, scale: 0.98 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 layout
-                                className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full`}
+                                className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full`}
                             >
-                                <div className={`relative max-w-[85%] md:max-w-[70%] lg:max-w-[60%] flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-
-                                    {/* User Activity Dot */}
-                                    <div className="hidden sm:flex flex-col items-center justify-end pb-2 opacity-30 group-hover:opacity-100 transition-opacity">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${isMe ? 'bg-cyan-400 shadow-[0_0_5px_#22d3ee]' : 'bg-purple-400 shadow-[0_0_5px_#a855f7]'}`} />
-                                    </div>
-
-                                    {/* Message Bubble */}
-                                    <div className={`relative px-5 py-4 shadow-xl backdrop-blur-md ${msg.deletedForEveryone
-                                        ? 'bg-black/20 border border-slate-800 text-slate-600 italic rounded-xl'
-                                        : isMe
-                                            ? 'bg-gradient-to-br from-cyan-950/80 to-slate-900/80 text-cyan-50 border border-cyan-700/40 rounded-t-2xl rounded-bl-2xl rounded-br-sm'
-                                            : 'bg-black/60 text-purple-50 border border-purple-900/40 rounded-t-2xl rounded-br-2xl rounded-bl-sm'
-                                        }`}>
-
-                                        {!isMe && (
-                                            <p className="text-[10px] font-bold text-purple-400 tracking-tight mb-2 border-b border-purple-900/20 pb-1 inline-block">
-                                                {msg.sender} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
-                                            </p>
-                                        )}
-                                        {isMe && (
-                                            <p className="text-[10px] font-bold text-cyan-500/50 tracking-tight mb-1 text-right">
-                                                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sent'}
-                                            </p>
-                                        )}
-
-                                        <p className="leading-relaxed whitespace-pre-wrap text-[15px] md:text-base font-sans font-light tracking-wide">{msg.text}</p>
+                                <div className={`max-w-[80%] md:max-w-[65%] lg:max-w-[55%]`}>
+                                    {!isMe && (
+                                        <p className="text-[11px] font-semibold text-violet-500 mb-1 ml-1">
+                                            {msg.sender}
+                                        </p>
+                                    )}
+                                    <div className={`relative px-5 py-3 shadow-sm text-[15px] leading-relaxed ${
+                                        msg.deletedForEveryone
+                                            ? 'bg-slate-100 text-slate-500 italic rounded-[24px]'
+                                            : isMe
+                                                ? 'bg-slate-900 text-white rounded-[24px] rounded-br-sm shadow-[0_5px_15px_-5px_rgba(15,23,42,0.1)]'
+                                                : 'bg-white text-slate-800 border border-slate-200/60 rounded-[24px] rounded-bl-sm'
+                                    }`}>
+                                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                                        <p className={`text-[11px] mt-1.5 font-medium ${isMe ? 'text-slate-300 text-right' : 'text-slate-400'}`}>
+                                            {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                                        </p>
                                     </div>
                                 </div>
                             </motion.div>
                         );
                     })}
                 </AnimatePresence>
-                <div ref={messagesEndRef} className="h-4" />
+                <div ref={messagesEndRef} className="h-2" />
             </main>
 
             {/* Input Footer */}
-            <footer className="p-4 md:p-6 lg:p-8 shrink-0 relative z-20 w-full bg-gradient-to-t from-black via-black/80 to-transparent">
-                <div className="w-full">
-                    <div className="relative flex items-center rounded-xl w-full bg-black/60 border border-slate-700/50 backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] focus-within:border-cyan-500/50 focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)] transition-all duration-300 p-1">
-                            <input
-                                type="text"
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Type a message..."
-                                className="w-full flex-1 bg-transparent py-4 pl-6 pr-16 text-cyan-50 focus:outline-none placeholder-slate-600 text-[15px] font-medium tracking-tight"
-                            />
-                        <button
-                            onClick={handleSend}
-                            disabled={!inputText.trim()}
-                            className="absolute right-3 p-3 rounded-lg bg-cyan-900/40 hover:bg-cyan-800 border border-cyan-700/50 disabled:opacity-30 disabled:border-slate-800 disabled:bg-black transition-all flex items-center justify-center text-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)]"
-                        >
-                            <Send className={`w-4 h-4 ml-0.5 ${inputText.trim() ? 'animate-pulse' : ''}`} />
-                        </button>
-                    </div>
-                    <div className="flex justify-between items-center mt-3 px-2">
-                        <p className="flex items-center gap-2 text-[10px] text-emerald-500/50 font-medium">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_#10b981]" />
-                            AI Safety Monitoring Active
-                        </p>
-                        <p className="text-[10px] text-slate-600 font-medium hidden sm:block">
-                            End-to-End Encryption
-                        </p>
-                    </div>
+            <footer className="bg-white/90 backdrop-blur-2xl border-t border-slate-200/60 p-4 shrink-0 z-20">
+                <div className="flex items-end gap-3 bg-[#fafaf9] rounded-[24px] px-4 py-2 border border-slate-200 focus-within:border-slate-400 focus-within:shadow-sm transition-all shadow-inner">
+                    <input
+                        type="text"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-transparent py-2 px-2 text-[15px] font-medium text-slate-800 focus:outline-none placeholder-slate-400 text-sm"
+                    />
+                    <button
+                        onClick={handleSend}
+                        disabled={!inputText.trim()}
+                        className="p-3 mb-0.5 rounded-full bg-slate-900 border-2 border-slate-900 shadow-md hover:-translate-y-0.5 disabled:opacity-40 disabled:bg-slate-300 disabled:border-slate-300 transition-all flex items-center justify-center text-white"
+                    >
+                        <Send className="w-4 h-4" />
+                    </button>
                 </div>
             </footer>
         </div>

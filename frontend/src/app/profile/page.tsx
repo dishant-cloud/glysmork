@@ -3,18 +3,14 @@
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, User, Activity, Edit3, Phone, Video, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, User, Activity, Edit3, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNotification } from '@/components/NotificationProvider';
 
 export default function ProfilePage() {
     const [profileData, setProfileData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isEditing, setIsEditing] = useState(false);
-    const [friends, setFriends] = useState<any[]>([]);
-    const [ringingUsername, setRingingUsername] = useState<string | null>(null);
-    const { sendSignal } = useNotification();
 
     // Editable fields
     const [editBio, setEditBio] = useState('');
@@ -30,26 +26,6 @@ export default function ProfilePage() {
 
     useEffect(() => {
         loadProfile();
-        loadFriends();
-
-        const handleCallAccepted = (e: any) => {
-            if (e.detail) {
-                window.location.href = `/chat/room?id=${e.detail}`;
-            }
-        };
-
-        const handleCallDeclined = () => {
-            setRingingUsername(null);
-            alert("The user declined your connection request.");
-        };
-
-        window.addEventListener('sys_call_answered', handleCallAccepted);
-        window.addEventListener('sys_call_declined', handleCallDeclined);
-
-        return () => {
-            window.removeEventListener('sys_call_answered', handleCallAccepted);
-            window.removeEventListener('sys_call_declined', handleCallDeclined);
-        };
     }, []);
 
 
@@ -70,6 +46,9 @@ export default function ProfilePage() {
         try {
             const data = await fetchApi(`/users/profile/${storedUsername}/`);
             setProfileData(data);
+            if (data.image) {
+                setViewMode('real');
+            }
             setEditBio(data.bio || '');
             setEditGender(data.gender || 'O');
             setEditAge(data.age || '18');
@@ -85,18 +64,6 @@ export default function ProfilePage() {
         }
     };
 
-    const loadFriends = async () => {
-        const storedUsername = getUsername();
-        if (!storedUsername) return;
-        try {
-            const data = await fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(storedUsername)}`);
-            if (data.friends) {
-                setFriends(data.friends);
-            }
-        } catch (err) {
-            console.error("Failed to load friends", err);
-        }
-    };
 
     const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -168,13 +135,13 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#050511] flex items-center justify-center text-white flex-col gap-6 relative overflow-hidden">
+            <div className="min-h-screen bg-[#fafaf9] flex items-center justify-center text-slate-900 flex-col gap-6 relative overflow-hidden text-center">
                 <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-500/5 blur-[120px] pointer-events-none" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-cyan-500/5 blur-[100px] pointer-events-none" />
                 
                 <div className="relative">
                     <div className="w-12 h-12 border-t-2 border-r-2 border-cyan-500 rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 w-12 h-12 border-2 border-white/5 rounded-full"></div>
+                    <div className="absolute inset-0 w-12 h-12 border-2 border-slate-200 rounded-full"></div>
                 </div>
                 <p className="text-sm font-bold tracking-[0.2em] text-slate-400 uppercase animate-pulse">Synchronizing Profile Insights</p>
             </div>
@@ -183,10 +150,10 @@ export default function ProfilePage() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-[#050511] flex flex-col items-center justify-center text-white p-8 relative overflow-hidden">
+            <div className="min-h-screen bg-[#fafaf9] flex flex-col items-center justify-center text-slate-900 p-8 relative overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-red-500/5 blur-[120px] pointer-events-none" />
                 
-                <div className="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-xl max-w-md w-full text-center shadow-2xl relative z-10">
+                <div className="bg-white/80 border border-slate-200/60 shadow-sm p-8 rounded-3xl backdrop-blur-xl max-w-md w-full text-center shadow-2xl relative z-10">
                     <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <AlertTriangle className="w-8 h-8 text-red-500" />
                     </div>
@@ -203,16 +170,16 @@ export default function ProfilePage() {
     const psychologicalProfile = profileData?.psychological_profile || {};
 
     return (
-        <div className="min-h-screen bg-transparent text-white selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">
+        <div className="min-h-screen bg-[#fafaf9] text-slate-900 selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">
 
             <div className="max-w-6xl mx-auto relative z-20">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-12">
-                    <Link href="/dashboard" className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors font-bold text-xs uppercase px-5 py-2.5 border border-slate-800 rounded-xl bg-black/40 backdrop-blur-md shadow-lg">
-                        <ArrowLeft className="w-4 h-4" /> Hub
+                    <Link href="/dashboard" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors font-bold text-xs uppercase px-5 py-2.5 border border-slate-200 rounded-2xl bg-white shadow-sm">
+                        <ArrowLeft className="w-4 h-4" /> Dashboard
                     </Link>
-                    <h1 className="text-sm font-bold tracking-widest text-slate-500 uppercase border-b border-cyan-900/30 pb-2">
-                        Advanced Profile
+                    <h1 className="text-sm font-bold tracking-widest text-slate-400 uppercase border-b border-slate-200 pb-2">
+                        Neural Identity Profile
                     </h1>
                 </div>
 
@@ -223,10 +190,10 @@ export default function ProfilePage() {
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="bg-black/40 backdrop-blur-2xl border border-white/5 p-8 rounded-3xl shadow-2xl relative overflow-hidden group"
+                            className="bg-white/80 backdrop-blur-2xl border border-slate-200/60 p-8 rounded-[32px] shadow-xl relative overflow-hidden group"
                         >
                             {/* The Persona Image */}
-                            <div className="aspect-square w-full bg-slate-900/50 border border-white/10 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center shadow-inner">
+                            <div className="aspect-square w-full bg-slate-100 border border-slate-200 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center shadow-inner">
                                 {viewMode === 'persona' ? (
                                     profileData?.persona_image_url ? (
                                         <img
@@ -243,7 +210,7 @@ export default function ProfilePage() {
                                 ) : (
                                     profileData?.image ? (
                                         <img
-                                            src={`http://127.0.0.1:8000${profileData.image}`}
+                                            src={profileData.image.startsWith('http') ? profileData.image : `http://127.0.0.1:8000${profileData.image}`}
                                             alt="Real Profile"
                                             className="w-full h-full object-cover"
                                         />
@@ -255,18 +222,25 @@ export default function ProfilePage() {
                                     )
                                 )}
 
-                                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-bold text-cyan-400 z-10 shadow-lg">
-                                    <Activity className="w-3 h-3 text-cyan-400" /> Trust Score: {profileData?.trust_score || 100}
+                                <div className={`absolute top-3 right-3 backdrop-blur-md border shadow-sm px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-bold z-10 ${
+                                    profileData?.trust_tier === 'A' ? 'bg-green-50/90 text-green-700 border-green-200' :
+                                    profileData?.trust_tier === 'B' ? 'bg-amber-50/90 text-amber-700 border-amber-200' :
+                                    profileData?.trust_tier === 'C' ? 'bg-orange-50/90 text-orange-700 border-orange-200' :
+                                    profileData?.trust_tier === 'D' ? 'bg-red-50/90 text-red-700 border-red-200' :
+                                    'bg-white/80 text-slate-600 border-slate-200'
+                                }`}>
+                                    {profileData?.trust_tier === 'A' ? <ShieldCheck className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
+                                    <span>Trust: {profileData?.trust_score ?? 100} — Tier {profileData?.trust_tier || 'A'}</span>
                                 </div>
 
                                 <div className="absolute bottom-4 inset-x-4 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                     <button
                                         onClick={() => setViewMode(viewMode === 'persona' ? 'real' : 'persona')}
-                                        className="flex-1 text-[10px] font-bold text-white bg-white/10 hover:bg-white/20 px-3 py-2.5 rounded-xl border border-white/10 backdrop-blur-md transition-all"
+                                        className="flex-1 text-[10px] font-bold text-slate-700 bg-white/90 hover:bg-white px-3 py-2.5 rounded-xl border border-slate-200 shadow-lg backdrop-blur-md transition-all"
                                     >
                                         {viewMode === 'persona' ? 'View Real Photo' : 'View AI Persona'}
                                     </button>
-                                    <label className="flex-1 text-[10px] font-bold text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2.5 rounded-xl border border-cyan-500/20 backdrop-blur-md transition-all cursor-pointer text-center">
+                                    <label className="flex-1 text-[10px] font-bold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 px-3 py-2.5 rounded-xl border border-cyan-200 shadow-lg backdrop-blur-md transition-all cursor-pointer text-center">
                                         {uploading ? 'Processing...' : 'Upload Photo'}
                                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} />
                                     </label>
@@ -280,7 +254,7 @@ export default function ProfilePage() {
                                         <textarea
                                             value={editBio}
                                             onChange={(e) => setEditBio(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm leading-relaxed transition-all h-32"
+                                            className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm leading-relaxed transition-all h-32"
                                             placeholder="Introduce yourself to the network..."
                                         />
                                     </div>
@@ -290,7 +264,7 @@ export default function ProfilePage() {
                                             <select
                                                 value={editGender}
                                                 onChange={(e) => setEditGender(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm appearance-none cursor-pointer transition-all"
+                                                className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm appearance-none cursor-pointer transition-all"
                                             >
                                                 <option value="M">Male</option>
                                                 <option value="F">Female</option>
@@ -303,7 +277,7 @@ export default function ProfilePage() {
                                                 type="number"
                                                 value={editAge}
                                                 onChange={(e) => setEditAge(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm transition-all"
+                                                className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm transition-all"
                                             />
                                         </div>
                                     </div>
@@ -314,7 +288,7 @@ export default function ProfilePage() {
                                             <select
                                                 value={editCountry}
                                                 onChange={(e) => setEditCountry(e.target.value)}
-                                                className="flex-1 bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm appearance-none cursor-pointer transition-all"
+                                                className="flex-1 bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm appearance-none cursor-pointer transition-all"
                                             >
                                                 <option value="">Select Country</option>
                                                 <option value="IN">India</option>
@@ -326,7 +300,7 @@ export default function ProfilePage() {
                                             </select>
                                             <button 
                                                 onClick={handleGetLocation}
-                                                className={`px-4 bg-white/5 border ${editLatitude ? 'border-green-500/50 text-green-400' : 'border-white/10 text-slate-400'} rounded-2xl hover:bg-white/10 transition-all font-mono text-[10px] uppercase`}
+                                                className={`px-4 bg-white/80 border ${editLatitude ? 'border-slate-200 text-green-400' : 'border-slate-200/60 shadow-sm text-slate-400'} rounded-2xl hover:bg-white/10 transition-all font-sans text-[13px] font-medium text-[10px] uppercase`}
                                             >
                                                 {editLatitude ? '✓ Fixed' : '📍 Sync GPS'}
                                             </button>
@@ -340,7 +314,7 @@ export default function ProfilePage() {
                                             value={editLanguages.join(', ')}
                                             onChange={(e) => setEditLanguages(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
                                             placeholder="en, hi, es..."
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-cyan-500/50 focus:bg-white/10 outline-none p-4 text-sm transition-all font-mono"
+                                            className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm transition-all font-sans text-[13px] font-medium"
                                         />
                                     </div>
                                     <div className="flex gap-3 pt-4">
@@ -353,7 +327,7 @@ export default function ProfilePage() {
                                         </button>
                                         <button
                                             onClick={() => setIsEditing(false)}
-                                            className="px-6 bg-white/5 hover:bg-white/10 text-white font-bold text-xs py-3.5 rounded-2xl border border-white/10 transition-all"
+                                            className="px-6 bg-white/80 hover:bg-white/10 text-white font-bold text-xs py-3.5 rounded-2xl border border-slate-200/60 shadow-sm transition-all"
                                         >
                                             Cancel
                                         </button>
@@ -363,36 +337,36 @@ export default function ProfilePage() {
                                 <div>
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <h2 className="text-3xl font-black text-white tracking-tight leading-none mb-1">{profileData?.user?.username}</h2>
-                                            <div className="text-xs font-bold text-slate-500 flex flex-wrap gap-2 items-center">
+                                            <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">{profileData?.user?.username}</h2>
+                                            <div className="text-xs font-bold text-slate-400 flex flex-wrap gap-2 items-center">
                                                 <span>{profileData?.gender === 'M' ? 'Male' : profileData?.gender === 'F' ? 'Female' : 'Other'}</span>
-                                                <span className="w-1 h-1 bg-slate-700 rounded-full" />
+                                                <span className="w-1 h-1 bg-slate-200 rounded-full" />
                                                 <span>{profileData?.age} Years Old</span>
                                                 {profileData?.country && (
                                                     <>
-                                                        <span className="w-1 h-1 bg-slate-700 rounded-full" />
-                                                        <span className="text-cyan-400/80">{profileData.country}</span>
+                                                        <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                                                        <span className="text-slate-400/80">{profileData.country}</span>
                                                     </>
                                                 )}
                                             </div>
                                             {profileData?.languages?.length > 0 && (
                                                 <div className="flex gap-1.5 mt-3">
                                                     {profileData.languages.map((l: string) => (
-                                                        <span key={l} className="text-[9px] font-mono border border-white/10 bg-white/5 px-2 py-0.5 rounded text-slate-400 uppercase tracking-widest">{l}</span>
+                                                        <span key={l} className="text-[9px] font-sans text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg uppercase tracking-widest">{l}</span>
                                                     ))}
                                                 </div>
                                             )}
                                         </div>
                                         <button
                                             onClick={() => setIsEditing(true)}
-                                            className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
+                                            className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-900 transition-all shadow-sm"
                                         >
                                             <Edit3 className="w-4 h-4" />
                                         </button>
                                     </div>
 
-                                    <div className="text-[15px] text-slate-300 leading-relaxed mt-8 border-l-3 border-cyan-500/30 pl-6 py-1 italic font-medium">
-                                        {profileData?.bio || <span className="text-slate-600">Complete your bio to stand out.</span>}
+                                    <div className="text-[15px] text-slate-600 leading-relaxed mt-8 border-l-4 border-cyan-500/20 pl-6 py-2 italic font-medium">
+                                        {profileData?.bio || <span className="text-slate-400 font-normal">Complete your bio to stand out.</span>}
                                     </div>
                                 </div>
                             )}
@@ -405,24 +379,24 @@ export default function ProfilePage() {
                             initial={{ y: 40, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.2 }}
-                            className="bg-indigo-500/5 backdrop-blur-3xl border border-indigo-500/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden h-full"
+                            className="bg-white/90 backdrop-blur-2xl border border-slate-200/60 p-10 rounded-[32px] shadow-xl relative overflow-hidden h-full"
                         >
-                            <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-                                <Brain className="w-48 h-48 text-indigo-400" />
+                            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                                <Brain className="w-48 h-48 text-indigo-900" />
                             </div>
 
-                            <h3 className="text-xs font-bold text-indigo-400 tracking-[0.2em] mb-10 pb-4 border-b border-indigo-500/10 flex justify-between items-center uppercase">
+                            <h3 className="text-xs font-bold text-slate-400 tracking-[0.2em] mb-10 pb-4 border-b border-slate-100 flex justify-between items-center uppercase">
                                 <span>Psychological Profile</span>
-                                <span className="text-[9px] opacity-40 font-medium px-2 py-0.5 border border-indigo-500/20 rounded-full">AI Insights</span>
+                                <span className="text-[9px] text-slate-500 font-bold px-2.5 py-1 border border-slate-200 rounded-full bg-slate-50 shadow-sm">AI Insights</span>
                             </h3>
 
                             {Object.keys(psychologicalProfile).length > 0 ? (
-                                <div className="space-y-8 relative z-10">
+                                <div className="space-y-10 relative z-10">
                                     <div>
-                                        <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-4">Core Traits</h4>
-                                        <div className="flex flex-wrap gap-2.5">
+                                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 px-1">Core Neural Traits</h4>
+                                        <div className="flex flex-wrap gap-3">
                                             {(psychologicalProfile.core_traits || []).map((trait: string, idx: number) => (
-                                                <span key={idx} className="px-4 py-2 bg-white/5 border border-white/10 text-white text-[13px] font-medium rounded-xl shadow-sm">
+                                                <span key={idx} className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-2xl shadow-sm">
                                                     {trait}
                                                 </span>
                                             ))}
@@ -430,33 +404,33 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div>
-                                            <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-3">Communication Style</h4>
-                                            <p className="text-[14px] text-slate-300 leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/5">
-                                                {psychologicalProfile.communication_style || "Unspecified"}
+                                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Communication</h4>
+                                            <p className="text-[14px] text-slate-600 leading-relaxed italic font-medium">
+                                                {psychologicalProfile.communication_style || "Accessing..."}
                                             </p>
                                         </div>
-                                        <div>
-                                            <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-3">Attachment Style</h4>
-                                            <p className="text-[14px] text-slate-300 leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/5">
-                                                {psychologicalProfile.attachment_style || "Unspecified"}
+                                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Attachment</h4>
+                                            <p className="text-[14px] text-slate-600 leading-relaxed italic font-medium">
+                                                {psychologicalProfile.attachment_style || "Determining..."}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-3">Deep Analysis</h4>
-                                        <p className="text-lg text-slate-200 leading-loose border-l-4 border-indigo-500/40 pl-8 my-6 italic font-medium">
+                                    <div className="relative">
+                                        <div className="absolute -left-10 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500/0 via-indigo-500/20 to-indigo-500/0" />
+                                        <p className="text-lg text-slate-800 leading-loose italic font-medium pl-2">
                                             "{psychologicalProfile.deep_analysis}"
                                         </p>
                                     </div>
 
                                     {profileData?.interests && profileData.interests.length > 0 && (
-                                        <div className="pt-6 border-t border-white/5">
-                                            <h4 className="text-[10px] font-bold text-indigo-300/60 uppercase tracking-widest mb-4">Extracted Interests</h4>
-                                            <div className="flex flex-wrap gap-2 opacity-80">
+                                        <div className="pt-8 border-t border-slate-100">
+                                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Data Tags</h4>
+                                            <div className="flex flex-wrap gap-2.5">
                                                 {profileData.interests.map((interest: string, idx: number) => (
-                                                    <span key={idx} className="text-[11px] font-bold text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                    <span key={idx} className="text-[10px] font-black text-cyan-600 bg-cyan-50 px-3 py-1.5 rounded-xl border border-cyan-100 uppercase tracking-tighter">
                                                         #{interest}
                                                     </span>
                                                 ))}
@@ -464,117 +438,21 @@ export default function ProfilePage() {
                                         </div>
                                     )}
 
-                                    <div className="pt-8 border-t border-white/5 mt-4">
+                                    <div className="pt-8 border-t border-slate-100 mt-4 text-center md:text-left">
                                         <Link
                                             href="/onboarding?retake=true"
-                                            className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-500 hover:bg-indigo-400 text-black font-black text-[11px] tracking-widest rounded-2xl transition-all shadow-lg hover:shadow-indigo-500/20 uppercase"
+                                            className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] tracking-widest rounded-2xl transition-all shadow-xl hover:-translate-y-0.5 uppercase"
                                         >
                                             ↻ Recalibrate Analysis
                                         </Link>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-center py-24 text-slate-500 border border-dashed border-white/10 rounded-3xl backdrop-blur-sm">
+                                <div className="text-center py-24 text-slate-400 border border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">
                                     <p className="mb-6 font-bold uppercase tracking-widest text-[11px]">Personality Profile Incomplete</p>
-                                    <Link href="/onboarding" className="inline-block px-8 py-3.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold rounded-2xl border border-cyan-500/20 transition-all text-sm">
-                                        Initiate Onboarding Sequence
+                                    <Link href="/onboarding" className="inline-block px-10 py-4 bg-white text-slate-600 font-black tracking-widest rounded-2xl border border-slate-200 shadow-lg hover:bg-slate-50 transition-all text-[11px] uppercase">
+                                        Initiate Onboarding
                                     </Link>
-                                </div>
-                            )}
-                        </motion.div>
-
-                        {/* Network Connections (Friends) */}
-                        <motion.div
-                            initial={{ y: 40, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            className="bg-black/40 backdrop-blur-2xl border border-white/5 p-10 rounded-3xl shadow-2xl relative"
-                        >
-                            <h3 className="text-xs font-bold text-slate-400 tracking-[0.2em] mb-10 pb-4 border-b border-white/5 flex justify-between items-center uppercase">
-                                <span>Friends Network</span>
-                                <span className="text-[10px] opacity-40 font-bold px-2 py-0.5 border border-white/10 rounded-lg">{friends.length} Connections</span>
-                            </h3>
-
-                            {friends.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {friends.map((friend) => {
-                                        const isOffline = !friend.is_online;
-                                        const isRinging = ringingUsername === friend.username;
-
-                                        return (
-                                            <div key={friend.id} className="bg-white/5 border border-white/10 p-6 rounded-2xl flex flex-col justify-between group hover:bg-white/[0.08] transition-all duration-300 shadow-sm">
-                                                <div className="flex justify-between items-start mb-6">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-xl text-white">
-                                                            {friend.username.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="text-white font-bold text-lg tracking-tight leading-none mb-1">{friend.username}</h4>
-                                                            <div className="flex items-center gap-2">
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${friend.is_online ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`} />
-                                                                <span className={`text-[10px] font-bold uppercase tracking-widest ${friend.is_online ? 'text-green-400' : 'text-slate-500'}`}>
-                                                                    {friend.is_online ? 'Online' : 'Offline'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3 mt-auto">
-                                                    {[
-                                                        { icon: Phone, mode: 'voice', label: 'Voice' },
-                                                        { icon: Video, mode: 'video', label: 'Video' }
-                                                    ].map((btn) => (
-                                                        <button
-                                                            key={btn.mode}
-                                                            disabled={isOffline || isRinging}
-                                                            onClick={() => {
-                                                                const initiateCall = async () => {
-                                                                    try {
-                                                                        setRingingUsername(friend.username);
-                                                                        const res = await fetchApi('/matchmaking/join/', {
-                                                                            method: 'POST',
-                                                                            body: JSON.stringify({
-                                                                                intent: `DIRECT_CONNECT:${friend.username}:${btn.mode}`,
-                                                                                username: getUsername()
-                                                                            })
-                                                                        });
-                                                                        if (res.room_name) {
-                                                                            sendSignal('initiate_call', {
-                                                                                target_user_id: friend.id,
-                                                                                room_id: res.room_name,
-                                                                                mode: btn.mode
-                                                                            });
-                                                                        }
-                                                                    } catch (e) {
-                                                                        console.error(e);
-                                                                        setRingingUsername(null);
-                                                                    }
-                                                                };
-                                                                initiateCall();
-                                                            }}
-                                                            className={`flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-xl transition-all ${isOffline
-                                                                ? 'opacity-30 cursor-not-allowed grayscale'
-                                                                : isRinging
-                                                                    ? 'bg-cyan-500 text-black border-cyan-500 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.4)]'
-                                                                    : 'hover:bg-cyan-500 hover:text-black hover:border-cyan-500 text-slate-300'
-                                                                }`}
-                                                            title={isOffline ? 'User offline' : btn.label}
-                                                        >
-                                                            <btn.icon className={`w-3.5 h-3.5 ${isRinging ? 'opacity-100' : 'opacity-60'}`} />
-                                                            <span className="text-[10px] font-black uppercase tracking-widest">
-                                                                {isRinging ? 'Ringing' : btn.label}
-                                                            </span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="text-center py-12 text-slate-600 border border-dashed border-white/10 rounded-2xl text-sm font-medium">
-                                    No connections established yet.
                                 </div>
                             )}
                         </motion.div>

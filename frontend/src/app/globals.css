@@ -61,13 +61,7 @@ body {
   border-radius: 1rem;
 }
 
-.ultra-glass {
-  background: rgba(10, 10, 15, 0.4);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-}
+/* Replaced ultra-glass via util classes inline */
 
 .neon-border {
   position: relative;

@@ -164,7 +164,7 @@ class JoinMatchmakingView(APIView):
         # This handles the case where User B matched User A while A was still polling.
         import time
         if user.profile.current_intent and user.profile.current_intent.startswith('ROOM_READY:'):
-            parts = user.profile.current_intent.split(':', 3)  # ['ROOM_READY', room_name, timestamp, mode?]
+            parts = user.profile.current_intent.split(':', 4)  # ['ROOM_READY', room_name, timestamp, mode, match_reason]
             room_name_signal = parts[1] if len(parts) >= 2 else None
             timestamp_signal = float(parts[2]) if len(parts) >= 3 else 0
             mode_signal = parts[3] if len(parts) >= 4 else 'chat'
@@ -213,6 +213,7 @@ class JoinMatchmakingView(APIView):
         active_loop = Loop.objects.filter(last_seen__gte=active_threshold).exclude(user_id__in=excluded_ids)
 
         match = None  # Initialize to prevent UnboundLocalError
+        mode = mode_pref  # Ensure mode is bound
 
         if intent.lower().startswith("random opposite gender"):
             my_gender = loop.gender
@@ -326,6 +327,17 @@ class JoinMatchmakingView(APIView):
             # Persist room to store match_reason
             room = Room.objects.create(name=room_name, chat_type='session', match_reason=reason)
             room.users.add(user, match)
+            
+            # --- TRUST SCORE: Total Session Tracking ---
+            user.profile.total_sessions += 1
+            user.profile.save(update_fields=['total_sessions'])
+            match.profile.total_sessions += 1
+            match.profile.save(update_fields=['total_sessions'])
+            
+            from users.trust import apply_trust_event
+            apply_trust_event(user.id, 'session_started', 0, "Matched into a new session")
+            apply_trust_event(match.id, 'session_started', 0, "Matched into a new session")
+            # -------------------------------------------
 
             import time
             match.profile.current_intent = f'ROOM_READY:{room_name}:{time.time()}:{mode}:{reason}'
@@ -594,6 +606,17 @@ class FriendshipActionView(APIView):
                     from_user=user, to_user=target_user,
                     defaults={'status': 'accepted'}
                 )
+
+                # TRIGGER TRUST EVENT (Friendships made)
+                user.profile.friendships_made += 1
+                user.profile.save(update_fields=['friendships_made'])
+                target_user.profile.friendships_made += 1
+                target_user.profile.save(update_fields=['friendships_made'])
+
+                from users.trust import apply_trust_event
+                apply_trust_event(user.id, 'friendship_accepted', 0, f"Started friendship with {target_user.username}")
+                apply_trust_event(target_user.id, 'friendship_accepted', 0, f"Started friendship with {user.username}")
+
                 return Response({"status": "accepted"})
             except Exception as e:
                 print(f"DEBUG: Friendship Accept Error: {e}")
