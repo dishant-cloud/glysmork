@@ -47,9 +47,19 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
         credentials: 'include', // Send session cookie cross-origin
     });
 
+    if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+        throw new Error('Session expired. Please log in again.');
+    }
+
     if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || `API Error: ${response.status}`);
+        throw new Error(errorData?.error || errorData?.detail || `API Error: ${response.status}`);
     }
 
     return response.json();

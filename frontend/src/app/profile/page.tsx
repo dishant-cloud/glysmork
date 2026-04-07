@@ -157,9 +157,9 @@ export default function ProfilePage() {
                     <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <AlertTriangle className="w-8 h-8 text-red-500" />
                     </div>
-                    <h2 className="text-xl font-black mb-2">Access Denied</h2>
+                    <h2 className="text-xl font-black mb-2">Profile Error</h2>
                     <p className="text-slate-400 mb-8 text-sm leading-relaxed">{error}</p>
-                    <Link href="/dashboard" className="block w-full py-4 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">
+                    <Link href="/dashboard" className="block w-full py-4 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all shadow-sm">
                         Return to Dashboard
                     </Link>
                 </div>
