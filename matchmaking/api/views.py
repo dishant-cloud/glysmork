@@ -14,8 +14,10 @@ import uuid
 import time
 from datetime import timedelta
 from django.utils import timezone
+import os
 
-genai.configure(api_key="AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU")
+# API key relies on environment variable (from settings/dotenv)
+genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 import math
 
@@ -98,6 +100,7 @@ class JoinMatchmakingView(APIView):
         if not isinstance(language_filter, list): language_filter = []
         
         distance_km = int(request.data.get('distance_km', 0) or 0)               # 0 = disabled
+        use_onboarding_data = str(request.data.get('use_onboarding_data', 'false')).lower() in ['true', '1']
         
         if not intent and not is_offline:
             return Response(
@@ -298,7 +301,8 @@ class JoinMatchmakingView(APIView):
                 user, intent,
                 country_filter=country_filter,
                 language_filter=language_filter,
-                distance_km=distance_km
+                distance_km=distance_km,
+                use_onboarding_data=use_onboarding_data
             )
             if candidates_with_reasons:
                 return Response({
@@ -358,10 +362,9 @@ class JoinMatchmakingView(APIView):
             "mode": intent.lower().split()[-1] if intent.lower().startswith("random opposite gender") else "chat"
         })
 
-    def attempt_discovery(self, user, intent, country_filter=None, language_filter=None, distance_km=0):
+    def attempt_discovery(self, user, intent, country_filter=None, language_filter=None, distance_km=0, use_onboarding_data=False):
         """
-        AI Search & Discovery Engine: Scans all public profiles to find the best 5 matches.
-        Applies country, language, and distance pre-filters before handing off to AI.
+        AST Vector Search Engine: Parses intent into a strictly evaluated Boolean AST with numpy vector embeddings.
         """
         if country_filter is None: country_filter = []
         if language_filter is None: language_filter = []
@@ -395,99 +398,36 @@ class JoinMatchmakingView(APIView):
             candidates = [p for p in candidates if within_range(p)]
 
         if not candidates:
-            print("DEBUG: Neural Search - No candidates found in database!")
+            print("DEBUG: Vector Search - No candidates found in database!")
             return []
         
-        print(f"DEBUG: Neural Search - Found {len(candidates)} candidate profiles.")
-        
-        candidate_summaries = []
-        for p in candidates:
-            summary = {
-                "id": p.user.id,
-                "username": p.user.username,
-                "interests": p.interests or [],
-                "expertise": p.expertise_areas or [],
-                "bio": p.bio or "No bio provided.",
-                "is_online": p.is_online()
-            }
-            candidate_summaries.append(summary)
-        
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
-        # Lower safety thresholds
-        safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
-        ]
-
-        prompt = f"""
-        You are the 'Neural Search Engine' for GLYSMORK.
-        Find the best 5 matches for: "{intent}"
-        
-        CANDIDATES:
-        {json.dumps(candidate_summaries, indent=2)}
-        
-        TASK:
-        1. Identify the TOP 5 most relevant users.
-        2. BE EXTREMELY LENIENT. If no one matches "{intent}" perfectly, pick anyone who seems interesting or active.
-        3. ALWAYS return 5 items if the pool has at least 5 people.
-        
-        Return ONLY valid JSON:
-        {{
-            "matches": [
-                {{
-                    "username": "string",
-                    "score": 0-100,
-                    "reason": "Explain the match for '{intent}'",
-                    "match_tags": ["list"]
-                }}
-            ]
-        }}
-        """
+        # --- NEW ENGINE: AST + Vector Similarity + Persona Scoring ---
+        from matchmaking.engine import run_hybrid_discovery
         try:
-            print(f"DEBUG: Sending prompt for query: {intent}")
-            response = model.generate_content(prompt, safety_settings=safety_settings)
-            text = response.text.strip()
-            print(f"DEBUG: Raw AI Response: {text}")
-
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
+            print(f"DEBUG: Running engine for intent: {intent} (Onboarding Merge: {use_onboarding_data})")
+            matches, ast_tree = run_hybrid_discovery(intent, candidates, searcher_profile=user_profile if use_onboarding_data else None)
             
-            if "{" in text:
-                import re
-                match = re.search(r'(\{.*\})', text, re.DOTALL)
-                if match: text = match.group(1)
-
-            data = json.loads(text)
-            print(f"DEBUG: Parsed AI Data: {json.dumps(data, indent=2)}")
-            
+            # Format results in descending score order
             results = []
-            for match_data in data.get("matches", []):
-                try:
-                    p = Profile.objects.get(user__username=match_data['username'])
-                    results.append({
-                        "id": p.user.id,
-                        "username": p.user.username,
-                        "score": match_data['score'],
-                        "reason": match_data['reason'],
-                        "bio": p.bio,
-                        "persona_image": p.persona_image_url,
-                        "is_online": p.is_online(),
-                        "match_tags": match_data.get('match_tags', []),
-                        "expertise": p.expertise_areas[:3],
-                        "interests": p.interests[:3]
-                    })
-                except Profile.DoesNotExist:
-                    continue
+            for match_data in matches[:5]:
+                p = match_data["profile"]
+                v_score = match_data["vector_score"]
+                
+                results.append({
+                    "id": p.user.id,
+                    "username": p.user.username,
+                    "score": round(v_score * 100),
+                    "reason": f"Hybrid engine matched query with {round(v_score * 100)}% accuracy.",
+                    "bio": p.bio,
+                    "persona_image": p.persona_image_url,
+                    "is_online": p.is_online(),
+                    "match_tags": ["matched_via_ast"],
+                    "expertise": p.expertise_areas[:3] if p.expertise_areas else [],
+                    "interests": p.interests[:3] if p.interests else []
+                })
             return results
         except Exception as e:
-            print(f"Neural Search AI Error: {e}")
-            if hasattr(e, 'response') and hasattr(e.response, 'candidates'):
-                print(f"Blocked or Empty? {e.response.candidates}")
+            print(f"Hybrid Search Engine Error: {e}")
             
             print("DEBUG: Falling back to standard database search due to AI failure.")
             fallback_results = []

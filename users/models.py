@@ -41,7 +41,9 @@ class Profile(models.Model):
     
     # Knowledge & Interest Graph (The AI uses these to match people)
     interests = models.JSONField(default=list, blank=True, help_text="Topics the user is interested in")
+    interests_embedding = models.JSONField(default=list, blank=True, help_text="Mathematical vector embedding of interests")
     expertise_areas = models.JSONField(default=list, blank=True, help_text="Topics the user has deep knowledge in")
+    expertise_embedding = models.JSONField(default=list, blank=True, help_text="Mathematical vector embedding of expertise")
     conversation_topics = models.JSONField(default=list, blank=True, help_text="AI-extracted topics from past conversations")
     current_intent = models.TextField(blank=True, help_text="Freeform: what the user wants to talk about right now")
     

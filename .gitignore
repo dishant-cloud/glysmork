@@ -31,3 +31,7 @@ frontend/.next/
 frontend/node_modules/
 frontend/out/
 
+# Temporary test outputs
+test_output*.txt
+test_api_*.py
+test_api_*.txt
