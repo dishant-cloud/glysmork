@@ -53,10 +53,22 @@ export default function InboxPage() {
 
         window.addEventListener('sys_call_answered', handleCallAccepted);
         window.addEventListener('sys_call_declined', handleCallDeclined);
+        
+        const handleNewNotif = () => {
+            const stored = localStorage.getItem('user');
+            if (stored) {
+                try {
+                    const u = JSON.parse(stored);
+                    if (u.username) fetchNotifs(u.username);
+                } catch {}
+            }
+        };
+        window.addEventListener('sys_friend_message', handleNewNotif);
 
         return () => {
             window.removeEventListener('sys_call_answered', handleCallAccepted);
             window.removeEventListener('sys_call_declined', handleCallDeclined);
+            window.removeEventListener('sys_friend_message', handleNewNotif);
         };
     }, []);
 
@@ -107,24 +119,24 @@ export default function InboxPage() {
                     >
                         <ArrowLeft className="w-3 h-3" /> Back to Dashboard
                     </button>
-                    <h1 className="text-4xl font-bold tracking-tight mb-2 italic">Messages</h1>
-                    <div className="h-1 w-20 bg-gradient-to-r from-cyan-500 to-purple-600 mb-6" />
+                    <h1 className="text-4xl font-bold tracking-tight mb-2 italic">Notifications</h1>
+                    <div className="h-1 w-20 bg-gradient-to-r from-purple-500 to-indigo-600 mb-6" />
                     <p className="font-sans text-[13px] font-medium text-sm text-slate-500 ">
-                        Persistent human connections verified by the AI engine.
+                        Recent activity and incoming message requests.
                     </p>
                 </header>
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-20 opacity-30">
-                        <div className="w-10 h-10 border-2 border-t-cyan-500 border-r-transparent border-b-cyan-500 border-l-transparent rounded-full animate-spin mb-4" />
-                        <span className="font-sans text-[13px] font-medium text-xs uppercase tracking-widest">Accessing Logs...</span>
+                        <div className="w-10 h-10 border-2 border-t-purple-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin mb-4" />
+                        <span className="font-sans text-[13px] font-medium text-xs uppercase tracking-widest">Checking Sync...</span>
                     </div>
                 ) : (
                     <div className="space-y-12">
                         {/* Unread Messages (Notifications) */}
-                        {chatNotifs.length > 0 && (
+                        {chatNotifs.length > 0 ? (
                             <section>
-                                <h2 className="text-xs font-sans text-[13px] font-medium text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-2">Unread Messages</h2>
+                                <h2 className="text-xs font-sans text-[13px] font-medium text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-2">New Messages</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {chatNotifs.map(n => (
                                         <div key={n.id} className="p-4 bg-white/80 border border-purple-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
@@ -168,82 +180,17 @@ export default function InboxPage() {
                                     ))}
                                 </div>
                             </section>
-                        )}
-
-                        {/* Pending Requests Received */}
-                        {friendsData.received.length > 0 && (
-                            <section>
-                                <h2 className="text-xs font-sans text-[13px] font-medium text-slate-500 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Inbound Connection Requests</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {friendsData.received.map(f => (
-                                        <div key={f.id} className="p-4 bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-white/10 flex items-center justify-center font-bold text-slate-900 ">{f.username.charAt(0).toUpperCase()}</div>
-                                                <span className="font-bold text-slate-900  uppercase tracking-tight">{f.username}</span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleFriendAction(f.username, 'accept')}
-                                                    className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white transition-all"
-                                                >
-                                                    <UserCheck className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleFriendAction(f.username, 'decline')}
-                                                    className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-                        
-                        {/* Your Connections (Friends) */}
-                        {friendsData.friends.length > 0 && (
-                            <section>
-                                <h2 className="text-xs font-sans text-[13px] font-medium text-slate-500 uppercase tracking-widest mb-6 border-b border-cyan-500/20 pb-2">Your Connections</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {friendsData.friends.map(f => (
-                                        <div key={f.id} className="p-4 bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-between shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative">
-                                                    <div className="w-10 h-10 bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center font-black text-white rounded-none border border-cyan-400/50 shadow-md">
-                                                        {f.username.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    {f.is_online && (
-                                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#050511] animate-pulse" />
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <span className="font-bold text-slate-900  uppercase tracking-tight block leading-tight">{f.username}</span>
-                                                    <span className={`text-[9px] font-sans text-[13px] font-medium uppercase ${f.is_online ? 'text-green-400' : 'text-gray-500'}`}>
-                                                        {f.is_online ? 'Online' : 'Offline'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Link
-                                                    href={`/messages/${f.username}`}
-                                                    className="p-2 bg-cyan-500/10 text-slate-500 hover:bg-cyan-500 hover:text-black transition-all border border-cyan-500/20"
-                                                    title="Send Message"
-                                                >
-                                                    <MessageSquare className="w-4 h-4" />
-                                                </Link>
-                                                <button
-                                                    onClick={() => handleFriendAction(f.username, 'remove')}
-                                                    className="p-2 bg-red-500/10 text-red-100 hover:bg-red-500 hover:text-white transition-all border border-red-500/10"
-                                                    title="Remove Connection"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 bg-white/40 border border-dashed border-slate-200">
+                                <MessageSquare className="w-12 h-12 text-slate-200 mb-4" />
+                                <p className="text-sm font-sans text-[13px] font-medium text-slate-400 italic">No new notifications. You're all caught up!</p>
+                                <button 
+                                    onClick={() => router.push('/friends')}
+                                    className="mt-6 px-4 py-2 bg-slate-900 text-white text-[11px] uppercase tracking-widest font-bold hover:bg-slate-800 transition-all"
+                                >
+                                    View Friends List
+                                </button>
+                            </div>
                         )}
 
                     </div>

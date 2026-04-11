@@ -1,29 +1,18 @@
 import json
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
-from onboarding_service.config import GEMINI_API_KEY, DEFAULT_BUCKETS
+import os
+import sys
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Add parent dir so we can import groq_client from the Django root
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-MODEL_NAME = 'gemini-2.0-flash'
+from groq_client import groq_generate, groq_chat
+from onboarding_service.config import DEFAULT_BUCKETS
 
-def get_gemini_model():
-    return genai.GenerativeModel(
-        model_name=MODEL_NAME,
-        safety_settings={
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-    )
 
 def identify_buckets(opening_answer: str, existing_buckets: list) -> dict:
     """Part 3: Identify or create buckets based on the user's opening answer."""
-    model = get_gemini_model()
-    
     bucket_descriptions = "\n".join([f"- {b['name']}: {b['description']}" for b in existing_buckets])
-    
+
     prompt = f"""
     The user was asked: "What brings you here today? Tell us a little about what you're looking for — there's no right or wrong answer."
     Their answer was: "{opening_answer}"
@@ -50,16 +39,15 @@ def identify_buckets(opening_answer: str, existing_buckets: list) -> dict:
             }}
         ]
     }}
+    Return ONLY the JSON. No markdown, no preamble.
     """
-    
+
     try:
-        response = model.generate_content(prompt)
-        # Strip potential markdown code block markers
-        text = response.text.replace("```json", "").replace("```", "").strip()
+        text = groq_generate(prompt)
+        text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
     except Exception as e:
-        print(f"Gemini Error (identify_buckets): {e}. Using mock fallback.")
-        # MOCK FALLBACK
+        print(f"Groq Error (identify_buckets): {e}. Using mock fallback.")
         return {
             "matched_buckets": ["COMPANIONSHIP"],
             "new_buckets": []
@@ -68,10 +56,7 @@ def identify_buckets(opening_answer: str, existing_buckets: list) -> dict:
 
 def get_chat_response(message: str, history: list, guidelines: list) -> str:
     """Part 4: The Onboarding Conversation (Multi-turn)."""
-    model = get_gemini_model()
-    
-    system_prompt = """
-    You are a warm, curious, non-judgmental conversationalist helping us understand this person so we can find them the perfect match.
+    system_prompt = """You are a warm, curious, non-judgmental conversationalist helping us understand this person so we can find them the perfect match.
     
     Rules:
     - Ask ONE question at a time. Feel like a conversation, not a form.
@@ -81,42 +66,24 @@ def get_chat_response(message: str, history: list, guidelines: list) -> str:
     - Keep it natural and human. No checklists.
     
     After 5-6 meaningful exchanges, when you feel you have a good sense of who they are, output exactly this text and nothing else:
-    CONVERSATION_COMPLETE
-    """
-    
-    chat = model.start_chat()
-    # Inject system prompt into history conceptually (Gemini system_instruction exists on model, but we set it dynamically)
-    # We will pass it as the first message or configure the model with it
-    model = genai.GenerativeModel(
-        model_name=MODEL_NAME,
-        system_instruction=system_prompt,
-        safety_settings={
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-    )
-    chat = model.start_chat()
-    
-    # Replay history
+    CONVERSATION_COMPLETE"""
+
+    messages = [{"role": "system", "content": system_prompt}]
+
     for entry in history:
-        # Format: {"role": "user"|"assistant", "content": "..."}
-        role = "user" if entry["role"] == "user" else "model"
-        chat.history.append({"role": role, "parts": [entry["content"]]})
-        
+        role = "user" if entry["role"] == "user" else "assistant"
+        messages.append({"role": role, "content": entry["content"]})
+
+    messages.append({"role": "user", "content": message or "Hello"})
+
     try:
-        response = chat.send_message(message or "Hello")
-        return response.text.strip()
+        return groq_chat(messages)
     except Exception as e:
         import traceback
-        print(f"Gemini Error (get_chat_response): {e}")
+        print(f"Groq Error (get_chat_response): {e}")
         traceback.print_exc()
-        print("Using mock fallback.")
-        # MOCK FALLBACK - Smart simulated response based on history length
         if len(history) >= 5:
             return "CONVERSATION_COMPLETE"
-        
         fallback_questions = [
             "What makes you curious about matching with someone new today?",
             "Do you prefer deep late-night talks or fun, lighthearted banter?",
@@ -129,12 +96,10 @@ def get_chat_response(message: str, history: list, guidelines: list) -> str:
 
 def extract_structured_data(conversation_history: list) -> dict:
     """Part 5: Extract structured JSON from the full conversation."""
-    model = get_gemini_model()
-    
     history_text = ""
     for entry in conversation_history:
         history_text += f"{entry['role'].upper()}: {entry['content']}\n"
-        
+
     prompt = f"""
     Convert the following conversation into a single structured JSON object representing the user's matching preferences.
     Only extract information the user actually mentioned. Do NOT invent or assume values.
@@ -171,16 +136,15 @@ def extract_structured_data(conversation_history: list) -> dict:
     Conversation History:
     {history_text}
     
-    Return EXACTLY a JSON response matching the schema described.
+    Return EXACTLY a JSON response matching the schema described. No markdown, no preamble.
     """
-    
+
     try:
-        response = model.generate_content(prompt)
-        text = response.text.replace("```json", "").replace("```", "").strip()
+        text = groq_generate(prompt)
+        text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
     except Exception as e:
-        print(f"Gemini Error (extract_structured_data): {e}. Using mock fallback.")
-        # MOCK FALLBACK
+        print(f"Groq Error (extract_structured_data): {e}. Using mock fallback.")
         return {
             "human_summary": "A curious seeker looking for meaningful connection and shared experiences in a digital world.",
             "hard_filters": {

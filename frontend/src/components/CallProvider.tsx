@@ -14,10 +14,10 @@ interface CallContextProps {
     isMuted: boolean;
     isRemoteMuted: boolean;
     toggleMute: () => void;
-    acceptCall: () => void;
+    acceptCall: (existingStream?: MediaStream) => void;
     declineCall: () => void;
     endCall: () => void;
-    startCall: (targetUsername: string, mode?: 'audio' | 'video', contextId?: string) => void;
+    startCall: (targetUsername: string, mode?: 'audio' | 'video', contextId?: string, existingStream?: MediaStream) => void;
 }
 
 interface IncomingCallData {
@@ -61,6 +61,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     const dataChannel = useRef<RTCDataChannel | null>(null);
     const activeCallId = useRef<string | null>(null);
     const durationTimer = useRef<NodeJS.Timeout | null>(null);
+    const iceCandidatesBuffer = useRef<any[]>([]);
     
     const rtcConfig: RTCConfiguration = {
         iceServers: [
@@ -87,6 +88,19 @@ export default function CallProvider({ children }: { children: React.ReactNode }
         setDuration(0);
         setIsMuted(false);
         setIsRemoteMuted(false);
+        iceCandidatesBuffer.current = [];
+    };
+
+    const drainIceCandidates = async (pc: RTCPeerConnection) => {
+        while (iceCandidatesBuffer.current.length > 0) {
+            const candidate = iceCandidatesBuffer.current.shift();
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log("[WEBRTC] Buffered ICE candidate added successfully");
+            } catch (err) {
+                console.error("[WEBRTC ERROR] Error adding buffered ice candidate", err);
+            }
+        }
     };
 
     const setupPeerConnection = () => {
@@ -123,6 +137,24 @@ export default function CallProvider({ children }: { children: React.ReactNode }
             };
         };
 
+        pc.oniceconnectionstatechange = () => {
+            console.log(`[WEBRTC] ICE Connection State: ${pc.iceConnectionState}`);
+            if (pc.iceConnectionState === 'failed') {
+                console.error("[WEBRTC ERROR] ICE Connection failed. This usually means a TURN server is required for this network.");
+            }
+        };
+
+        pc.onconnectionstatechange = () => {
+            console.log(`[WEBRTC] Connection State: ${pc.connectionState}`);
+            if (pc.connectionState === 'connected') {
+                setCallState('connected');
+            }
+        };
+
+        pc.onsignalingstatechange = () => {
+            console.log(`[WEBRTC] Signaling State: ${pc.signalingState}`);
+        };
+
         peerConnection.current = pc;
         return pc;
     };
@@ -145,6 +177,8 @@ export default function CallProvider({ children }: { children: React.ReactNode }
                     await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp_answer));
                     console.log("[WEBRTC] Remote description set successfully! Call Connected.");
                     setCallState('connected');
+                    // Drain any buffered ICE candidates that arrived before the answer
+                    await drainIceCandidates(peerConnection.current);
                     // Start timer
                     durationTimer.current = setInterval(() => setDuration(d => d + 1), 1000);
                 } catch (err) {
@@ -158,13 +192,18 @@ export default function CallProvider({ children }: { children: React.ReactNode }
         const handleIceCandidate = async (e: any) => {
             console.log("[WEBRTC] Remote ICE Candidate received");
             const data = e.detail;
-            if (peerConnection.current && data.candidate && data.call_id === activeCallId.current) {
+            if (data.call_id !== activeCallId.current) return;
+
+            if (peerConnection.current && peerConnection.current.remoteDescription) {
                 try {
                     await peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate));
                     console.log("[WEBRTC] Remote ICE Candidate added successfully");
                 } catch (err) {
                     console.error("[WEBRTC ERROR] Error adding ice candidate", err);
                 }
+            } else {
+                console.log("[WEBRTC] Buffering remote ICE candidate until PC is ready...");
+                iceCandidatesBuffer.current.push(data.candidate);
             }
         };
 
@@ -213,9 +252,10 @@ export default function CallProvider({ children }: { children: React.ReactNode }
         }
     };
 
-    const startCall = async (targetUsername: string, mode: 'audio'|'video' = 'audio', contextId?: string) => {
-        console.log(`[WEBRTC] Initiating ${mode} call to ${targetUsername}...`);
-        const stream = await getMedia(mode);
+    const startCall = async (targetUsername: string, mode: 'audio'|'video' = 'audio', contextId?: string, existingStream?: MediaStream) => {
+        console.log(`[WEBRTC] Initiating ${mode} call to ${targetUsername}... (Stream ${existingStream ? 'Provided' : 'Requested'})`);
+        const stream = existingStream || await getMedia(mode);
+        if (existingStream) setLocalStream(existingStream);
         if (!stream) {
             console.error("[WEBRTC ERROR] Could not get media stream. Call aborted.");
             return;
@@ -257,14 +297,15 @@ export default function CallProvider({ children }: { children: React.ReactNode }
         });
     };
 
-    const acceptCall = async () => {
-        console.log("[WEBRTC] Accepting incoming call...");
+    const acceptCall = async (existingStream?: MediaStream) => {
+        console.log(`[WEBRTC] Accepting incoming call... (Stream ${existingStream ? 'Provided' : 'Requested'})`);
         if (!incomingCallData || !incomingCallData.sdp) {
             console.error("[WEBRTC ERROR] No incoming call data or SDP available to accept!");
             return;
         }
         
-        const stream = await getMedia(incomingCallData.mode);
+        const stream = existingStream || await getMedia(incomingCallData.mode);
+        if (existingStream) setLocalStream(existingStream);
         if (!stream) {
             console.error("[WEBRTC ERROR] Could not get media stream. Answer aborted.");
             return;
@@ -280,6 +321,9 @@ export default function CallProvider({ children }: { children: React.ReactNode }
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             console.log("[WEBRTC] Local description (Answer) set. Sending 'call_answer' signal...");
+
+            // Drain any buffered ICE candidates that arrived before we were ready
+            await drainIceCandidates(pc);
 
             sendSignal('call_answer', {
                 call_id: incomingCallData.call_id,

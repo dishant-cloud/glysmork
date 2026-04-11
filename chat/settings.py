@@ -139,7 +139,9 @@ ASGI_APPLICATION = 'chat.asgi.application'
 
 # Channel Layer
 # Set USE_REDIS to False if your Redis version is older than 5.0 (causes 'BZPOPMIN' error)
-USE_REDIS = os.environ.get('USE_REDIS', 'False') == 'True'
+# Force USE_REDIS to False to avoid BZPOPMIN errors on old Redis versions
+USE_REDIS = False
+# USE_REDIS = os.environ.get('USE_REDIS', 'False') == 'True'
 REDIS_URL = os.environ.get('REDIS_URL')
 
 if USE_REDIS and REDIS_URL:

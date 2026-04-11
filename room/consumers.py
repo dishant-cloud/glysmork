@@ -106,11 +106,68 @@ def _get_user_by_username(username):
 def _save_friend_message(sender, room_name, text):
     """Persist a friend (direct) message to PostgreSQL."""
     from room.models import Room, Message, CHAT_TYPE_FRIEND
-    room, _ = Room.objects.get_or_create(
+    room, created = Room.objects.get_or_create(
         name=room_name,
         defaults={'chat_type': CHAT_TYPE_FRIEND}
     )
+    
+    # Ensure users are associated with the room if new or missing
+    if created or room.users.count() < 2:
+        parts = room_name.replace('direct_', '').split('_')
+        if len(parts) == 2:
+            from django.contrib.auth.models import User
+            users = User.objects.filter(username__in=parts)
+            room.users.set(users)
+
     msg = Message.objects.create(user=sender, room=room, value=text)
+    
+    # 3. Handle notifications for the recipient (partner)
+    # We re-query the room's users to ensure we have the latest association
+    partner = room.users.exclude(id=sender.id).only('id', 'username').first()
+    
+    # Fallback: if M2M relationship is still being populated in this thread, 
+    # parse from room_name directly as a safety measure
+    if not partner:
+        parts = room_name.replace('direct_', '').split('_')
+        from django.contrib.auth.models import User
+        partner = User.objects.filter(username__in=parts).exclude(id=sender.id).first()
+
+    if partner:
+        from matchmaking.models import ChatNotification
+        from django.utils import timezone
+        
+        # Don't create duplicate unread notifications — just update the timestamp/message
+        notif, created_n = ChatNotification.objects.get_or_create(
+            sender=sender,
+            receiver=partner,
+            is_read=False,
+            defaults={'room_name': room_name, 'message': f'sent you a message!'}
+        )
+        if not created_n:
+            notif.created_at = timezone.now()
+            notif.message = f'sent you a message!'
+            notif.save()
+            
+        # Broadcast to global notification channel if peer is online
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        layer = get_channel_layer()
+        if layer:
+            print(f"DEBUG: [_save_friend_message] Signal to user_{partner.id} for {partner.username}")
+            async_to_sync(layer.group_send)(
+                f'user_{partner.id}',
+                {
+                    'type': 'friend_message_recv',
+                    'conversation_id': room_name,
+                    'id': msg.id,
+                    'sender': sender.username,
+                    'text': text,
+                    'timestamp': msg.date.strftime('%I:%M %p'),
+                }
+            )
+        else:
+            print(f"DEBUG: [_save_friend_message] No channel layer found!")
+
     return {
         'id': msg.id,
         'sender': sender.username,
@@ -123,17 +180,45 @@ def _save_friend_message(sender, room_name, text):
 @sync_to_async
 def _set_messages_read(room_name, user):
     """Mark all unread messages in a room as read for the given user (the recipient)."""
+    if not user or not user.is_authenticated:
+        return False
     from room.models import Message, MSG_READ
     from django.utils import timezone
     # All messages NOT sent by this user in this room are now read
     updated_count = Message.objects.filter(
         room__name=room_name,
         status__in=['sent', 'delivered']
-    ).exclude(user=user).update(
+    ).exclude(user_id=user.id).update(
         status=MSG_READ,
         read_timestamp=timezone.now(),
         is_read=True
     )
+    
+    # Also clear any ephemeral ChatNotifications for this room/recipient
+    from matchmaking.models import ChatNotification
+    qs = ChatNotification.objects.filter(
+        receiver=user,
+        room_name=room_name,
+        is_read=False
+    )
+    if qs.exists():
+        qs.update(is_read=True)
+        # Broadcast a signal to refresh the header count/inbox
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        layer = get_channel_layer()
+        if layer:
+            async_to_sync(layer.group_send)(
+                f'user_{user.id}',
+                {
+                    'type': 'friend_message_recv', # Reuse this event to trigger refresh
+                    'conversation_id': room_name,
+                    'text': 'clear_notification',
+                    'sender': 'system'
+                }
+            )
+
+    print(f"DEBUG: [_set_messages_read] Room '{room_name}' - User '{user.username}' (ID: {user.id}) marked {updated_count} peer messages as READ and cleared notifs")
     return updated_count > 0
 
 
@@ -494,17 +579,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
             if peer_id:
                 peer_online = await _cache_get(f'user_online_{peer_id}')
-                if peer_online:
-                    await self.channel_layer.group_send(
-                        f'user_{peer_id}',
-                        {
-                            'type': 'friend_message_recv',
-                            'conversation_id': conversation_id,
-                            'client_id': data.get('client_id'),
-                            **msg_data,
-                        }
-                    )
-                else:
+                if not peer_online:
                     # Queue notification for offline user
                     await _cache_get_or_set_list(
                         f'offline_msgs:{peer_id}',
@@ -908,6 +983,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         }))
 
     async def friend_message_recv(self, event):
+        print(f"DEBUG: [NotificationConsumer] Signal received for user {self.user.username} (ID: {self.user.id})")
         await self.send(text_data=json.dumps({
             'type': 'friend_message',
             'conversation_id': event['conversation_id'],
@@ -1204,6 +1280,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+        elif message_type == 'read_receipt':
+            # 1. Update DB (if friend room)
+            if self.room_name.startswith('direct_') and self.user.is_authenticated:
+                await _set_messages_read(self.room_name, self.user)
+            
+            # 2. Broadcast to room group
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'message_read_receipt',
+                    'read_by': self.user.username if self.user.is_authenticated else 'Guest',
+                }
+            )
+
     # ── group-send handlers ────────────────────────────────────────────────
 
     async def chat_message(self, event):
@@ -1268,6 +1358,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'id': event['id'],
         }))
 
+    async def message_read_receipt(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'read_receipt',
+            'read_by': event.get('read_by'),
+        }))
+
     async def analysis_alert(self, event):
         await self.send(text_data=json.dumps({
             'type': 'analysis_alert',
@@ -1285,15 +1381,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_log = '\n'.join(self.message_history)
 
         @sync_to_async
-        def call_gemini():
+        def call_groq():
             try:
-                import google.generativeai as genai
                 import json as _json
-                import urllib.parse
-                from django.utils import timezone
+                from groq_client import groq_generate
 
-                genai.configure(api_key=os.environ.get('GEMINI_API_KEY', ''))
-                model = genai.GenerativeModel('gemini-1.5-flash')
                 prompt = f"""
 You are a ruthless AI moderator monitoring a live chat between two people.
 Read this transcript of the last 10 messages:
@@ -1304,20 +1396,22 @@ Analyze the intent of '{recent_sender_username}'. Are they being manipulative, o
 
 Respond ONLY in JSON:
 {{
-    "is_dangerous": boolean,
+    "is_dangerous": false,
     "reason": "short explanation if dangerous, else null",
     "image_prompt": "If dangerous, a 10-word visual prompt describing them as a monster or fraud, else null"
 }}
 """
-                response = model.generate_content(prompt)
-                text = response.text.strip()
+                text = groq_generate(prompt)
+                text = text.strip()
                 if text.startswith('```json'):
                     text = text[7:-3]
+                elif text.startswith('```'):
+                    text = text[3:-3]
                 return _json.loads(text)
             except Exception as e:
                 return {'error': str(e)}
 
-        analysis = await call_gemini()
+        analysis = await call_groq()
 
         if analysis and analysis.get('is_dangerous'):
             base_prompt = analysis.get('image_prompt', 'An abstract digital monster representing deceit')

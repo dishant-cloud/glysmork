@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Video, X, Check } from 'lucide-react';
+import { Phone, Video, X, Check, MessageSquare, Bell } from 'lucide-react';
 
 interface NotificationContextProps {
     sendSignal: (type: string, payload: any) => void;
@@ -43,18 +43,25 @@ export default function NotificationProvider({ children }: { children: React.Rea
         }
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname;
         const wsHost = process.env.NEXT_PUBLIC_API_URL
             ? new URL(process.env.NEXT_PUBLIC_API_URL).host
-            : '127.0.0.1:8000';
+            : `${host}:8000`;
 
         // Connect to the generic notifications channel
         const connect = () => {
-            window.dispatchEvent(new CustomEvent('ws_debug_sys', { detail: `Attempting WS auth with token: ${token.substring(0, 10)}...` }));
-            // Add timeout for connection
-            const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/notifications/?token=${token}`);
+            const currentToken = localStorage.getItem('access_token');
+            if (!currentToken) {
+                console.warn("Notification WS: No token available yet, waiting...");
+                setTimeout(connect, 2000);
+                return;
+            }
+
+            console.log(`Notification WS: Connecting to ${wsHost} with token ${currentToken.substring(0, 8)}...`);
+            const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/notifications/?token=${currentToken}`);
 
             ws.onopen = () => {
-                window.dispatchEvent(new CustomEvent('ws_debug_sys', { detail: 'WEBSOCKET FULLY CONNECTED!' }));
+                console.log("Notification WS: CONNECTED SUCCESSFULLY");
                 setIsOnline(true);
                 // Start pinging every 30s to keep Redis standard online
                 pingIntervalRef.current = setInterval(() => {
@@ -80,18 +87,32 @@ export default function NotificationProvider({ children }: { children: React.Rea
                     } else if (data.type === 'call_ended') {
                         window.dispatchEvent(new CustomEvent('sys_call_ended', { detail: data }));
                     } else if (data.type === 'friend_message' || data.type === 'session_message') {
-                        // Add to pop-up notifications
-                        const newNotif = {
-                            id: Date.now(),
-                            sender: data.sender,
-                            text: data.text,
-                            type: data.type === 'friend_message' ? 'Message' : 'Session'
-                        };
-                        setNotifications(prev => [...prev, newNotif]);
-                        // Auto-remove after 5s
-                        setTimeout(() => {
-                            setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
-                        }, 5000);
+                        // Avoid showing popup if we are already in that specific chat room
+                        const isChatPage = window.location.pathname.includes(`/messages/${data.sender}`);
+                        
+                        if (!isChatPage) {
+                            // Play a subtle notification sound
+                            try {
+                                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+                                audio.volume = 0.4;
+                                audio.play().catch(() => {}); // Browsers might block auto-play until interaction
+                            } catch {}
+
+                            const newNotif = {
+                                id: Date.now(),
+                                sender: data.sender,
+                                text: data.text,
+                                type: data.type === 'friend_message' ? 'Message' : 'Session'
+                            };
+                            setNotifications(prev => [...prev, newNotif]);
+
+                            // Auto-remove after 7s
+                            setTimeout(() => {
+                                setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
+                            }, 7000);
+                        }
+                        
+                        window.dispatchEvent(new CustomEvent('sys_friend_message', { detail: data }));
                     }
                 } catch (e) {
                     console.error("WS Parse error", e);
@@ -114,6 +135,58 @@ export default function NotificationProvider({ children }: { children: React.Rea
 
         connect();
 
+        // FAILSAFE: Polling fallback in case WS is unreliable
+        let lastNotifId = 0;
+        const poll = async () => {
+            if (!user?.username) return;
+            try {
+                const host = window.location.hostname;
+                const res = await fetch(`http://${host}:8000/api/matchmaking/notifications/?username=${encodeURIComponent(user.username)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const notifs = data.notifications || [];
+                    if (notifs.length > 0) {
+                        const latest = notifs[0];
+                        if (latest.id > lastNotifId) {
+                            console.log("[POLLING] New notification found via fallback!", latest);
+                            // Only show popup if it's genuinely new AND we aren't in that chat
+                            const isChatPage = window.location.pathname.includes(`/messages/${latest.sender}`);
+                            if (!isChatPage && lastNotifId !== 0) {
+                                // Play sound
+                                try {
+                                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+                                    audio.volume = 0.3;
+                                    audio.play().catch(() => {});
+                                } catch {}
+
+                                const newNotif = {
+                                    id: latest.id,
+                                    sender: latest.sender,
+                                    text: latest.message,
+                                    type: 'Message'
+                                };
+                                setNotifications(prev => {
+                                    if (prev.find(n => n.id === newNotif.id)) return prev;
+                                    return [...prev, newNotif];
+                                });
+                                setTimeout(() => {
+                                    setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
+                                }, 7000);
+                            }
+                            lastNotifId = latest.id;
+                            // Also tell Header to update
+                            window.dispatchEvent(new CustomEvent('sys_friend_message', { detail: { type: 'friend_message' } }));
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("[POLLING] Fallback error", e);
+            }
+        };
+
+        const pollInterval = setInterval(poll, 3000); // Check every 3 seconds
+        poll(); // Initial check
+
         return () => {
             if (wsRef.current) {
                 wsRef.current.close();
@@ -121,6 +194,7 @@ export default function NotificationProvider({ children }: { children: React.Rea
             if (pingIntervalRef.current) {
                 clearInterval(pingIntervalRef.current);
             }
+            clearInterval(pollInterval);
         };
     }, []);
 
@@ -146,28 +220,37 @@ export default function NotificationProvider({ children }: { children: React.Rea
                     {notifications.map((notif) => (
                         <motion.div
                             key={notif.id}
-                            initial={{ opacity: 0, x: 50, scale: 0.9 }}
-                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                            exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                            className="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl shadow-2xl flex items-start gap-4 min-w-[300px] max-w-sm"
+                            initial={{ opacity: 0, y: -20, scale: 0.9, filter: 'blur(10px)' }}
+                            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+                            className="pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/40 p-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-start gap-4 min-w-[320px] max-w-sm relative overflow-hidden group"
                         >
-                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-slate-500 flex-shrink-0">
-                                <Check className="w-5 h-5" />
+                            {/* Decorative gradient bar */}
+                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-indigo-600" />
+                            
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/10 to-indigo-600/10 flex items-center justify-center text-purple-600 flex-shrink-0 border border-purple-500/20">
+                                <MessageSquare className="w-6 h-6" />
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                                    New {notif.type}
-                                </p>
-                                <p className="text-white font-bold truncate">
+                            
+                            <div className="flex-1 min-w-0 pt-0.5">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-bold text-purple-500/80 uppercase tracking-[0.2em]">
+                                        {notif.type} Received
+                                    </span>
+                                    <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                    <span className="text-[10px] text-slate-400 font-medium">Just now</span>
+                                </div>
+                                <h4 className="text-slate-900 font-bold text-[15px] mb-0.5">
                                     {notif.sender}
-                                </p>
-                                <p className="text-slate-400 text-sm line-clamp-2 italic">
-                                    "{notif.text}"
+                                </h4>
+                                <p className="text-slate-500 text-[13px] line-clamp-2 leading-relaxed font-medium capitalize">
+                                    {notif.text}
                                 </p>
                             </div>
+                            
                             <button 
                                 onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
-                                className="text-slate-500 hover:text-white transition-colors"
+                                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0 mt-0.5"
                             >
                                 <X className="w-4 h-4" />
                             </button>

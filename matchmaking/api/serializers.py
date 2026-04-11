@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from matchmaking.models import Loop, CallRequest
+from matchmaking.models import Loop, CallRequest, ChatNotification
+
+class ChatNotificationSerializer(serializers.ModelSerializer):
+    sender = serializers.CharField(source='sender.username', read_only=True)
+    class Meta:
+        model = ChatNotification
+        fields = ['id', 'sender', 'message', 'room_name', 'created_at']
+
 
 class LoopSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)

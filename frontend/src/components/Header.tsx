@@ -10,18 +10,43 @@ import { useNotification } from './NotificationProvider';
 export default function Header() {
     const { onlineStatus } = useNotification();
     const [username, setUsername] = useState<string | null>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
     const pathname = usePathname();
 
     useEffect(() => {
         const u = localStorage.getItem('user');
         if (u) {
             try {
-                setUsername(JSON.parse(u).username);
+                const userData = JSON.parse(u);
+                setUsername(userData.username);
+                fetchUnreadCount(userData.username);
             } catch (e) {
                 console.error("Failed to parse user data in header");
             }
         }
+
+        const handleUpdate = () => {
+            const stored = localStorage.getItem('user');
+            if (stored) {
+                const userData = JSON.parse(stored);
+                fetchUnreadCount(userData.username);
+            }
+        };
+
+        window.addEventListener('sys_friend_message', handleUpdate);
+        return () => window.removeEventListener('sys_friend_message', handleUpdate);
     }, []);
+
+    const fetchUnreadCount = async (uname: string) => {
+        try {
+            const host = window.location.hostname;
+            const res = await fetch(`http://${host}:8000/api/matchmaking/notifications/?username=${encodeURIComponent(uname)}`);
+            if (res.ok) {
+                const data = await res.json();
+                setUnreadCount(data.notifications?.length || 0);
+            }
+        } catch {}
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('user');
@@ -59,9 +84,23 @@ export default function Header() {
                             <Link
                                 href="/messages"
                                 title="Direct Messages"
-                                className="w-10 h-10 flex items-center justify-center rounded-full bg-white/80 border border-slate-200/60 hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-500 hover:text-slate-800 shadow-sm"
+                                className="w-10 h-10 flex items-center justify-center rounded-full bg-white/80 border border-slate-200/60 hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-500 hover:text-slate-800 shadow-sm relative"
                             >
                                 <Mail size={18} />
+                                <AnimatePresence>
+                                    {unreadCount > 0 && (
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            exit={{ scale: 0 }}
+                                            className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 border-2 border-white rounded-full flex items-center justify-center"
+                                        >
+                                            <span className="text-[7px] font-bold text-white leading-none">
+                                                {unreadCount > 9 ? '9+' : unreadCount}
+                                            </span>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </Link>
                             <Link
                                 href="/analytics"

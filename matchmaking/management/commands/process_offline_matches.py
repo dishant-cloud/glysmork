@@ -4,9 +4,9 @@ from django.db.models import Q
 from matchmaking.models import OfflineSearch, MatchHistory, ChatNotification
 from room.models import Room
 from users.models import Profile
-import google.generativeai as genai
 import os
 import json
+from groq_client import groq_generate
 
 class Command(BaseCommand):
     help = 'Processes offline matchmaking requests'
@@ -21,8 +21,7 @@ class Command(BaseCommand):
         # 2. Get active searches
         active_searches = OfflineSearch.objects.filter(is_active=True, matches_found__lt=4)
         
-        genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        genai_key = os.environ.get("GEMINI_API_KEY")  # kept for future embedding use
 
         for search in active_searches:
             user = search.user
@@ -63,8 +62,8 @@ class Command(BaseCommand):
                 """
                 
                 try:
-                    response = model.generate_content(prompt)
-                    res_json = json.loads(response.text.strip().replace('```json', '').replace('```', ''))
+                    response_text = groq_generate(prompt)
+                    res_json = json.loads(response_text.strip().replace('```json', '').replace('```', ''))
                     
                     if res_json.get('score', 0) >= 80:
                         # MATCH FOUND!

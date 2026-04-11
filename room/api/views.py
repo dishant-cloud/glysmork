@@ -429,6 +429,10 @@ class MessageListView(APIView):
                 "is_ephemeral": False,
                 "is_call_log": False
             })
+        
+        if data:
+            s_msg = data[0]
+            print(f"DEBUG: [MessageListView] Room: {room_name}, Returning {len(data)} msgs. Latest msg from {s_msg['sender']} has status: {s_msg['status']}")
 
         for call in calls:
             data.append({

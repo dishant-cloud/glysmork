@@ -23,6 +23,11 @@ class Profile(models.Model):
     languages = models.JSONField(default=list, blank=True, help_text="Languages the user speaks, e.g. ['en', 'hi']")
     latitude = models.FloatField(null=True, blank=True, help_text="GPS latitude for distance-based matching")
     longitude = models.FloatField(null=True, blank=True, help_text="GPS longitude for distance-based matching")
+    geohash = models.CharField(max_length=12, blank=True, null=True, db_index=True, help_text="High-performance spatial index")
+    
+    # Verification & Identity
+    is_verified = models.BooleanField(default=False, help_text="User has verified their identity (e.g. via Google)")
+    auth_provider = models.CharField(max_length=50, default='email', help_text="The method used for authentication")
     
     diamonds = models.IntegerField(default = 20)
     age = models.PositiveIntegerField(default = 18)
@@ -80,6 +85,7 @@ class Profile(models.Model):
     
     total_sessions = models.IntegerField(default=0)
     qualifying_sessions = models.IntegerField(default=0)  # over 2min with messages
+    successful_searches = models.IntegerField(default=0, help_text="Number of successful live searches yielding potential users")
     friendships_made = models.IntegerField(default=0)
     
     calls_received = models.IntegerField(default=0)

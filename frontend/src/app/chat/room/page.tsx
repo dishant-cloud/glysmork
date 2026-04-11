@@ -255,6 +255,19 @@ export default function ChatRoom() {
         }
     }, [messages]);
 
+    // AUTO-START VIDEO CALL for Roulette / Video Male / Female modes
+    const autoCallFiredRef = useRef(false);
+    useEffect(() => {
+        if (urlMode === 'video' && partnerUsername && roomId && !autoCallFiredRef.current) {
+            autoCallFiredRef.current = true;
+            // Small delay to let the page settle, then auto-start video call
+            const t = setTimeout(() => {
+                startCall(partnerUsername, 'video', roomId);
+            }, 800);
+            return () => clearTimeout(t);
+        }
+    }, [urlMode, partnerUsername, roomId, startCall]);
+
     const handleSend = async () => {
         if (!inputText.trim() || !roomId) return;
         const text = inputText;

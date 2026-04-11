@@ -68,6 +68,7 @@ export default function DMPage() {
 
         loadMessages();
         connectWS();
+        clearNotifications();
 
         // Check friendship status
         if (!roomName.startsWith('session_')) {
@@ -128,9 +129,34 @@ export default function DMPage() {
         }
     };
 
+    const clearNotifications = async () => {
+        if (!myUsername || !friend) return;
+        try {
+            // Fetch unread notifications for this user
+            const url = `${API}/matchmaking/notifications/?username=${encodeURIComponent(myUsername)}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                const relevantNotifs = data.notifications?.filter((n: any) => n.sender === friend);
+                if (relevantNotifs && relevantNotifs.length > 0) {
+                    const ids = relevantNotifs.map((n: any) => n.id);
+                    await fetch(`${API}/matchmaking/notifications/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids }),
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Clear notifications error:", err);
+        }
+    };
+
     const connectWS = () => {
         if (wsRef.current) wsRef.current.close();
-        const wsUrl = `ws://127.0.0.1:8000/ws/chat/${roomName}/`;
+        const token = localStorage.getItem('access_token');
+        const host = window.location.hostname;
+        const wsUrl = `ws://${host}:8000/ws/chat/${roomName}/?token=${token}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
@@ -145,8 +171,8 @@ export default function DMPage() {
                     sender: data.username || data.sender,
                     text: data.message || data.text || "",
                     timestamp: data.date_iso ? new Date(data.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.timestamp ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-                    status: (data.username || data.sender) === myUsername ? 'sent' : 'read',
-                    isRead: true,
+                    status: data.status || ((data.username || data.sender) === myUsername ? 'sent' : 'read'),
+                    isRead: data.status === 'read' || (data.username || data.sender) !== myUsername,
                     deletedForEveryone: false,
                     is_call_log: data.is_call_log,
                     call_mode: data.call_mode,
@@ -275,9 +301,9 @@ export default function DMPage() {
         <div className="flex flex-col h-screen bg-[#fafaf9] text-slate-900 font-sans" onClick={() => setContextMenu(null)}>
             {/* ── Header ── */}
             <div className="flex items-center gap-3 px-4 py-3 bg-white/80 backdrop-blur-2xl border-b border-slate-200/60 sticky top-0 z-20 shadow-sm">
-                <Link href="/dashboard" className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <button onClick={() => window.history.length > 2 ? router.back() : router.push('/dashboard')} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                     <ArrowLeft className="w-5 h-5 text-slate-600" />
-                </Link>
+                </button>
                 <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center font-bold text-white text-sm shadow-sm">
                         {friendInitial}
@@ -373,7 +399,7 @@ export default function DMPage() {
                                                 {msg.timestamp}
                                             </span>
                                             {isMe && !isDeleted && (
-                                                msg.status === 'read' || msg.isRead ? (
+                                                msg.status === 'read' ? (
                                                     <CheckCheck className="w-[14px] h-[14px] text-emerald-500" />
                                                 ) : (
                                                     <Check className="w-[14px] h-[14px] text-slate-400" />

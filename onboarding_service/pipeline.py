@@ -77,7 +77,7 @@ def process_pipeline(parsed_data: dict, db: Session) -> dict:
     
     # 3. Standardize dealbreakers
     if "hard_filters" in parsed_data:
-        deals = parsed_data["hard_filters"].get("dealbreakers", [])
+        deals = parsed_data["hard_filters"].get("dealbreakers") or []
         parsed_data["hard_filters"]["dealbreakers"] = [standardize_string(d) for d in deals]
         
     return parsed_data

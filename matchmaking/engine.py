@@ -4,6 +4,7 @@ import numpy as np
 import os
 from django.conf import settings
 from dotenv import load_dotenv
+from groq_client import groq_generate
 
 load_dotenv()
 
@@ -113,11 +114,9 @@ def get_embedding(text):
 
 def parse_intent_to_ast(intent_string):
     """
-    Uses an LLM to parse a natural language query into a Boolean AST.
+    Uses Groq LLM to parse a natural language query into a Boolean AST.
     Supported node types: 'AND', 'OR', 'NOT', 'vector_concept', 'exact_match'.
     """
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
     prompt = f"""
     You are a Query Parser. Convert the following matchmaking intent into a recursive Boolean AST JSON.
     Intent: "{intent_string}"
@@ -126,73 +125,49 @@ def parse_intent_to_ast(intent_string):
     {{
       "operator": "AND" | "OR" | "NOT" | "LEAF",
       
-      // If operator is AND or OR, an array of operands:
       "operands": [ {{...}}, {{...}} ],
       
-      // If operator is NOT, a single operand:
       "operand": {{...}},
       
-      // If operator is LEAF, you must define the node:
       "type": "vector_concept" | "exact_match",
-      "field": "interests" | "expertise" | "any", 
+      "field": "interests" | "expertise" | "any",
       "value": "string",
       "sentiment": "love" | "like" | "hate" | "neutral"
     }}
     
-    The user will speak in natural language. You must parse their sentiment (e.g., 'would love' -> love, 'wouldnt mind' -> neutral, 'hates' -> hate) and assign the proper string.
+    The user will speak in natural language. Parse their sentiment (e.g., 'would love' -> love, 'wouldnt mind' -> neutral, 'hates' -> hate).
     
     Example for "Someone who likes fantasy books but NOT software":
     {{
       "operator": "AND",
       "operands": [
-        {{
-          "operator": "LEAF",
-          "type": "vector_concept",
-          "field": "interests",
-          "value": "fantasy books",
-          "sentiment": "love"
-        }},
-        {{
-          "operator": "LEAF",
-          "type": "vector_concept",
-          "field": "interests",
-          "value": "software",
-          "sentiment": "hate"
-        }}
+        {{"operator": "LEAF", "type": "vector_concept", "field": "interests", "value": "fantasy books", "sentiment": "love"}},
+        {{"operator": "LEAF", "type": "vector_concept", "field": "interests", "value": "software", "sentiment": "hate"}}
       ]
     }}
 
-    If the query is extremely simple like "I want to talk about space", simply return:
-    {{
-        "operator": "LEAF",
-        "type": "vector_concept",
-        "field": "any",
-        "value": "space",
-        "sentiment": "like"
-    }}
+    For a simple query like "I want to talk about space", return:
+    {{"operator": "LEAF", "type": "vector_concept", "field": "any", "value": "space", "sentiment": "like"}}
 
     Return ONLY the JSON. No markdown ticks, no preamble.
     """
-    
+
     try:
-        resp = model.generate_content(prompt)
-        text = resp.text.strip()
+        text = groq_generate(prompt)
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
         elif "```" in text:
             text = text.split("```")[1].split("```")[0].strip()
-            
         return json.loads(text)
     except Exception as e:
-         print(f"AST Parsing Error: {e}")
-         print(f"Raw response: {resp.text if 'resp' in locals() else 'None'}")
-         # Fallback to simple leaf
-         return {
+        print(f"AST Parsing Error: {e}")
+        print(f"Raw response: None")
+        return {
             "operator": "LEAF",
             "type": "vector_concept",
             "field": "any",
             "value": intent_string
-         }
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -260,6 +235,14 @@ class MatchEvaluator:
                 check_embeddings(getattr(profile, 'interests_embedding', None))
             if field in ("expertise", "any"):
                 check_embeddings(getattr(profile, 'expertise_embedding', None))
+            
+            # Fallback: if specific field search (expertise/interests) yielded 0, 
+            # try the other field just in case user intent was fuzzy or data is in the "wrong" bucket.
+            if best_score == 0.0 and field != "any":
+                check_embeddings(getattr(profile, 'interests_embedding', None))
+                check_embeddings(getattr(profile, 'expertise_embedding', None))
+                if best_score > 0:
+                    best_score *= 0.8 # 20% penalty for field mismatch fallback
             
             base_score = max(0.0, float(best_score))
 
@@ -399,6 +382,9 @@ def run_hybrid_discovery(intent_string, profiles_qs, searcher_profile=None):
                 onboarding_sim = cosine_similarity(searcher_vec, cand_vec)
                 # 70% Intent (primary), 30% Onboarding chemistry
                 final_score = (intent_score * 0.7) + (max(0.0, onboarding_sim) * 0.3)
+        
+        # Ensure the final score never exceeds 100% (1.0)
+        final_score = min(1.0, final_score)
 
         # ---------------------------------------------------------------
         # STAGE 5: THRESHOLD & COLLECT

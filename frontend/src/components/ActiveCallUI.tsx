@@ -43,6 +43,9 @@ export default function ActiveCallUI() {
     }, [localStream, incomingCallData?.mode, callState]);
 
     if ((callState !== 'connected' && callState !== 'calling') || !incomingCallData) return null;
+    
+    // Do not show the global active call UI if we are on the video-match page (it has its own UI)
+    if (typeof window !== 'undefined' && window.location.pathname === '/video-match') return null;
 
     const formattedDuration = callState === 'calling' 
         ? "DIALING..." 

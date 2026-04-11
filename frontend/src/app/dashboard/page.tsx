@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Header from '@/components/Header';
 import { useNotification } from '@/components/NotificationProvider';
 import { useCall } from '@/components/CallProvider';
+import LocationPicker from '@/components/LocationPicker';
 
 export default function Dashboard() {
     const [isMatching, setIsMatching] = useState(false);
@@ -16,8 +17,9 @@ export default function Dashboard() {
     const [activeIndex, setActiveIndex] = useState(0);
     const [searchingIntent, setSearchingIntent] = useState<string | null>(null);
     const [exitNotification, setExitNotification] = useState<string | null>(null);
-    const [discoveryResults, setDiscoveryResults] = useState<any[]>([]);
     const [ringingUsername, setRingingUsername] = useState<string | null>(null);
+    const [offerOfflinePrompt, setOfferOfflinePrompt] = useState(false);
+    const [pendingIntent, setPendingIntent] = useState<string | null>(null);
 
     const [pollRef, setPollRef] = useState<ReturnType<typeof setInterval> | null>(null);
     const { sendSignal } = useNotification();
@@ -36,6 +38,28 @@ export default function Dashboard() {
     const [languageFilter, setLanguageFilter] = useState<string[]>([]);
     const [distanceKm, setDistanceKm] = useState(0);
     const [showFilters, setShowFilters] = useState(false);
+
+    const isInitialMountIntent = useRef(true);
+
+    useEffect(() => {
+        if (isInitialMountIntent.current) {
+            isInitialMountIntent.current = false;
+            return;
+        }
+        if (searchingIntent) {
+            sessionStorage.setItem('glysmork_searching_intent', searchingIntent);
+        } else {
+            sessionStorage.removeItem('glysmork_searching_intent');
+        }
+    }, [searchingIntent]);
+
+    // Restore search state on mount
+    useEffect(() => {
+        try {
+            const storedIntent = sessionStorage.getItem('glysmork_searching_intent');
+            if (storedIntent) setSearchingIntent(storedIntent);
+        } catch { }
+    }, []);
 
     useEffect(() => {
         const u = localStorage.getItem('user');
@@ -174,6 +198,11 @@ export default function Dashboard() {
         setIsMatching(false);
     };
 
+    const showNotification = (msg: string) => {
+        setExitNotification(msg);
+        setTimeout(() => setExitNotification(null), 5000);
+    };
+
     const pollForMatch = (intentText: string) => {
         const tryMatch = async () => {
             try {
@@ -195,13 +224,16 @@ export default function Dashboard() {
                     window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || modePref}`;
                 } else if (response.status === 'discovery_results') {
                     stopPolling();
-                    setDiscoveryResults(response.results);
+                    sessionStorage.setItem('glysmork_discovery_results', JSON.stringify(response.results));
+                    sessionStorage.setItem('glysmork_searching_intent', intentText);
+                    window.location.href = '/discovery';
                 } else if (response.status === 'offline_activated') {
                     stopPolling();
-                    alert(response.message);
+                    setIsOffline(false);
+                    showNotification(response.message);
                 } else if (response.status === 'no_results') {
                     stopPolling();
-                    alert(response.message);
+                    showNotification(response.message);
                 }
             } catch {
                 stopPolling();
@@ -212,7 +244,7 @@ export default function Dashboard() {
         setPollRef(p);
     };
 
-    const startPersonaMatch = async () => {
+    const startPersonaMatch = async (forceOffline: boolean = false) => {
         setIsMatching(true);
         const intentText = "Persona Match";
         try {
@@ -221,7 +253,7 @@ export default function Dashboard() {
                 body: JSON.stringify({
                     intent: intentText,
                     username: getUsername(),
-                    is_offline: isOffline,
+                    is_offline: forceOffline || isOffline,
                     mode: modePref,
                     location_filter: locationFilter,
                     country_filter: countryFilter,
@@ -229,9 +261,14 @@ export default function Dashboard() {
                     distance_km: distanceKm
                 })
             });
-            if (response.status === 'offline_activated') {
+            if (response.status === 'no_online_users') {
                 setIsMatching(false);
-                alert(response.message);
+                setPendingIntent(intentText);
+                setOfferOfflinePrompt(true);
+            } else if (response.status === 'offline_activated') {
+                setIsMatching(false);
+                setIsOffline(false);
+                showNotification(response.message);
             } else if (response.match_found || response.room_name) {
                 setIsMatching(false);
                 window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || modePref}`;
@@ -262,7 +299,11 @@ export default function Dashboard() {
                     distance_km: distanceKm
                 })
             });
-            if (response.match_found || response.room_name) {
+            if (response.status === 'offline_activated') {
+                setIsMatching(false);
+                setIsOffline(false);
+                showNotification(response.message);
+            } else if (response.match_found || response.room_name) {
                 setIsMatching(false);
                 window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || mode}`;
             } else {
@@ -275,7 +316,7 @@ export default function Dashboard() {
         }
     };
 
-    const startMatching = async (overrideIntent?: string) => {
+    const startMatching = async (overrideIntent?: string, forceOffline: boolean = false) => {
         const intentText = overrideIntent || intent;
         if (!intentText.trim()) return;
         setIsMatching(true);
@@ -285,7 +326,7 @@ export default function Dashboard() {
                 body: JSON.stringify({
                     intent: intentText,
                     username: getUsername(),
-                    is_offline: isOffline,
+                    is_offline: forceOffline || isOffline,
                     mode: modePref,
                     location_filter: locationFilter,
                     country_filter: countryFilter,
@@ -293,15 +334,25 @@ export default function Dashboard() {
                     distance_km: distanceKm
                 })
             });
-            if (response.match_found || response.room_name) {
+            if (response.status === 'no_online_users') {
+                setIsMatching(false);
+                setPendingIntent(intentText);
+                setOfferOfflinePrompt(true);
+            } else if (response.status === 'offline_activated') {
+                setIsMatching(false);
+                setIsOffline(false);
+                showNotification(response.message);
+            } else if (response.match_found || response.room_name) {
                 setIsMatching(false);
                 window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || 'chat'}`;
             } else if (response.status === 'discovery_results') {
                 setIsMatching(false);
-                setDiscoveryResults(response.results);
+                sessionStorage.setItem('glysmork_discovery_results', JSON.stringify(response.results));
+                sessionStorage.setItem('glysmork_searching_intent', intentText);
+                window.location.href = '/discovery';
             } else if (response.status === 'no_results') {
                 setIsMatching(false);
-                alert(response.message);
+                showNotification(response.message);
             } else {
                 setSearchingIntent(intentText);
                 pollForMatch(intentText);
@@ -322,6 +373,52 @@ export default function Dashboard() {
                 <div className="absolute top-[5%] right-[5%] w-[600px] h-[600px] bg-white/60 blur-[120px] rounded-full mix-blend-overlay" />
                 <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-indigo-50/50 blur-[100px] rounded-full mix-blend-multiply" />
             </div>
+
+            {/* Offline Fallback Prompt */}
+            <AnimatePresence>
+                {offerOfflinePrompt && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 to-indigo-500" />
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Nobody's Online</h3>
+                            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                                There are no potential matches online right now. Would you like to activate <span className="font-semibold text-slate-700">Offline Search</span> so we can notify you later when someone is found?
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setOfferOfflinePrompt(false)}
+                                    className="flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setOfferOfflinePrompt(false);
+                                        if (pendingIntent === 'Persona Match') {
+                                            startPersonaMatch(true);
+                                        } else {
+                                            startMatching(pendingIntent || undefined, true);
+                                        }
+                                    }}
+                                    className="flex-1 py-3 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow transition-all"
+                                >
+                                    Search Offline
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Exit Notification Toast */}
             <AnimatePresence>
@@ -434,179 +531,7 @@ export default function Dashboard() {
                 </motion.div>
             )}
 
-            {/* Search Results Overlay */}
-            {discoveryResults.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="fixed inset-0 z-[100] flex flex-col items-center justify-start bg-white p-6 py-20 overflow-y-auto"
-                >
-                    <div className="w-full max-w-7xl">
-                        <div className="flex justify-between items-center mb-12">
-                            <div>
-                                <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase" >
-                                    Network Results
-                                </h2>
-                                <p className="text-slate-500 text-sm mt-2 font-medium">AI synthesized candidates for: &quot;{searchingIntent || intent}&quot;</p>
-                            </div>
-                            <button
-                                onClick={() => setDiscoveryResults([])}
-                                className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-black text-[10px] uppercase tracking-widest border border-slate-200 rounded-2xl px-5 py-2.5 hover:bg-white transition-all shadow-sm"
-                            >
-                                Close
-                            </button>
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {discoveryResults.map((result, idx) => (
-                                <motion.div
-                                    key={result.username}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.1 }}
-                                    className="bg-white border border-slate-200/50 p-6 flex flex-col relative rounded-2xl shadow-sm hover:shadow-md transition-shadow"
-                                >
-                                    <div className="absolute top-3 right-3">
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-slate-900 border border-slate-200 bg-white/80 backdrop-blur-md px-2.5 py-1 rounded-full shadow-sm">
-                                            {result.score}% Compatibility
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="relative">
-                                            <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white font-black text-2xl shadow-lg">
-                                                {result.username.charAt(0).toUpperCase()}
-                                            </div>
-                                            {result.is_online && (
-                                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-white shadow-sm" />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h4 className="text-slate-900 font-bold text-lg leading-none mb-1.5">{result.username}</h4>
-                                            <span className={`text-[9px] font-black uppercase tracking-widest ${result.is_online ? 'text-green-600' : 'text-slate-400'}`}>
-                                                {result.is_online ? 'Online' : 'Offline'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {result.match_tags?.map((tag: string) => (
-                                            <span key={tag} className="text-[10px] font-medium text-slate-800 border border-slate-200/50 bg-white/50 px-2 py-0.5 rounded-full">
-                                                #{tag}
-                                            </span>
-                                        ))}
-                                    </div>
-
-                                    <p className="text-slate-500 text-sm mb-4 line-clamp-3 leading-relaxed border-l-2 border-slate-200/50 pl-3">
-                                        {result.reason}
-                                    </p>
-
-                                    <div className="mb-4 grid grid-cols-2 gap-3">
-                                        <div>
-                                            <span className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Expertise</span>
-                                            <div className="text-xs text-slate-600 truncate">{result.expertise?.join(', ') || 'N/A'}</div>
-                                        </div>
-                                        <div>
-                                            <span className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Interests</span>
-                                            <div className="text-xs text-slate-600 truncate">{result.interests?.join(', ') || 'N/A'}</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-auto pt-4 border-t border-sky-50 space-y-2">
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    fetch('http://127.0.0.1:8000/api/matchmaking/notify/', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({
-                                                            sender: getUsername(),
-                                                            receiver: result.username,
-                                                            room_name: `direct_${[getUsername(), result.username].sort().join('_')}`,
-                                                        }),
-                                                    }).catch(() => { });
-                                                    window.location.href = `/messages/${result.username}`;
-                                                }}
-                                                className="flex items-center justify-center gap-2 py-2.5 bg-slate-900 text-white hover:bg-slate-900 transition-all font-semibold text-xs rounded-full"
-                                            >
-                                                <MessageSquare className="w-3.5 h-3.5" />
-                                                Message
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    if (friendRequested.has(result.username)) return;
-                                                    try {
-                                                        await fetchApi('/matchmaking/friends/', {
-                                                            method: 'POST',
-                                                            body: JSON.stringify({
-                                                                username: getUsername(),
-                                                                target_username: result.username,
-                                                                action: 'request',
-                                                            }),
-                                                        });
-                                                        setFriendRequested(prev => new Set([...prev, result.username]));
-                                                    } catch { }
-                                                }}
-                                                className={`flex items-center justify-center gap-2 py-2.5 border transition-all font-semibold text-xs rounded-full ${friendRequested.has(result.username)
-                                                    ? 'bg-green-50 border-green-200 text-green-600 cursor-default'
-                                                    : 'bg-white/50 border-slate-200/50 text-slate-800 hover:bg-white/60'
-                                                    }`}
-                                            >
-                                                <User className="w-3.5 h-3.5" />
-                                                {friendRequested.has(result.username) ? 'Requested' : 'Connect'}
-                                            </button>
-                                        </div>
-                                        {modePref === 'video' && (
-                                            <div className="grid grid-cols-2 gap-2 mt-1">
-                                                {[
-                                                    { icon: Phone, mode: 'audio', label: 'Voice' },
-                                                    { icon: Video, mode: 'video', label: 'Video' },
-                                                ].map((btn) => {
-                                                    const isOffline = !result.is_online;
-                                                    const isRinging = ringingUsername === result.username;
-                                                    return (
-                                                        <button
-                                                            key={btn.mode}
-                                                            disabled={isOffline || isRinging}
-                                                            onClick={async () => {
-                                                                if (isOffline) return;
-                                                                if (isRinging) { endCall(); setRingingUsername(null); return; }
-                                                                try {
-                                                                    setRingingUsername(result.username);
-                                                                    const res = await fetchApi('/matchmaking/join/', {
-                                                                        method: 'POST',
-                                                                        body: JSON.stringify({
-                                                                            intent: `DIRECT_CONNECT:${result.username}:${btn.mode}`,
-                                                                            username: getUsername(),
-                                                                        }),
-                                                                    });
-                                                                    if (res.room_name) {
-                                                                        startCall(result.username, btn.mode as 'audio' | 'video', res.room_name);
-                                                                    }
-                                                                } catch { setRingingUsername(null); }
-                                                            }}
-                                                            className={`flex items-center justify-center gap-2 py-2.5 border transition-all font-semibold text-xs rounded-full ${isOffline
-                                                                ? 'opacity-30 cursor-not-allowed border-slate-200/50 text-slate-800'
-                                                                : isRinging
-                                                                    ? 'bg-white/60 text-slate-800 border-slate-300/50 animate-pulse'
-                                                                    : 'bg-white border-slate-200/50 text-slate-800 hover:bg-slate-900 hover:text-white'
-                                                                }`}
-                                                            title={isOffline ? 'User offline' : btn.label}
-                                                        >
-                                                            <btn.icon className="w-3.5 h-3.5" />
-                                                            {isRinging ? 'Ringing...' : btn.label}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </div>
-                </motion.div>
-            )}
 
             {/* Shared Header */}
             <Header />
@@ -642,7 +567,7 @@ export default function Dashboard() {
                         </p>
 
                         {/* Online count badge */}
-                        <div className="flex flex-wrap items-center gap-3 mb-8">
+                        <div className="flex flex-wrap items-center gap-4 mb-8">
                             <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200/50 rounded-full shadow-sm">
                                 <span className="relative flex h-2.5 w-2.5">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -651,7 +576,8 @@ export default function Dashboard() {
                                 <span className="text-green-600 font-bold text-sm">{onlineCount}</span>
                                 <span className="text-slate-500 text-sm">online now</span>
                             </div>
-                            <span className="text-slate-400 text-sm">/ {totalUsers} total members</span>
+                            <LocationPicker />
+                            <span className="text-slate-400 text-sm hidden sm:inline">/ {totalUsers} total members</span>
                         </div>
 
                         {/* Filter toggles */}
@@ -783,7 +709,7 @@ export default function Dashboard() {
                             <motion.button
                                 whileHover={{ scale: 1.01 }}
                                 whileTap={{ scale: 0.99 }}
-                                onClick={startPersonaMatch}
+                                onClick={() => startPersonaMatch()}
                                 disabled={isMatching}
                                 className={`w-full px-6 py-4 bg-white text-slate-800 font-semibold flex items-center justify-between transition-all border border-slate-200/50 hover:border-slate-400/50 hover:bg-white/50 rounded-2xl shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
                             >
@@ -802,29 +728,39 @@ export default function Dashboard() {
                                 {isOffline && <span className="text-[9px] font-bold text-amber-500 animate-pulse uppercase">Live Only</span>}
                                 <span className="text-[10px] text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">Strict Gender</span>
                             </div>
-                            <div className={`grid ${modePref === 'video' ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => startOmegleMatch('chat')}
                                     disabled={isMatching || isOffline}
-                                    className={`w-full py-4 bg-white text-slate-700 font-semibold flex items-center justify-center gap-3 transition-all border border-slate-200 hover:border-slate-300/50 hover:bg-white/50 rounded-2xl text-sm shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                    className={`py-4 bg-white text-slate-700 font-semibold flex flex-col items-center justify-center gap-2 transition-all border border-slate-200 hover:border-slate-300/50 hover:bg-white/50 rounded-2xl text-xs shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 >
                                     <MessageSquare className="w-4 h-4 text-slate-400" />
                                     Text Chat
                                 </motion.button>
-                                {modePref === 'video' && (
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => startOmegleMatch('video')}
-                                        disabled={isMatching || isOffline}
-                                        className={`w-full py-4 bg-white text-green-700 font-semibold flex items-center justify-center gap-3 transition-all border border-green-200 hover:bg-green-50 rounded-2xl text-sm shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                    >
-                                        <Video className="w-4 h-4 text-green-500" />
-                                        Video Chat
-                                    </motion.button>
-                                )}
+                                
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => window.location.href = '/video-match?gender=M'}
+                                    disabled={isMatching || isOffline}
+                                    className={`py-4 bg-white text-blue-700 font-semibold flex flex-col items-center justify-center gap-2 transition-all border border-blue-200 hover:bg-blue-50 rounded-2xl text-xs shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                >
+                                    <Video className="w-4 h-4 text-blue-500" />
+                                    Video Male
+                                </motion.button>
+
+                                <motion.button
+                                    whileHover={{ scale: 1.02, backgroundColor: '#fff1f2' }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => window.location.href = '/video-match?gender=F'}
+                                    disabled={isMatching || isOffline}
+                                    className={`py-4 bg-white text-rose-700 font-semibold flex flex-col items-center justify-center gap-2 transition-all border border-rose-200 hover:bg-rose-50 rounded-2xl text-xs shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                >
+                                    <Video className="w-4 h-4 text-rose-500" />
+                                    Video Female
+                                </motion.button>
                             </div>
                         </div>
 

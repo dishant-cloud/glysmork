@@ -9,7 +9,7 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = [
             'id', 'user', 'username', 'room', 'value', 'date', 
-            'is_read', 'read_timestamp', 'deleted_for_sender', 
+            'status', 'is_read', 'read_timestamp', 'deleted_for_sender', 
             'deleted_for_everyone', 'deleted_timestamp'
         ]
         read_only_fields = ['id', 'user', 'username', 'room', 'date', 'read_timestamp', 'deleted_timestamp']

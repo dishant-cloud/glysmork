@@ -8,6 +8,9 @@ import { useCall } from './CallProvider';
 export default function IncomingCallUI() {
     const { callState, incomingCallData, acceptCall, declineCall } = useCall();
 
+    // Do not show the incoming call UI if we are on the video-match page (it handles auto-accept)
+    if (typeof window !== 'undefined' && window.location.pathname === '/video-match') return null;
+
     if (callState !== 'ringing' || !incomingCallData) return null;
 
     return (

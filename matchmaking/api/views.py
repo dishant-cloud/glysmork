@@ -124,10 +124,7 @@ class JoinMatchmakingView(APIView):
                     'daily_refresh_timestamp': timezone.now()
                 }
             )
-            return Response({
-                "status": "offline_activated",
-                "message": "Offline matching activated. Check back daily to keep searching."
-            })
+            # Proceed to execute the search immediately.
 
         # --- NEW: DIRECT CONNECTION HANDLER (from Discovery) ---
         if intent.startswith('DIRECT_CONNECT:'):
@@ -173,6 +170,12 @@ class JoinMatchmakingView(APIView):
             mode_signal = parts[3] if len(parts) >= 4 else 'chat'
             # Expire after 10 minutes
             if room_name_signal and (time.time() - timestamp_signal) < 600:
+                # Identify the partner from the room name
+                partner_username = None
+                if room_name_signal and room_name_signal.startswith('direct_'):
+                    parts_room = room_name_signal.replace('direct_', '').split('_')
+                    partner_username = parts_room[1] if parts_room[0] == user.username else parts_room[0]
+
                 # Clear the signal
                 user.profile.current_intent = ''
                 user.profile.save(update_fields=['current_intent'])
@@ -180,6 +183,7 @@ class JoinMatchmakingView(APIView):
                     "status": "match_found",
                     "message": "Your match was waiting for you.",
                     "room_name": room_name_signal,
+                    "matched_user": partner_username,
                     "mode": mode_signal
                 })
             else:
@@ -199,8 +203,6 @@ class JoinMatchmakingView(APIView):
 
         # --- PRUNE STALE ENTRIES ---
         # If a user hasn't polled in 20 seconds, they are likely gone.
-        from datetime import timedelta
-        from django.utils import timezone
         active_threshold = timezone.now() - timedelta(seconds=20)
         Loop.objects.filter(last_seen__lt=active_threshold).delete()
         
@@ -213,19 +215,27 @@ class JoinMatchmakingView(APIView):
             excluded_ids.add(u2)
 
         # Only match with users who have been seen in the last 20 seconds
-        active_loop = Loop.objects.filter(last_seen__gte=active_threshold).exclude(user_id__in=excluded_ids)
+        active_loop = Loop.objects.filter(last_seen__gte=active_threshold)
+        
+        # Prevent re-matches ONLY for discovery/AI search, NOT for random roulette
+        if "random opposite gender" not in intent.lower():
+            active_loop = active_loop.exclude(user_id__in=excluded_ids)
+        else:
+            # Still exclude self
+            active_loop = active_loop.exclude(user_id=user.id)
 
-        match = None  # Initialize to prevent UnboundLocalError
-        mode = mode_pref  # Ensure mode is bound
+        match = None
+        mode = mode_pref
+        custom_reason = None # Simplify reason for random matches
 
         if intent.lower().startswith("random opposite gender"):
             my_gender = loop.gender
-            target_gender = 'F' if my_gender == 'M' else 'M' if my_gender == 'F' else None
-            
-            # Use manual gender filter if provided and not roulette ( Roulette is strict )
-            if "roulette" not in intent.lower():
-                if gender_filter != 'A':
-                    target_gender = gender_filter
+            # Use manual gender filter if provided
+            if gender_filter in ['M', 'F']:
+                target_gender = gender_filter
+            elif "roulette" in intent.lower() or intent.lower().startswith("random opposite gender"):
+                # Default opposite gender for Roulette if no specific filter
+                target_gender = 'F' if my_gender == 'M' else 'M' if my_gender == 'F' else None
 
             # Extract requested mode (video or chat)
             if "video" in intent.lower() or mode_pref == 'video':
@@ -236,9 +246,9 @@ class JoinMatchmakingView(APIView):
                 intent_filter = "random opposite gender chat"
             
             if target_gender:
-                # Build filtered query
+                # Build filtered query: look for target_gender OR 'O' (wildcard)
                 query = active_loop.filter(
-                    gender=target_gender,
+                    Q(gender=target_gender) | Q(gender='O'),
                     user__profile__current_intent__icontains=mode
                 )
 
@@ -258,9 +268,26 @@ class JoinMatchmakingView(APIView):
                         lang_q |= Q(user__profile__languages__contains=[lang])
                     query = query.filter(lang_q)
 
+                # --- 4. GEOSPATIAL FILTER (Geohash Optimization) ---
+                if distance_km > 0 and user.profile.latitude is not None and user.profile.longitude is not None:
+                    from matchmaking.utils import geohash_encode
+                    if not user.profile.geohash:
+                        user.profile.geohash = geohash_encode(user.profile.latitude, user.profile.longitude)
+                        user.profile.save(update_fields=['geohash'])
+                    
+                    # 1: 5000km, 2: 1250km, 3: 156km, 4: 39km, 5: 4.9km
+                    precision = 1
+                    if distance_km <= 5: precision = 5
+                    elif distance_km <= 40: precision = 4
+                    elif distance_km <= 160: precision = 3
+                    elif distance_km <= 1250: precision = 2
+                    
+                    prefix = user.profile.geohash[:precision]
+                    query = query.filter(user__profile__geohash__startswith=prefix)
+
                 potential_match = query.order_by('?').first()
 
-                # 4. Distance filter (post-query, uses Haversine in Python)
+                # 5. Final Distance verification (precise Haversine)
                 if potential_match and distance_km > 0:
                     my_lat = getattr(user.profile, 'latitude', None)
                     my_lon = getattr(user.profile, 'longitude', None)
@@ -270,10 +297,11 @@ class JoinMatchmakingView(APIView):
                         if cand_lat is None or cand_lon is None:
                             potential_match = None  # Candidate has no location, skip
                         elif haversine_km(my_lat, my_lon, cand_lat, cand_lon) > distance_km:
-                            potential_match = None  # Too far away
+                            potential_match = None  # Too far away (unlikely with geohash but good for edge cases)
 
                 if potential_match:
                     match = potential_match.user
+                    custom_reason = "Neural Link: Found in the Roulette matrix."
                     Loop.objects.filter(user__in=[user, match]).delete()
                     # Log to History
                     MatchHistory.objects.get_or_create(user1=min(user, match, key=lambda u: u.id), user2=max(user, match, key=lambda u: u.id))
@@ -284,6 +312,7 @@ class JoinMatchmakingView(APIView):
                 ).order_by('?').first()
                 if potential_match:
                     match = potential_match.user
+                    custom_reason = "Neural Link: Found in the Roulette matrix."
                     Loop.objects.filter(user__in=[user, match]).delete()
                     
         elif intent.lower() == "persona match":
@@ -293,6 +322,7 @@ class JoinMatchmakingView(APIView):
             ).order_by('?').first()
             if potential_match:
                 match = potential_match.user
+                custom_reason = "Neural Link: Persona match established."
                 Loop.objects.filter(user__in=[user, match]).delete()
         else:
             # --- THE AI DISCOVERY ENGINE ---
@@ -302,9 +332,17 @@ class JoinMatchmakingView(APIView):
                 country_filter=country_filter,
                 language_filter=language_filter,
                 distance_km=distance_km,
-                use_onboarding_data=use_onboarding_data
+                use_onboarding_data=use_onboarding_data,
+                is_offline=is_offline
             )
-            if candidates_with_reasons:
+            if candidates_with_reasons == "NO_ONLINE_CANDIDATES":
+                return Response({
+                    "status": "no_online_users",
+                    "message": "There are no potential candidates online right now."
+                })
+            elif candidates_with_reasons:
+                user.profile.successful_searches += 1
+                user.profile.save(update_fields=['successful_searches'])
                 return Response({
                     "status": "discovery_results",
                     "results": candidates_with_reasons
@@ -324,7 +362,7 @@ class JoinMatchmakingView(APIView):
             )
             
             # Found a match! Calculate commonality
-            reason = get_commonality_reason(user.profile, match.profile)
+            reason = custom_reason if custom_reason else get_commonality_reason(user.profile, match.profile)
             session_id = uuid.uuid4().hex[:12]
             room_name = f"session_{session_id}"
             
@@ -362,7 +400,7 @@ class JoinMatchmakingView(APIView):
             "mode": intent.lower().split()[-1] if intent.lower().startswith("random opposite gender") else "chat"
         })
 
-    def attempt_discovery(self, user, intent, country_filter=None, language_filter=None, distance_km=0, use_onboarding_data=False):
+    def attempt_discovery(self, user, intent, country_filter=None, language_filter=None, distance_km=0, use_onboarding_data=False, is_offline=False):
         """
         AST Vector Search Engine: Parses intent into a strictly evaluated Boolean AST with numpy vector embeddings.
         """
@@ -376,9 +414,44 @@ class JoinMatchmakingView(APIView):
             is_banned=False
         ).exclude(user=user).select_related('user')
 
+        # --- PRE-FILTER: Exclude Existing Friends ---
+        from django.db.models import Q
+        from matchmaking.models import Friendship
+        friendships = Friendship.objects.filter(
+            (Q(from_user=user) | Q(to_user=user)) & Q(status='accepted')
+        )
+        friend_ids = {f.from_user_id for f in friendships} | {f.to_user_id for f in friendships}
+        candidates_qs = candidates_qs.exclude(user_id__in=friend_ids)
+
+        # --- PRE-FILTER: Online Status for Live Search ---
+        if not is_offline:
+            from django.utils import timezone
+            from datetime import timedelta
+            two_mins_ago = timezone.now() - timedelta(minutes=2)
+            candidates_qs = candidates_qs.filter(last_seen__gte=two_mins_ago)
+
         # --- PRE-FILTER: Country (Multiple) ---
         if country_filter:
             candidates_qs = candidates_qs.filter(country__in=country_filter)
+
+        # --- PRE-FILTER: Geohash (Scale Optimization) ---
+        if distance_km > 0 and user_profile.latitude is not None and user_profile.longitude is not None:
+            from matchmaking.utils import geohash_encode
+            if not user_profile.geohash:
+                user_profile.geohash = geohash_encode(user_profile.latitude, user_profile.longitude)
+                user_profile.save(update_fields=['geohash'])
+            
+            # Determine prefix length based on distance
+            # 1: 5000km, 2: 1250km, 3: 156km, 4: 39km, 5: 4.9km
+            precision = 1
+            if distance_km <= 5: precision = 5
+            elif distance_km <= 40: precision = 4
+            elif distance_km <= 160: precision = 3
+            elif distance_km <= 1250: precision = 2
+            
+            prefix = user_profile.geohash[:precision]
+            candidates_qs = candidates_qs.filter(geohash__startswith=prefix)
+
 
         # --- PRE-FILTER: Language (ANY of) ---
         if language_filter:
@@ -399,7 +472,7 @@ class JoinMatchmakingView(APIView):
 
         if not candidates:
             print("DEBUG: Vector Search - No candidates found in database!")
-            return []
+            return "NO_ONLINE_CANDIDATES" if not is_offline else []
         
         # --- NEW ENGINE: AST + Vector Similarity + Persona Scoring ---
         from matchmaking.engine import run_hybrid_discovery
@@ -416,7 +489,7 @@ class JoinMatchmakingView(APIView):
                 results.append({
                     "id": p.user.id,
                     "username": p.user.username,
-                    "score": round(v_score * 100),
+                    "score": min(99, round(v_score * 100)),
                     "reason": f"Hybrid engine matched query with {round(v_score * 100)}% accuracy.",
                     "bio": p.bio,
                     "persona_image": p.persona_image_url,
@@ -651,40 +724,83 @@ class SendChatNotificationView(APIView):
         )
         return Response({'status': 'sent'}, status=status.HTTP_201_CREATED)
 
-
 class GetNotificationsView(APIView):
-    """Poll for unread chat notifications."""
-    permission_classes = []
-
+    """View to fetch unread chat notifications."""
     def get(self, request):
-        from django.utils import timezone
-        from datetime import timedelta
-
         username = request.query_params.get('username')
         if not username:
-            return Response({'error': 'username required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Only show notifications created in the last 24 hours — ignore stale records
+            return Response({"error": "Username required"}, status=status.HTTP_400_BAD_REQUEST)
+        
         since = timezone.now() - timedelta(hours=24)
         notifs = ChatNotification.objects.filter(
             receiver__username=username,
             is_read=False,
             created_at__gte=since,
         ).order_by('-created_at')[:10]
-
-
-        data = [{
-            'id': n.id,
-            'sender': n.sender.username,
-            'message': n.message,
-            'room_name': n.room_name,
-            'created_at': n.created_at.isoformat(),
-        } for n in notifs]
-        return Response({'notifications': data})
+        
+        from .serializers import ChatNotificationSerializer
+        serializer = ChatNotificationSerializer(notifs, many=True)
+        return Response({"notifications": serializer.data}, status=status.HTTP_200_OK)
 
     def post(self, request):
         """Mark notifications as read."""
         notif_ids = request.data.get('ids', [])
         if notif_ids:
             ChatNotification.objects.filter(id__in=notif_ids).update(is_read=True)
-        return Response({'status': 'ok'})
+        return Response({"status": "success"}, status=status.HTTP_200_OK)
+
+class TestNotificationView(APIView):
+
+    """Diagnostic view to test real-time WebSocket signals."""
+    def post(self, request):
+        username = request.data.get('username')
+        if not username:
+            return Response({"error": "Username required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from django.contrib.auth.models import User
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        layer = get_channel_layer()
+        if layer:
+            async_to_sync(layer.group_send)(
+                f'user_{user.id}',
+                {
+                    'type': 'friend_message_recv',
+                    'conversation_id': 'test_room',
+                    'sender': 'Glysmork System',
+                    'text': 'This is a test notification!',
+                }
+            )
+            return Response({"success": f"Test signal sent to user_{user.id}"})
+        return Response({"error": "No channel layer"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UpdateLocationView(APIView):
+    """Update user's latitude and longitude."""
+    def post(self, request):
+        username = request.data.get('username')
+        lat = request.data.get('latitude')
+        lng = request.data.get('longitude')
+        
+        if not username or lat is None or lng is None:
+            return Response({"error": "Username, latitude, and longitude required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            from django.contrib.auth.models import User
+            user = User.objects.get(username=username)
+            profile = user.profile
+            profile.latitude = float(lat)
+            profile.longitude = float(lng)
+            
+            # Generate Geohash for high-performance indexing
+            from matchmaking.utils import geohash_encode
+            profile.geohash = geohash_encode(profile.latitude, profile.longitude)
+            
+            profile.save()
+            return Response({"status": "Location updated", "lat": lat, "lng": lng, "geohash": profile.geohash}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

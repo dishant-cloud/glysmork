@@ -1,12 +1,10 @@
 import os
 import json
-import google.generativeai as genai
 from celery import shared_task
 from room.models import Room, Message
 from users.models import Profile
 from django.db import transaction
-
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyDLmm8qKlIUV1wTqRkh1hW3Pgu_Awf8JfU"))
+from groq_client import groq_generate
 
 @shared_task
 def generate_chat_analysis_task(room_name):
@@ -35,8 +33,6 @@ def generate_chat_analysis_task(room_name):
     conversation_text = "\n".join(conversation)
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
         # Get all users in the room
         room_users = list(room.users.all())
         user_info = {}
@@ -75,10 +71,12 @@ def generate_chat_analysis_task(room_name):
         }}
         """
 
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
+        response_text = groq_generate(prompt)
+        response_text = response_text.strip()
         if response_text.startswith("```json"):
             response_text = response_text[7:-3]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:-3]
 
         analysis = json.loads(response_text)
         participants_data = analysis.get("participants", {})
