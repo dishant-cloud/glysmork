@@ -18,6 +18,7 @@ from groq_client import groq_generate
 from matchmaking.engine import get_embedding
 from google.oauth2 import id_token
 from google.auth.transport import requests
+import requests
 import uuid
 
 load_dotenv()
@@ -341,13 +342,75 @@ class GoogleLoginView(APIView):
                 "user": {
                     "username": user.username,
                     "email": user.email,
-                    "is_verified": profile.is_verified
+                    "is_verified": profile.is_verified,
+                    "is_new_user": created
                 }
             }, status=status.HTTP_200_OK)
 
         except ValueError as e:
             # Invalid token
             return Response({"error": f"Invalid Google token: {str(e)}"}, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FacebookLoginView(APIView):
+    """
+    Verifies a Facebook access token and returns JWT access/refresh tokens.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        access_token = request.data.get('access_token')
+        if not access_token:
+            return Response({"error": "Facebook access token required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Verify the token with Facebook Graph API
+            fb_url = f"https://graph.facebook.com/me?fields=id,name,email,first_name,last_name&access_token={access_token}"
+            fb_response = requests.get(fb_url)
+            fb_data = fb_response.json()
+
+            if 'error' in fb_data:
+                return Response({"error": f"Invalid Facebook token: {fb_data['error'].get('message')}"}, status=status.HTTP_401_UNAUTHORIZED)
+
+            email = fb_data.get('email')
+            # Facebook allows accounts without emails (phone numbers). We need an email for our User model.
+            if not email:
+                 # Fallback to id-based email if not provided
+                 email = f"{fb_data['id']}@facebook.com"
+
+            first_name = fb_data.get('first_name', '')
+            last_name = fb_data.get('last_name', '')
+
+            # Find or create user
+            user, created = User.objects.get_or_create(email=email, defaults={
+                'username': email.split('@')[0] + "_fb_" + str(uuid.uuid4())[:4],
+                'first_name': first_name,
+                'last_name': last_name
+            })
+
+            # Update profile verification
+            profile, _ = Profile.objects.get_or_create(user=user)
+            profile.is_verified = True
+            profile.auth_provider = 'facebook'
+            profile.save()
+
+            # Generate tokens
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                "message": "Facebook login successful",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": {
+                    "username": user.username,
+                    "email": user.email,
+                    "is_verified": profile.is_verified,
+                    "is_new_user": created
+                }
+            }, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

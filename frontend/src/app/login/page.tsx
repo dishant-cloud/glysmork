@@ -13,7 +13,8 @@ export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+    const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "";
 
     useEffect(() => {
         const existingUser = localStorage.getItem('user');
@@ -29,7 +30,26 @@ export default function Login() {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
         }
-    }, [router]);
+
+        // Initialize Facebook SDK
+        (window as any).fbAsyncInit = function() {
+            (window as any).FB.init({
+                appId      : fbAppId,
+                cookie     : true,
+                xfbml      : true,
+                version    : 'v18.0'
+            });
+        };
+        (function(d: Document, s: string, id: string) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) return;
+            js = d.createElement(s) as HTMLScriptElement; js.id = id;
+            js.src = "https://connect.facebook.net/en_US/sdk.js";
+            if (fjs && fjs.parentNode) {
+                fjs.parentNode.insertBefore(js, fjs);
+            }
+        }(document, 'script', 'facebook-jssdk'));
+    }, [router, fbAppId]);
 
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -71,8 +91,43 @@ export default function Login() {
         }
     };
 
+    const handleFacebookLogin = () => {
+        if (!(window as any).FB) {
+            alert("Facebook SDK not loaded yet. Please try again in a moment.");
+            return;
+        }
+        setIsLoading(true);
+        (window as any).FB.login((response: any) => {
+            if (response.authResponse) {
+                const accessToken = response.authResponse.accessToken;
+                verifyFacebookToken(accessToken);
+            } else {
+                setIsLoading(false);
+                console.log('User cancelled login or did not fully authorize.');
+            }
+        }, { scope: 'public_profile,email' });
+    };
+
+    const verifyFacebookToken = async (accessToken: string) => {
+        try {
+            const data = await fetchApi('/users/facebook-login/', {
+                method: 'POST',
+                body: JSON.stringify({ access_token: accessToken })
+            });
+            localStorage.setItem('user', JSON.stringify(data.user));
+            if (data.access) localStorage.setItem('access_token', data.access);
+            if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+            window.location.href = '/dashboard';
+        } catch (error) {
+            console.error(error);
+            alert("Facebook login failed. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
-        <GoogleOAuthProvider clientId={clientId}>
+        <GoogleOAuthProvider clientId={googleClientId}>
             <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] text-slate-900 selection:bg-cyan-500/30 font-sans">
                 
                 {/* Ambient Background Glows */}
@@ -94,21 +149,32 @@ export default function Login() {
                         <p className="text-sm font-medium text-slate-500">Welcome back to the network</p>
                     </div>
 
-                    {/* Google Login Section */}
-                    <div className="mb-8 flex flex-col items-center">
+                    {/* Social Login Section */}
+                    <div className="mb-8 flex flex-col gap-4 items-center">
                         <div className="w-full flex justify-center">
                             <GoogleLogin
                                 onSuccess={handleGoogleSuccess}
                                 onError={() => {
-                                    console.error('Google Login Error: Token retrieval failed. Check Authorized Origins in Google Console.');
-                                    alert("Google Authentication failed. Please ensure http://localhost:3000 is authorized in your Google Console.");
+                                    console.error('Google Login Error: Token retrieval failed.');
                                 }}
                                 theme="outline"
                                 shape="pill"
-                                width="100%"
+                                width="320"
                             />
                         </div>
-                        <div className="mt-8 flex items-center w-full gap-4">
+                        
+                        <button
+                            onClick={handleFacebookLogin}
+                            disabled={isLoading}
+                            className="flex items-center justify-center gap-3 w-[320px] bg-white border border-slate-200 py-2.5 rounded-full hover:bg-slate-50 transition-all font-medium text-sm text-slate-700 shadow-sm"
+                        >
+                            <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                            </svg>
+                            Continue with Facebook
+                        </button>
+
+                        <div className="mt-4 flex items-center w-full gap-4">
                             <div className="h-px bg-slate-200 flex-1" />
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">or continue with email</span>
                             <div className="h-px bg-slate-200 flex-1" />

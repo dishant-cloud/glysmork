@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView, GoogleLoginView, OnlineCountView, HeartbeatView, AnalyticsView, ImageUploadView, TrustScoreView, ReportUserView, BlockUserView, debug_cache
+from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView, GoogleLoginView, FacebookLoginView, OnlineCountView, HeartbeatView, AnalyticsView, ImageUploadView, TrustScoreView, ReportUserView, BlockUserView, debug_cache
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='api-register'),
     path('login/', LoginView.as_view(), name='api-login'),
     path('google-login/', GoogleLoginView.as_view(), name='api-google-login'),
+    path('facebook-login/', FacebookLoginView.as_view(), name='api-facebook-login'),
     path('profile/', ProfileDetailView.as_view(), name='api-profile-detail'),
     path('profile/upload-photo/', ImageUploadView.as_view(), name='api-profile-upload-photo'),
     path('profile/<str:username>/', PublicProfileView.as_view(), name='api-public-profile'),

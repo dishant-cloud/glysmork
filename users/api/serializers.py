@@ -27,6 +27,18 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics', 'trust_score', 'trust_tier']
 
+    def update(self, instance, validated_data):
+        user_data = self.context['request'].data.get('user')
+        if user_data and 'username' in user_data:
+             user = instance.user
+             new_username = user_data['username']
+             if User.objects.filter(username=new_username).exclude(id=user.id).exists():
+                 raise serializers.ValidationError({"username": "This username is already taken."})
+             user.username = new_username
+             user.save()
+        
+        return super().update(instance, validated_data)
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         
