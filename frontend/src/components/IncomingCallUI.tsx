@@ -77,7 +77,7 @@ export default function IncomingCallUI() {
                         </button>
                         
                         <button 
-                            onClick={acceptCall}
+                            onClick={() => acceptCall()}
                             className="flex flex-col items-center gap-3 group"
                         >
                             <div className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] transition-all transform group-hover:scale-110">

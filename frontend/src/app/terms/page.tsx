@@ -16,7 +16,7 @@ export default function TermsOfService() {
                 </div>
 
                 <h1 className="text-4xl font-bold text-white mb-2">Terms of Service</h1>
-                <p className="text-sm text-gray-500 mb-10 font-sans text-[13px] font-medium">Last updated: March 5, 2026</p>
+                <p className="text-sm text-gray-500 mb-10 font-sans text-[13px] font-medium">Last updated: April 13, 2026</p>
 
                 <div className="space-y-8 leading-relaxed text-sm">
                     <section>
@@ -26,7 +26,7 @@ export default function TermsOfService() {
 
                     <section>
                         <h2 className="text-xl font-semibold text-white mb-3">2. Description of Service</h2>
-                        <p>Glysmork is a universal connection engine that uses artificial intelligence to analyze user profiles and match people based on intent queries. The platform enables users to find and connect with specific types of people for any purpose — conversations, mentorship, dating, networking, expertise-seeking, emotional support, or any other form of human connection.</p>
+                        <p>Glysmork is a universal connection engine that uses artificial intelligence to analyze user profiles and match people based on intent queries. The platform enables users to find and connect with specific types of people for any purpose — conversations, mentorship, dating, networking, expertise-seeking, emotional support, or any other form of human connection. Certain features require a paid subscription or in-app Gems.</p>
                     </section>
 
                     <section>
@@ -39,20 +39,55 @@ export default function TermsOfService() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">4. AI Analysis & Honesty Policy</h2>
-                        <p>Glysmork uses AI to analyze your responses and conversations. Our system is designed to detect dishonest or surface-level answers (&quot;the Cap Test&quot;). If flagged:</p>
-                        <ul className="list-disc ml-6 mt-3 space-y-2">
-                            <li>You will be asked to re-answer the question with more specificity and honesty.</li>
-                            <li>Repeated dishonest behavior may result in restricted access to matching features.</li>
-                            <li>The onboarding quiz can only be taken once per week to ensure thoughtful, genuine answers.</li>
+                        <h2 className="text-xl font-semibold text-white mb-3">4. Free Usage Limits & Quotas</h2>
+                        <p className="mb-3">Free accounts are subject to the following daily usage limits, which reset at midnight UTC:</p>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li><strong className="text-white">AI/Intent-based Search:</strong> Up to 4 searches per day (combined). This limit applies to all searches that involve calling an external AI/LLM service, including onboarding-profile-aware searches.</li>
+                            <li><strong className="text-white">Roulette Matching:</strong> Up to 20 random matches per day.</li>
+                            <li>Once a limit is reached, the feature will be unavailable until the daily quota resets, unless you upgrade to a subscription plan or spend Gems.</li>
                         </ul>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">5. Conversation Monitoring</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">5. Subscription Plans & Billing</h2>
+                        <p className="mb-3">Glysmork offers the following paid subscription tiers, providing extended daily limits:</p>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li><strong className="text-white">Subscribed tier limits:</strong> Up to 40 LLM-based AI searches per day; up to 100 standard (non-LLM) searches per day; unlimited Roulette matches.</li>
+                            <li>Subscriptions are available on a Weekly, Monthly, 3-Month, 6-Month, or Yearly basis. Yearly pricing provides the greatest cost benefit.</li>
+                            <li>Subscriptions are activated immediately upon successful payment and extend your existing subscription if one is already active.</li>
+                            <li>All payments are processed securely via Razorpay. Glysmork does not store your payment card details.</li>
+                            <li><strong className="text-white">Refund Policy:</strong> Subscriptions are non-refundable once activated. If you experience a billing issue, contact <span className="text-purple-400">billing@glysmork.com</span> within 7 days of purchase.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-white mb-3">6. Gems (Virtual Currency)</h2>
+                        <p className="mb-3">Glysmork offers a virtual currency system called <strong className="text-white">Gems</strong>:</p>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>Gems can only be obtained by purchasing them with real money via Razorpay. They cannot be earned, gifted, or transferred between accounts.</li>
+                            <li>Gems can be used to unlock premium features such as instant match prioritization, bypassing daily quotas, or obtaining special match advantages.</li>
+                            <li>Gems have no cash value and cannot be exchanged back for real money under any circumstances.</li>
+                            <li>Unused Gems are forfeited if your account is banned or terminated due to a violation of these Terms.</li>
+                            <li>Glysmork reserves the right to change Gem pricing, adjust what Gems can be spent on, or discontinue the Gem economy at any time with reasonable notice.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-white mb-3">7. AI Data Processing & Profile Analysis</h2>
+                        <p className="mb-3">By using Glysmork, you acknowledge and consent to the following AI-related data practices:</p>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>Your onboarding responses are summarized and embedded into a vector representation using third-party LLM APIs (e.g., Google Gemini). This data is stored on our servers to enable matchmaking.</li>
+                            <li>Your intent queries during searching may be sent to LLM APIs to compute semantic matches. We minimize such calls to control costs — this is also why daily AI search limits exist.</li>
+                            <li>Conversations may be analyzed by AI to improve your profile and connection accuracy. This also includes automated fraud and misconduct detection.</li>
+                            <li>Our system is designed to detect dishonest or surface-level answers (&quot;the Cap Test&quot;). If flagged, you will be asked to provide more thoughtful answers. Repeated dishonest behavior may restrict your access to matching features.</li>
+                            <li>The onboarding quiz can only be re-taken once per week to ensure genuine responses.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-white mb-3">8. Conversation Monitoring</h2>
                         <p>By using Glysmork, you consent to the following:</p>
                         <ul className="list-disc ml-6 mt-3 space-y-2">
-                            <li>Conversations may be analyzed by AI to improve your profile and connection accuracy.</li>
                             <li>You may download a transcript of any conversation you are part of.</li>
                             <li>Messages deleted &quot;for everyone&quot; are hidden from view but may be retained for moderation if the conversation is reported.</li>
                             <li>Reported conversations are stored and accessible to our moderation team.</li>
@@ -60,18 +95,19 @@ export default function TermsOfService() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">6. Prohibited Conduct</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">9. Prohibited Conduct</h2>
                         <ul className="list-disc ml-6 space-y-2">
                             <li>Harassment, hate speech, threats, or abusive behavior towards other users.</li>
                             <li>Impersonation or creating misleading profiles.</li>
                             <li>Spamming, solicitation, or commercial use without authorization.</li>
                             <li>Exploiting the matching system by manipulating your profile data.</li>
+                            <li>Attempting to circumvent daily usage limits through technical means (e.g., using multiple accounts).</li>
                             <li>Any illegal activity conducted through the platform.</li>
                         </ul>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">7. Reporting & Moderation</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">10. Reporting & Moderation</h2>
                         <ul className="list-disc ml-6 space-y-2">
                             <li>Users can report other users for violations. All reports are reviewed by our moderation team.</li>
                             <li>Reported accounts are flagged and stored for review, including their message history.</li>
@@ -80,28 +116,25 @@ export default function TermsOfService() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">8. Virtual Economy (Diamonds)</h2>
-                        <p>Glysmork may feature a virtual economy using &quot;Diamonds&quot; for premium features. Diamonds have no real-world monetary value and cannot be exchanged or refunded. Glysmork reserves the right to modify the virtual economy at any time.</p>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">9. Limitation of Liability</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">11. Limitation of Liability</h2>
                         <p>Glysmork provides connections based on AI analysis. We do not guarantee the suitability, safety, or behavior of any matched user. Interactions with other users are entirely at your own risk. Glysmork is not responsible for any consequences arising from connections made through the platform.</p>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">10. Changes to Terms</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">12. Changes to Terms</h2>
                         <p>We may update these Terms of Service at any time. Continued use of Glysmork after changes are posted constitutes acceptance of the updated terms.</p>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">11. Contact</h2>
-                        <p>For questions about these terms, contact us at <span className="text-purple-400">legal@glysmork.com</span>.</p>
+                        <h2 className="text-xl font-semibold text-white mb-3">13. Contact</h2>
+                        <p>For questions about these terms, contact us at <span className="text-purple-400">legal@glysmork.com</span>. For billing issues, contact <span className="text-purple-400">billing@glysmork.com</span>.</p>
                     </section>
                 </div>
 
                 <div className="mt-16 pt-8 border-t border-slate-200/60 shadow-sm text-center">
                     <Link href="/privacy" className="text-purple-400 hover:text-purple-300 text-sm">Privacy Policy</Link>
+                    <span className="text-gray-600 mx-3">•</span>
+                    <Link href="/wallet" className="text-purple-400 hover:text-purple-300 text-sm">Subscription Plans</Link>
                     <span className="text-gray-600 mx-3">•</span>
                     <Link href="/" className="text-gray-500 hover:text-gray-400 text-sm">Back to Home</Link>
                 </div>

@@ -32,6 +32,7 @@ import NotificationProvider from "@/components/NotificationProvider";
 import CallProvider from "@/components/CallProvider";
 import IncomingCallUI from "@/components/IncomingCallUI";
 import ActiveCallUI from "@/components/ActiveCallUI";
+import RouteChangeDispatcher from "@/components/RouteChangeDispatcher";
 
 export default function RootLayout({
   children,
@@ -52,6 +53,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <NotificationProvider>
+            <RouteChangeDispatcher />
             <CallProvider>
               {children}
               <IncomingCallUI />

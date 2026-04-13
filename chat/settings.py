@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'room',
     'matchmaking',
     'calls',
+    'wallet',
     'django_countries',
     'rest_framework_simplejwt',
 ]

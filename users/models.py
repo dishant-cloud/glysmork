@@ -96,6 +96,12 @@ class Profile(models.Model):
     flagged_for_review = models.BooleanField(default=False)
     trust_last_calculated_at = models.DateTimeField(default=timezone.now)
 
+    # Quota & Limits
+    daily_ai_llm_searches = models.IntegerField(default=0, help_text="Searches hitting the LLM (Limit 4 free, 40 subbed)")
+    daily_standard_searches = models.IntegerField(default=0, help_text="Non-LLM searches (e.g. cached intent). (Limit combined 4 free, 100 subbed)")
+    daily_roulette_searches = models.IntegerField(default=0, help_text="Random matching (Limit 20 free, Unlimited subbed)")
+    last_quota_reset_date = models.DateField(default=timezone.now, help_text="Date when daily quotas were last reset")
+
     # Verification (Voting)
     male_votes = models.IntegerField(default=0)
     female_votes = models.IntegerField(default=0)

@@ -17,7 +17,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from groq_client import groq_generate
 from matchmaking.engine import get_embedding
 from google.oauth2 import id_token
-from google.auth.transport import requests
+from google.auth.transport import requests as google_requests
 import requests
 import uuid
 
@@ -311,7 +311,7 @@ class GoogleLoginView(APIView):
 
         try:
             # Verify the ID token
-            idinfo = id_token.verify_oauth2_token(token, requests.Request(), client_id)
+            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
 
             # ID token is valid. Get user details.
             email = idinfo['email']

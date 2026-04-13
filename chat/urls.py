@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/users/', include('users.api.urls')),
     path('api/room/', include('room.api.urls')),
     path('api/matchmaking/', include('matchmaking.api.urls')),
+    path('api/wallet/', include('wallet.urls')),
 ]
 
 from django.conf import settings

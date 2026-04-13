@@ -37,6 +37,7 @@ export default function Dashboard() {
     const [countryFilter, setCountryFilter] = useState<string[]>([]);
     const [languageFilter, setLanguageFilter] = useState<string[]>([]);
     const [distanceKm, setDistanceKm] = useState(0);
+    const [genderFilter, setGenderFilter] = useState<string>('A');
     const [showFilters, setShowFilters] = useState(false);
 
     const isInitialMountIntent = useRef(true);
@@ -212,10 +213,11 @@ export default function Dashboard() {
                         intent: intentText,
                         username: getUsername(),
                         is_offline: isOffline,
-                        mode: modePref,
+                        mode: isOffline ? 'chat' : modePref,
                         location_filter: locationFilter,
                         country_filter: countryFilter,
                         language_filter: languageFilter,
+                        gender_filter: genderFilter,
                         distance_km: distanceKm
                     })
                 });
@@ -254,10 +256,11 @@ export default function Dashboard() {
                     intent: intentText,
                     username: getUsername(),
                     is_offline: forceOffline || isOffline,
-                    mode: modePref,
+                    mode: (forceOffline || isOffline) ? 'chat' : modePref,
                     location_filter: locationFilter,
                     country_filter: countryFilter,
                     language_filter: languageFilter,
+                    gender_filter: genderFilter,
                     distance_km: distanceKm
                 })
             });
@@ -282,9 +285,10 @@ export default function Dashboard() {
         }
     };
 
-    const startOmegleMatch = async (mode: 'video' | 'chat') => {
+    const startOmegleMatch = async () => {
         setIsMatching(true);
-        const intentText = `Random Opposite Gender ${mode}`;
+        const activeMode = isOffline ? 'chat' : modePref;
+        const intentText = `Random Opposite Gender ${activeMode}`;
         try {
             const response = await fetchApi('/matchmaking/join/', {
                 method: 'POST',
@@ -292,10 +296,11 @@ export default function Dashboard() {
                     intent: intentText,
                     username: getUsername(),
                     is_offline: isOffline,
-                    mode: modePref,
+                    mode: activeMode,
                     location_filter: locationFilter,
                     country_filter: countryFilter,
                     language_filter: languageFilter,
+                    gender_filter: genderFilter,
                     distance_km: distanceKm
                 })
             });
@@ -303,9 +308,17 @@ export default function Dashboard() {
                 setIsMatching(false);
                 setIsOffline(false);
                 showNotification(response.message);
-            } else if (response.match_found || response.room_name) {
+            } else if (response.status === 'quota_exceeded') {
                 setIsMatching(false);
-                window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || mode}`;
+                showNotification("Free limit reached! Consider subscribing or using Gems.");
+                stopPolling();
+            } else if (response.match_found || response.room_name || response.status === 'match_found') {
+                setIsMatching(false);
+                if (activeMode === 'video') {
+                     window.location.href = `/video-match?gender=${genderFilter}`;
+                } else {
+                     window.location.href = `/chat/room?id=${response.room_name}&mode=chat`;
+                }
             } else {
                 setSearchingIntent(intentText);
                 pollForMatch(intentText);
@@ -327,10 +340,11 @@ export default function Dashboard() {
                     intent: intentText,
                     username: getUsername(),
                     is_offline: forceOffline || isOffline,
-                    mode: modePref,
+                    mode: (forceOffline || isOffline) ? 'chat' : modePref,
                     location_filter: locationFilter,
                     country_filter: countryFilter,
                     language_filter: languageFilter,
+                    gender_filter: genderFilter,
                     distance_km: distanceKm
                 })
             });
@@ -605,9 +619,9 @@ export default function Dashboard() {
                                 >
                                     <Users className="w-3.5 h-3.5" />
                                     Filters
-                                    {(countryFilter.length > 0 || languageFilter.length > 0 || distanceKm > 0) && (
+                                    {(countryFilter.length > 0 || languageFilter.length > 0 || distanceKm > 0 || genderFilter !== 'A') && (
                                         <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[8px] font-bold flex items-center justify-center">
-                                            {[countryFilter.length > 0, languageFilter.length > 0, distanceKm > 0].filter(Boolean).length}
+                                            {[countryFilter.length > 0, languageFilter.length > 0, distanceKm > 0, genderFilter !== 'A'].filter(Boolean).length}
                                         </span>
                                     )}
                                 </button>
@@ -670,8 +684,24 @@ export default function Dashboard() {
                                         <span>Any</span><span>250km</span><span>500km</span>
                                     </div>
                                 </div>
+                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Gender {genderFilter !== 'A' && `(${genderFilter})`}</label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {[
+                                            { id: 'A', label: 'ANY' }, { id: 'M', label: 'MALE' }, { id: 'F', label: 'FEMALE' }
+                                        ].map(g => (
+                                            <button
+                                                key={g.id}
+                                                onClick={() => setGenderFilter(g.id)}
+                                                className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border ${genderFilter === g.id ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-900'}`}
+                                            >
+                                                {g.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <button
-                                    onClick={() => { setCountryFilter([]); setLanguageFilter([]); setDistanceKm(0); }}
+                                    onClick={() => { setCountryFilter([]); setLanguageFilter([]); setDistanceKm(0); setGenderFilter('A'); }}
                                     className="text-[10px] font-black text-slate-400 hover:text-slate-900 transition-colors self-end pb-1 uppercase tracking-widest"
                                 >
                                     Clear all
@@ -724,44 +754,19 @@ export default function Dashboard() {
                         {/* Mode 3: Roulette */}
                         <div className={`w-full max-w-xl space-y-3 ${isOffline ? 'opacity-20 cursor-not-allowed grayscale pointer-events-none' : ''}`}>
                             <div className="flex items-center gap-3">
-                                <h3 className="text-base font-bold uppercase tracking-widest text-green-600">03. Roulette (M/F)</h3>
+                                <h3 className="text-base font-bold uppercase tracking-widest text-green-600">03. Roulette Match</h3>
                                 {isOffline && <span className="text-[9px] font-bold text-amber-500 animate-pulse uppercase">Live Only</span>}
-                                <span className="text-[10px] text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">Strict Gender</span>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => startOmegleMatch('chat')}
-                                    disabled={isMatching || isOffline}
-                                    className={`py-4 bg-white text-slate-700 font-semibold flex flex-col items-center justify-center gap-2 transition-all border border-slate-200 hover:border-slate-300/50 hover:bg-white/50 rounded-2xl text-xs shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                >
-                                    <MessageSquare className="w-4 h-4 text-slate-400" />
-                                    Text Chat
-                                </motion.button>
-                                
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => window.location.href = '/video-match?gender=M'}
-                                    disabled={isMatching || isOffline}
-                                    className={`py-4 bg-white text-blue-700 font-semibold flex flex-col items-center justify-center gap-2 transition-all border border-blue-200 hover:bg-blue-50 rounded-2xl text-xs shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                >
-                                    <Video className="w-4 h-4 text-blue-500" />
-                                    Video Male
-                                </motion.button>
-
-                                <motion.button
-                                    whileHover={{ scale: 1.02, backgroundColor: '#fff1f2' }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={() => window.location.href = '/video-match?gender=F'}
-                                    disabled={isMatching || isOffline}
-                                    className={`py-4 bg-white text-rose-700 font-semibold flex flex-col items-center justify-center gap-2 transition-all border border-rose-200 hover:bg-rose-50 rounded-2xl text-xs shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                >
-                                    <Video className="w-4 h-4 text-rose-500" />
-                                    Video Female
-                                </motion.button>
-                            </div>
+                            <motion.button
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.99 }}
+                                onClick={() => startOmegleMatch()}
+                                disabled={isMatching || isOffline}
+                                className={`w-full py-5 bg-white text-slate-800 font-semibold flex items-center justify-center gap-3 transition-all border border-slate-200 hover:border-slate-300/50 hover:bg-white/50 rounded-2xl shadow-sm ${isMatching ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            >
+                                <Shuffle className="w-5 h-5 text-green-500" />
+                                Start Roulette
+                            </motion.button>
                         </div>
 
                     </div>

@@ -108,6 +108,47 @@ class JoinMatchmakingView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # --- QUOTA & SUBSCRIPTION CHECK ---
+        today = timezone.localtime(timezone.now()).date()
+        profile = user.profile
+        if profile.last_quota_reset_date < today:
+            profile.daily_ai_llm_searches = 0
+            profile.daily_standard_searches = 0
+            profile.daily_roulette_searches = 0
+            profile.last_quota_reset_date = today
+            profile.save(update_fields=['daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches', 'last_quota_reset_date'])
+
+        # Check Subscription
+        is_subbed = False
+        if hasattr(user, 'subscription'):
+            if user.subscription.is_valid():
+                is_subbed = True
+
+        mode_type = "ROULETTE" if intent.lower().startswith("random opposite gender") else "STANDARD"
+        
+        # Enforce limits
+        if mode_type == "ROULETTE":
+            if not is_subbed and profile.daily_roulette_searches >= 20:
+                return Response({"status": "quota_exceeded", "message": "Free Roulette limit reached."})
+            profile.daily_roulette_searches += 1
+        else:
+            # For standard intents
+            if use_onboarding_data:
+                # LLM heavy route
+                limit = 40 if is_subbed else 4
+                if profile.daily_ai_llm_searches >= limit:
+                    return Response({"status": "quota_exceeded", "message": "Daily AI limit reached."})
+                profile.daily_ai_llm_searches += 1
+            else:
+                # Basic vector/keyword match route
+                limit = 100 if is_subbed else 4
+                if profile.daily_standard_searches >= limit:
+                    return Response({"status": "quota_exceeded", "message": "Daily standard search limit reached."})
+                profile.daily_standard_searches += 1
+            
+        profile.save(update_fields=['daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches'])
+        # ----------------------------------
+
         # --- NEW: OFFLINE SEARCH REGISTRATION ---
         if is_offline:
             OfflineSearch.objects.update_or_create(

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LogOut, User, Mail, Users, BarChart3, Network } from 'lucide-react';
+import { LogOut, User, Mail, Users, BarChart3, Network, Gem } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from 'next/navigation'; 
 import { useNotification } from './NotificationProvider';
@@ -108,6 +108,17 @@ export default function Header() {
                                 className="w-10 h-10 flex items-center justify-center rounded-full bg-white/80 border border-slate-200/60 hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-500 hover:text-slate-800 shadow-sm"
                             >
                                 <BarChart3 size={18} />
+                            </Link>
+                            <Link
+                                href="/wallet"
+                                title="Subscription & Gems"
+                                className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all shadow-sm ${
+                                    pathname === '/wallet'
+                                        ? 'bg-sky-50 border-sky-200 text-sky-600'
+                                        : 'bg-white/80 border-slate-200/60 hover:bg-sky-50 hover:border-sky-200 text-slate-400 hover:text-sky-500'
+                                }`}
+                            >
+                                <Gem size={17} />
                             </Link>
                             <Link
                                 href="/profile"
