@@ -15,3 +15,7 @@ djangorestframework-simplejwt
 google-generativeai
 celery
 redis
+python-dotenv
+django-cors-headers
+stripe
+groq
