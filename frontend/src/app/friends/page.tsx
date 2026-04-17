@@ -41,23 +41,10 @@ export default function FriendsPage() {
             window.location.replace('/login');
         }
 
-        const handleCallAccepted = (e: any) => {
-            if (e.detail) {
-                window.location.href = `/chat/room?id=${e.detail}`;
-            }
-        };
 
-        const handleCallDeclined = () => {
-            setRingingUsername(null);
-            alert("The user declined your connection request.");
-        };
-
-        window.addEventListener('sys_call_answered', handleCallAccepted);
-        window.addEventListener('sys_call_declined', handleCallDeclined);
 
         return () => {
-            window.removeEventListener('sys_call_answered', handleCallAccepted);
-            window.removeEventListener('sys_call_declined', handleCallDeclined);
+
         };
     }, []);
 
@@ -173,7 +160,6 @@ export default function FriendsPage() {
                                                                 const sortedUsernames = [username, f.username].sort();
                                                                 const room_name = `direct_${sortedUsernames[0]}_${sortedUsernames[1]}`;
                                                                 startCall(f.username, btn.mode as 'audio' | 'video', room_name);
-                                                                router.push(`/chat/room?id=${room_name}`);
                                                             }}
                                                             className={`flex flex-col items-center justify-center py-2 bg-white/60 border transition-all ${isOffline
                                                                 ? 'opacity-30 cursor-not-allowed border-slate-700'

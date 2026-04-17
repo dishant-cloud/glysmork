@@ -11,7 +11,7 @@ from django_countries.serializer_fields import CountryField
 
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    country = CountryField()
+    country = CountryField(allow_blank=True)
 
     class Meta:
         model = Profile
@@ -24,6 +24,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             'show_ai_analysis', 'hidden_data_fields',
             'country', 'state', 'languages', 'latitude', 'longitude',
             'persona_image_url', 'trust_score', 'trust_tier',
+            'subscription_tier', 'is_premium',
+            'daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches',
         ]
         read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics', 'trust_score', 'trust_tier']
 

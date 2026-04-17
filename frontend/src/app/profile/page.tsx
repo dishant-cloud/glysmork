@@ -21,8 +21,6 @@ export default function ProfilePage() {
     const [editLatitude, setEditLatitude] = useState<number | null>(null);
     const [editLongitude, setEditLongitude] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [viewMode, setViewMode] = useState<'persona' | 'real'>('persona');
 
     useEffect(() => {
         loadProfile();
@@ -47,7 +45,7 @@ export default function ProfilePage() {
             const data = await fetchApi(`/users/profile/${storedUsername}/`);
             setProfileData(data);
             if (data.image) {
-                setViewMode('real');
+                // Legacy image handling removed
             }
             setEditBio(data.bio || '');
             setEditGender(data.gender || 'O');
@@ -65,36 +63,12 @@ export default function ProfilePage() {
     };
 
 
-    const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        setUploading(true);
-        const formData = new FormData();
-        formData.append('image', file);
-
-        try {
-            const data = await fetchApi('/users/profile/upload-photo/', {
-                method: 'POST',
-                body: formData,
-            });
-            setProfileData((prev: any) => ({ ...prev, image: data.image_url }));
-            alert('Authentic photo synchronized successfully.');
-            setViewMode('real');
-        } catch (err: any) {
-            console.error("Failed to upload photo", err);
-            alert(err.message || 'Failed to update profile visual.');
-        } finally {
-            setUploading(false);
-        }
-    };
-
     const handleSave = async () => {
         const storedUsername = getUsername();
         if (!storedUsername) return;
         setSaving(true);
         try {
-            const data = await fetchApi(`/users/profile/${storedUsername}/`, {
+            const data = await fetchApi(`/users/profile/`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     bio: editBio,
@@ -194,32 +168,17 @@ export default function ProfilePage() {
                         >
                             {/* The Persona Image */}
                             <div className="aspect-square w-full bg-slate-100 border border-slate-200 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center shadow-inner">
-                                {viewMode === 'persona' ? (
-                                    profileData?.persona_image_url ? (
-                                        <img
-                                            src={profileData.persona_image_url}
-                                            alt="AI Persona"
-                                            className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
-                                        />
-                                    ) : (
-                                        <div className="text-slate-500 text-xs text-center p-6 flex flex-col items-center gap-3">
-                                            <User className="w-12 h-12 opacity-10" />
-                                            <p className="font-medium">Profile visual pending.<br /><span className="text-[10px] opacity-70">Complete onboarding to generate.</span></p>
-                                        </div>
-                                    )
+                                {profileData?.persona_image_url ? (
+                                    <img
+                                        src={profileData.persona_image_url}
+                                        alt="AI Persona"
+                                        className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
+                                    />
                                 ) : (
-                                    profileData?.image ? (
-                                        <img
-                                            src={profileData.image.startsWith('http') ? profileData.image : `http://127.0.0.1:8000${profileData.image}`}
-                                            alt="Real Profile"
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="text-slate-500 text-xs text-center p-6 flex flex-col items-center gap-3">
-                                            <User className="w-12 h-12 opacity-10" />
-                                            <p className="font-medium">No photo uploaded.</p>
-                                        </div>
-                                    )
+                                    <div className="text-slate-500 text-xs text-center p-6 flex flex-col items-center gap-3">
+                                        <User className="w-12 h-12 opacity-10" />
+                                        <p className="font-medium">Profile visual pending.<br /><span className="text-[10px] opacity-70">Complete onboarding to generate.</span></p>
+                                    </div>
                                 )}
 
                                 <div className={`absolute top-3 right-3 backdrop-blur-md border shadow-sm px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-bold z-10 ${
@@ -233,18 +192,6 @@ export default function ProfilePage() {
                                     <span>Trust: {profileData?.trust_score ?? 100} — Tier {profileData?.trust_tier || 'A'}</span>
                                 </div>
 
-                                <div className="absolute bottom-4 inset-x-4 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                    <button
-                                        onClick={() => setViewMode(viewMode === 'persona' ? 'real' : 'persona')}
-                                        className="flex-1 text-[10px] font-bold text-slate-700 bg-white/90 hover:bg-white px-3 py-2.5 rounded-xl border border-slate-200 shadow-lg backdrop-blur-md transition-all"
-                                    >
-                                        {viewMode === 'persona' ? 'View Real Photo' : 'View AI Persona'}
-                                    </button>
-                                    <label className="flex-1 text-[10px] font-bold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 px-3 py-2.5 rounded-xl border border-cyan-200 shadow-lg backdrop-blur-md transition-all cursor-pointer text-center">
-                                        {uploading ? 'Processing...' : 'Upload Photo'}
-                                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} />
-                                    </label>
-                                </div>
                             </div>
 
                             {isEditing ? (

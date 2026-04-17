@@ -12,12 +12,7 @@ const PLANS = [
     { id: 5, name: 'Yearly', duration: 365, price: 1999, discount: '60% off', recommended: true },
 ];
 
-const GEMS = [
-    { id: 1, name: 'Small Pack', gems: 50, price: 99 },
-    { id: 2, name: 'Medium Pack', gems: 150, price: 249, bonus: '+50 Gems' },
-    { id: 3, name: 'Large Pack', gems: 500, price: 799, bonus: '+150 Gems' },
-    { id: 4, name: 'Mega Stash', gems: 1500, price: 1999, bonus: '+500 Gems' },
-];
+
 
 export default function WalletPage() {
     const [loading, setLoading] = useState(false);
@@ -31,7 +26,7 @@ export default function WalletPage() {
         return () => { document.body.removeChild(script); };
     }, []);
 
-    const handlePayment = async (type: 'SUBSCRIPTION' | 'GEMS', itemId: number) => {
+    const handlePayment = async (type: 'SUBSCRIPTION', itemId: number) => {
         if (!scriptLoaded) {
             alert('Payment gateway is still loading. Please try again in a second.');
             return;
@@ -57,7 +52,7 @@ export default function WalletPage() {
                 amount: orderRes.amount,
                 currency: orderRes.currency,
                 name: "Glysmork AI",
-                description: type === 'SUBSCRIPTION' ? "Premium Subscription" : "Gem Purchase",
+                description: "Premium Subscription",
                 order_id: orderRes.order_id,
                 handler: async function (response: any) {
                     try {
@@ -149,30 +144,7 @@ export default function WalletPage() {
                     </div>
                 </section>
 
-                {/* Gems */}
-                <section>
-                    <div className="flex items-center gap-3 mb-8">
-                        <Gem className="w-6 h-6 text-sky-500" />
-                        <h2 className="text-2xl font-bold tracking-tight text-slate-800">Instant Gems</h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {GEMS.map(pack => (
-                            <div key={pack.id} className="bg-white p-6 rounded-3xl border border-slate-200 flex flex-col items-center text-center hover:shadow-md transition-shadow">
-                                <Gem className={`w-12 h-12 mb-4 ${pack.id === 4 ? 'text-purple-500' : 'text-sky-400'}`} />
-                                <h3 className="font-bold text-slate-800 mb-1">{pack.name}</h3>
-                                <p className="text-2xl font-black text-slate-900 mb-2">{pack.gems} <span className="text-sm font-medium text-slate-500">Gems</span></p>
-                                {pack.bonus && <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md mb-6">{pack.bonus}</span>}
-                                <button 
-                                    onClick={() => handlePayment('GEMS', pack.id)}
-                                    disabled={loading}
-                                    className="w-full mt-auto py-3 bg-sky-50 text-sky-600 hover:bg-sky-100 rounded-xl font-bold text-sm transition-colors"
-                                >
-                                    ₹{pack.price}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+
 
             </div>
         </div>

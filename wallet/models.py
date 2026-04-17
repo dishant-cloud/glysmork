@@ -13,21 +13,7 @@ class SubscriptionPlan(models.Model):
     def __str__(self):
         return f"{self.name} - ₹{self.price_inr}"
 
-class GemPackage(models.Model):
-    name = models.CharField(max_length=50)
-    gem_amount = models.IntegerField()
-    price_inr = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
-    
-    def __str__(self):
-        return f"{self.name} - {self.gem_amount} Gems"
 
-class Wallet(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
-    gems = models.IntegerField(default=0)
-    
-    def __str__(self):
-        return f"{self.user.username}'s Wallet: {self.gems} Gems"
 
 class UserSubscription(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='subscription')
@@ -43,7 +29,7 @@ class Transaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     amount_inr = models.DecimalField(max_digits=10, decimal_places=2)
-    item_type = models.CharField(max_length=20, choices=[('SUBSCRIPTION', 'Subscription'), ('GEMS', 'Gems')])
+    item_type = models.CharField(max_length=20, choices=[('SUBSCRIPTION', 'Subscription')])
     
     # Can be either a SubscriptionPlan ID or GemPackage ID
     item_id = models.IntegerField() 

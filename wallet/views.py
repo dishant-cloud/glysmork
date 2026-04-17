@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
-from .models import Transaction, Wallet, UserSubscription, SubscriptionPlan, GemPackage
+from .models import Transaction, UserSubscription, SubscriptionPlan
 import razorpay
 from django.utils import timezone
 
@@ -21,11 +21,6 @@ class CreateOrderView(APIView):
                 item = SubscriptionPlan.objects.get(id=item_id, is_active=True)
             except SubscriptionPlan.DoesNotExist:
                 return Response({"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND)
-        elif item_type == 'GEMS':
-            try:
-                item = GemPackage.objects.get(id=item_id, is_active=True)
-            except GemPackage.DoesNotExist:
-                return Response({"error": "Gem package not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({"error": "Invalid item type"}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -100,10 +95,5 @@ class VerifyPaymentView(APIView):
             sub.expires_at = start + timezone.timedelta(days=plan.duration_days)
             sub.save()
             
-        elif transaction.item_type == 'GEMS':
-            pkg = GemPackage.objects.get(id=transaction.item_id)
-            wallet, _ = Wallet.objects.get_or_create(user=transaction.user)
-            wallet.gems += pkg.gem_amount
-            wallet.save()
-            
+
         return Response({"status": "Payment verified and item fulfilled"})

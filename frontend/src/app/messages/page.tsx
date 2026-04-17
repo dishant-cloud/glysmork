@@ -40,19 +40,7 @@ export default function InboxPage() {
             window.location.replace('/login');
         }
 
-        const handleCallAccepted = (e: any) => {
-            if (e.detail) {
-                window.location.href = `/chat/room?id=${e.detail}`;
-            }
-        };
 
-        const handleCallDeclined = () => {
-            setRingingUsername(null);
-            alert("The user declined your connection request.");
-        };
-
-        window.addEventListener('sys_call_answered', handleCallAccepted);
-        window.addEventListener('sys_call_declined', handleCallDeclined);
         
         const handleNewNotif = () => {
             const stored = localStorage.getItem('user');
@@ -66,8 +54,7 @@ export default function InboxPage() {
         window.addEventListener('sys_friend_message', handleNewNotif);
 
         return () => {
-            window.removeEventListener('sys_call_answered', handleCallAccepted);
-            window.removeEventListener('sys_call_declined', handleCallDeclined);
+
             window.removeEventListener('sys_friend_message', handleNewNotif);
         };
     }, []);

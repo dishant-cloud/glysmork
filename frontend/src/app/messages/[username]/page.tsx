@@ -102,7 +102,7 @@ export default function DMPage() {
                 const data = await res.json();
                 const newMsgs = (data.results || []).map((m: any) => ({
                     ...m,
-                    timestamp: m.date_iso ? new Date(m.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.timestamp
+                    timestamp: m.date_iso ? new Date(m.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (m.date ? new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.timestamp)
                 }));
                 if (cursor) {
                     setMessages(prev => {

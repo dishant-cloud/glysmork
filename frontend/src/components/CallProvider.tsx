@@ -45,10 +45,28 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     const [callState, setCallState] = useState<CallState>('idle');
     const callStateRef = useRef<CallState>('idle');
 
-    // Keep ref in sync
+    // Keep ref in sync and handle ringing timeout
     useEffect(() => {
         callStateRef.current = callState;
-    }, [callState]);
+        
+        if (ringingTimerRef.current) {
+            clearTimeout(ringingTimerRef.current);
+            ringingTimerRef.current = null;
+        }
+
+        if (callState === 'calling' || callState === 'ringing') {
+            ringingTimerRef.current = setTimeout(() => {
+                console.log("[WEBRTC] 30 seconds timeout reached. Ending call automatically.");
+                if (callStateRef.current === 'calling') {
+                    if (activeCallId.current) sendSignal('call_end', { call_id: activeCallId.current });
+                } else {
+                    if (activeCallId.current) sendSignal('call_decline', { call_id: activeCallId.current });
+                }
+                cleanupCall();
+            }, 30000);
+        }
+    }, [callState, sendSignal]);
+
     const [incomingCallData, setIncomingCallData] = useState<IncomingCallData | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -62,6 +80,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     const activeCallId = useRef<string | null>(null);
     const durationTimer = useRef<NodeJS.Timeout | null>(null);
     const iceCandidatesBuffer = useRef<any[]>([]);
+    const ringingTimerRef = useRef<NodeJS.Timeout | null>(null);
     
     const rtcConfig: RTCConfiguration = {
         iceServers: [
@@ -73,6 +92,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     // Clean up connections
     const cleanupCall = () => {
         if (durationTimer.current) clearInterval(durationTimer.current);
+        if (ringingTimerRef.current) clearTimeout(ringingTimerRef.current);
         if (peerConnection.current) {
             peerConnection.current.close();
             peerConnection.current = null;

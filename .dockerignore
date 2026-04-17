@@ -1,0 +1,13 @@
+.git
+__pycache__
+*.pyc
+venv/
+env/
+.env.local
+.env
+node_modules/
+.next/
+dist/
+Dockerfile
+docker-compose.yml
+.DS_Store

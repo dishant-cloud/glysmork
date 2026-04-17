@@ -119,34 +119,34 @@ class JoinMatchmakingView(APIView):
             profile.save(update_fields=['daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches', 'last_quota_reset_date'])
 
         # Check Subscription
-        is_subbed = False
-        if hasattr(user, 'subscription'):
-            if user.subscription.is_valid():
-                is_subbed = True
+        is_subbed = profile.is_premium
 
         mode_type = "ROULETTE" if intent.lower().startswith("random opposite gender") else "STANDARD"
         
+        is_polling = request.data.get('is_polling', False)
+        
         # Enforce limits
-        if mode_type == "ROULETTE":
-            if not is_subbed and profile.daily_roulette_searches >= 20:
-                return Response({"status": "quota_exceeded", "message": "Free Roulette limit reached."})
-            profile.daily_roulette_searches += 1
-        else:
-            # For standard intents
-            if use_onboarding_data:
-                # LLM heavy route
-                limit = 40 if is_subbed else 4
-                if profile.daily_ai_llm_searches >= limit:
-                    return Response({"status": "quota_exceeded", "message": "Daily AI limit reached."})
-                profile.daily_ai_llm_searches += 1
+        if not is_polling:
+            if mode_type == "ROULETTE":
+                if not is_subbed and profile.daily_roulette_searches >= 20:
+                    return Response({"status": "quota_exceeded", "message": "Free Roulette limit reached."})
+                profile.daily_roulette_searches += 1
             else:
-                # Basic vector/keyword match route
-                limit = 100 if is_subbed else 4
-                if profile.daily_standard_searches >= limit:
-                    return Response({"status": "quota_exceeded", "message": "Daily standard search limit reached."})
-                profile.daily_standard_searches += 1
-            
-        profile.save(update_fields=['daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches'])
+                # For standard intents
+                if use_onboarding_data:
+                    # LLM heavy route
+                    limit = 40 if is_subbed else 4
+                    if profile.daily_ai_llm_searches >= limit:
+                        return Response({"status": "quota_exceeded", "message": "Daily AI limit reached."})
+                    profile.daily_ai_llm_searches += 1
+                else:
+                    # Basic vector/keyword match route
+                    limit = 100 if is_subbed else 4
+                    if profile.daily_standard_searches >= limit:
+                        return Response({"status": "quota_exceeded", "message": "Daily standard search limit reached."})
+                    profile.daily_standard_searches += 1
+                
+            profile.save(update_fields=['daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches'])
         # ----------------------------------
 
         # --- NEW: OFFLINE SEARCH REGISTRATION ---
@@ -455,13 +455,19 @@ class JoinMatchmakingView(APIView):
             is_banned=False
         ).exclude(user=user).select_related('user')
 
-        # --- PRE-FILTER: Exclude Existing Friends ---
+        # --- PRE-FILTER: Exclude Existing Friends & History ---
         from django.db.models import Q
-        from matchmaking.models import Friendship
+        from matchmaking.models import Friendship, MatchHistory
         friendships = Friendship.objects.filter(
-            (Q(from_user=user) | Q(to_user=user)) & Q(status='accepted')
+            Q(from_user=user) | Q(to_user=user)
         )
         friend_ids = {f.from_user_id for f in friendships} | {f.to_user_id for f in friendships}
+        
+        history_ids = MatchHistory.objects.filter(Q(user1=user) | Q(user2=user)).values_list('user1_id', 'user2_id')
+        for u1, u2 in history_ids:
+            friend_ids.add(u1)
+            friend_ids.add(u2)
+            
         candidates_qs = candidates_qs.exclude(user_id__in=friend_ids)
 
         # --- PRE-FILTER: Online Status for Live Search ---
@@ -645,6 +651,41 @@ class FriendshipActionView(APIView):
                     from_user=user, 
                     to_user=target_user
                 )
+                
+                # Trigger a notification for the recipient
+                if created or friendship.status == 'pending':
+                    from matchmaking.models import ChatNotification
+                    # Check if there's already an unread notification from this sender to avoid spam
+                    existing = ChatNotification.objects.filter(
+                        sender=user, receiver=target_user, is_read=False
+                    ).exists()
+                    
+                    if not existing:
+                        ChatNotification.objects.create(
+                            sender=user,
+                            receiver=target_user,
+                            message=f'{user.username} wants to connect with you',
+                            room_name=f'direct_{user.username}_{target_user.username}'
+                        )
+                        
+                        # Send real-time WebSocket signal to update UI instantly
+                        try:
+                            from channels.layers import get_channel_layer
+                            from asgiref.sync import async_to_sync
+                            layer = get_channel_layer()
+                            if layer:
+                                async_to_sync(layer.group_send)(
+                                    f'user_{target_user.id}',
+                                    {
+                                        'type': 'friend_message_recv',
+                                        'conversation_id': 'system',
+                                        'sender': 'System',
+                                        'text': 'refresh_notifications',
+                                    }
+                                )
+                        except Exception as ws_err:
+                            print(f"DEBUG: WebSocket signaling error on friend request: {ws_err}")
+
                 return Response({"status": "requested", "created": created})
             except Exception as e:
                 print(f"DEBUG: Friendship Request Error: {e}")

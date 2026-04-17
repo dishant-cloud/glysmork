@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView, GoogleLoginView, FacebookLoginView, OnlineCountView, HeartbeatView, AnalyticsView, ImageUploadView, TrustScoreView, ReportUserView, BlockUserView, debug_cache
+from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView, GoogleLoginView, FacebookLoginView, OnlineCountView, HeartbeatView, AnalyticsView, TrustScoreView, ReportUserView, BlockUserView, debug_cache
+from .subscriptions import StripeCheckoutView, StripeWebhookView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='api-register'),
@@ -7,7 +8,6 @@ urlpatterns = [
     path('google-login/', GoogleLoginView.as_view(), name='api-google-login'),
     path('facebook-login/', FacebookLoginView.as_view(), name='api-facebook-login'),
     path('profile/', ProfileDetailView.as_view(), name='api-profile-detail'),
-    path('profile/upload-photo/', ImageUploadView.as_view(), name='api-profile-upload-photo'),
     path('profile/<str:username>/', PublicProfileView.as_view(), name='api-public-profile'),
     path('profile/<str:username>/trust/', TrustScoreView.as_view(), name='api-trust-score'),
     path('profile/<str:username>/report/', ReportUserView.as_view(), name='api-report-user'),
@@ -18,4 +18,8 @@ urlpatterns = [
     path('heartbeat/', HeartbeatView.as_view(), name='api-heartbeat'),
     path('analytics/', AnalyticsView.as_view(), name='api-analytics'),
     path('debug-cache/', debug_cache, name='api-debug-cache'),
+    
+    # Subscriptions
+    path('subscription/checkout/', StripeCheckoutView.as_view(), name='api-subscription-checkout'),
+    path('subscription/webhook/', StripeWebhookView.as_view(), name='api-subscription-webhook'),
 ]

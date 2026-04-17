@@ -6,6 +6,7 @@ import { LogOut, User, Mail, Users, BarChart3, Network, Gem } from 'lucide-react
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from 'next/navigation'; 
 import { useNotification } from './NotificationProvider';
+import { fetchApi } from '@/lib/api';
 
 export default function Header() {
     const { onlineStatus } = useNotification();
@@ -39,12 +40,8 @@ export default function Header() {
 
     const fetchUnreadCount = async (uname: string) => {
         try {
-            const host = window.location.hostname;
-            const res = await fetch(`http://${host}:8000/api/matchmaking/notifications/?username=${encodeURIComponent(uname)}`);
-            if (res.ok) {
-                const data = await res.json();
-                setUnreadCount(data.notifications?.length || 0);
-            }
+            const data = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(uname)}`);
+            setUnreadCount(data.notifications?.length || 0);
         } catch {}
     };
 

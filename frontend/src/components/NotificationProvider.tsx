@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageSquare } from 'lucide-react';
+import { fetchApi } from '@/lib/api';
 
 interface NotificationContextProps {
     sendSignal: (type: string, payload: any) => void;
@@ -149,10 +150,8 @@ export default function NotificationProvider({ children }: { children: React.Rea
         const poll = async () => {
             if (!user?.username) return;
             try {
-                const res = await fetch(`${apiBase}/api/matchmaking/notifications/?username=${encodeURIComponent(user.username)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    const notifs = data.notifications || [];
+                const data = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(user.username)}`);
+                const notifs = data.notifications || [];
                     if (notifs.length > 0) {
                         const latest = notifs[0];
                         if (latest.id > lastNotifId) {
@@ -162,7 +161,6 @@ export default function NotificationProvider({ children }: { children: React.Rea
                             window.dispatchEvent(new CustomEvent('sys_friend_message', { detail: { type: 'friend_message' } }));
                         }
                     }
-                }
             } catch (e) {
                 // Silently fail — WS is primary transport
             }

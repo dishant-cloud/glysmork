@@ -102,13 +102,23 @@ class Profile(models.Model):
     daily_roulette_searches = models.IntegerField(default=0, help_text="Random matching (Limit 20 free, Unlimited subbed)")
     last_quota_reset_date = models.DateField(default=timezone.now, help_text="Date when daily quotas were last reset")
 
-    # Verification (Voting)
-    male_votes = models.IntegerField(default=0)
-    female_votes = models.IntegerField(default=0)
+    # Subscription & Payments
+    SUBSCRIPTION_TIER_CHOICES = [
+        ('free', 'Free'),
+        ('weekly', 'Weekly Premium'),
+        ('monthly', 'Monthly Premium'),
+    ]
+    subscription_tier = models.CharField(max_length=20, choices=SUBSCRIPTION_TIER_CHOICES, default='free')
+    subscription_expiry = models.DateTimeField(null=True, blank=True)
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
 
     @property
-    def is_gender_locked(self):
-        return (self.male_votes + self.female_votes) > 0
+    def is_premium(self):
+        if self.subscription_tier == 'free':
+            return False
+        if self.subscription_expiry and self.subscription_expiry > timezone.now():
+            return True
+        return False
 
     def __str__(self):
         return f'{self.user.username}'
@@ -134,6 +144,24 @@ class Profile(models.Model):
         except:
              # Handle cases where image path is not accessible or other errors
              pass
+
+class Subscription(models.Model):
+    PLAN_CHOICES = [
+        ('weekly', '1 Week'),
+        ('monthly', '1 Month'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
+    plan_type = models.CharField(max_length=20, choices=PLAN_CHOICES)
+    stripe_subscription_id = models.CharField(max_length=255, unique=True)
+    status = models.CharField(max_length=50) # active, trialing, past_due, canceled, unpaid
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='usd')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    ends_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.user.username} - {self.plan_type} ({self.status})"
 
 class Report(models.Model):
     STATUS_CHOICES = [

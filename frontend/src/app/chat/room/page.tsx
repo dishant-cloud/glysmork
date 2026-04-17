@@ -137,8 +137,21 @@ export default function ChatRoom() {
     const fetchAndMergeMessages = useCallback(async (rid: string, user: string) => {
         try {
             const data = await fetchApi(`/room/${rid}/messages/?username=${encodeURIComponent(user)}`);
-            const fetched: ChatMessage[] = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
-            if (fetched.length === 0) return;
+            const fetchedRaw: any[] = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+            if (fetchedRaw.length === 0) return;
+            const fetched: ChatMessage[] = fetchedRaw.map(m => ({
+                id: m.id,
+                client_id: m.client_id,
+                sender: m.username || m.sender,
+                text: m.value || m.text || "",
+                isRead: m.is_read || m.isRead || false,
+                deletedForEveryone: m.deleted_for_everyone || m.deletedForEveryone || false,
+                timestamp: m.date || m.timestamp,
+                is_call_log: m.is_call_log,
+                call_mode: m.call_mode,
+                call_status: m.call_status,
+                call_duration: m.call_duration
+            }));
             setMessages(prev => {
                 const fetchedIds = new Set(fetched.map(m => m.id));
                 const fetchedClientIds = new Set(fetched.map(m => m.client_id).filter(Boolean));
@@ -183,7 +196,7 @@ export default function ChatRoom() {
                             text: data.message || data.text || "",
                             isRead: data.isRead || false,
                             deletedForEveryone: data.deletedForEveryone || false,
-                            timestamp: data.date_iso ? new Date(data.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.timestamp ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                            timestamp: data.date_iso || data.timestamp || new Date().toISOString(),
                             status: (data.username || data.sender) === currentUser ? 'sent' : 'read',
                             is_call_log: data.is_call_log,
                             call_mode: data.call_mode,
@@ -283,7 +296,7 @@ export default function ChatRoom() {
             text: text,
             isRead: false,
             deletedForEveryone: false,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: new Date().toISOString(),
             status: 'sent'
         }]);
 

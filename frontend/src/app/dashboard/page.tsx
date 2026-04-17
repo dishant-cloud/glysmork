@@ -20,6 +20,7 @@ export default function Dashboard() {
     const [ringingUsername, setRingingUsername] = useState<string | null>(null);
     const [offerOfflinePrompt, setOfferOfflinePrompt] = useState(false);
     const [pendingIntent, setPendingIntent] = useState<string | null>(null);
+    const [profile, setProfile] = useState<any>(null);
 
     const [pollRef, setPollRef] = useState<ReturnType<typeof setInterval> | null>(null);
     const { sendSignal } = useNotification();
@@ -27,7 +28,7 @@ export default function Dashboard() {
     const [onlineCount, setOnlineCount] = useState<number>(0);
     const [totalUsers, setTotalUsers] = useState<number>(0);
     const [friendRequested, setFriendRequested] = useState<Set<string>>(new Set());
-    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string; isFriend?: boolean; isPending?: boolean }[]>([]);
+    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string; isFriend?: boolean; isPending?: boolean; isReceivedRequest?: boolean }[]>([]);
     const shownNotifsRef = useRef<Set<number>>(new Set());
 
     // Matchmaking Filters & Modes
@@ -41,6 +42,7 @@ export default function Dashboard() {
     const [showFilters, setShowFilters] = useState(false);
 
     const isInitialMountIntent = useRef(true);
+    const matchLockRef = useRef(false);
 
     useEffect(() => {
         if (isInitialMountIntent.current) {
@@ -80,6 +82,11 @@ export default function Dashboard() {
         try {
             const userData = JSON.parse(u);
             setUsername(userData.username);
+            
+            // NEW: Fetch full profile for subscription info
+            fetchApi(`/users/profile/`) 
+                .then(data => setProfile(data))
+                .catch(err => console.error("Profile fetch error:", err));
         } catch (e) {
             console.error("Failed to parse user data");
             window.location.href = '/login';
@@ -119,18 +126,12 @@ export default function Dashboard() {
             if (!u) return;
             try {
                 // Fetch friends list to check if sender is already a friend
-                const friendRes = await fetch(`http://127.0.0.1:8000/api/matchmaking/friends/?username=${encodeURIComponent(u)}`);
-                let friendData = { friends: [], sent: [] };
-                if (friendRes.ok) {
-                    friendData = await friendRes.json();
-                }
+                const friendData = await fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(u)}`).catch(() => ({ friends: [], sent: [], received: [] }));
 
-                const res = await fetch(`http://127.0.0.1:8000/api/matchmaking/notifications/?username=${encodeURIComponent(u)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.notifications?.length > 0) {
-                        const unshown = data.notifications.filter((n: any) => !shownNotifsRef.current.has(n.id));
-                        if (unshown.length > 0) {
+                const data = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(u)}`);
+                if (data.notifications?.length > 0) {
+                    const unshown = data.notifications.filter((n: any) => !shownNotifsRef.current.has(n.id));
+                    if (unshown.length > 0) {
                             const now = new Date().getTime();
                             const freshNotifs = unshown.filter((n: any) => {
                                 const createdAt = new Date(n.created_at).getTime();
@@ -142,7 +143,8 @@ export default function Dashboard() {
                                 const annotated = freshNotifs.map((n: any) => {
                                     const isFriend = friendData.friends?.some((f: any) => (f.username === n.sender || f === n.sender));
                                     const isPending = friendData.sent?.some((f: any) => (f.username === n.sender || f === n.sender));
-                                    return { ...n, isFriend, isPending };
+                                    const isReceivedRequest = friendData.received?.some((f: any) => (f.username === n.sender || f === n.sender));
+                                    return { ...n, isFriend, isPending, isReceivedRequest };
                                 });
 
                                 setChatNotifs(prev => [...prev, ...annotated]);
@@ -155,32 +157,18 @@ export default function Dashboard() {
                             unshown.forEach((n: any) => shownNotifsRef.current.add(n.id));
                         }
                     }
-                }
             } catch { }
         };
         fetchNotifs();
         const notifInterval = setInterval(fetchNotifs, 5000);
 
-        const handleCallAccepted = (e: any) => {
-            if (e.detail) {
-                window.location.href = `/chat/room?id=${e.detail}`;
-            }
-        };
 
-        const handleCallDeclined = () => {
-            setRingingUsername(null);
-            alert("The user declined your connection request.");
-        };
-
-        window.addEventListener('sys_call_answered', handleCallAccepted);
-        window.addEventListener('sys_call_declined', handleCallDeclined);
 
         return () => {
             clearInterval(interval);
             clearInterval(onlineInterval);
             clearInterval(notifInterval);
-            window.removeEventListener('sys_call_answered', handleCallAccepted);
-            window.removeEventListener('sys_call_declined', handleCallDeclined);
+
         };
     }, []);
 
@@ -197,6 +185,7 @@ export default function Dashboard() {
         setPollRef(null);
         setSearchingIntent(null);
         setIsMatching(false);
+        matchLockRef.current = false;
     };
 
     const showNotification = (msg: string) => {
@@ -218,7 +207,8 @@ export default function Dashboard() {
                         country_filter: countryFilter,
                         language_filter: languageFilter,
                         gender_filter: genderFilter,
-                        distance_km: distanceKm
+                        distance_km: distanceKm,
+                        is_polling: true
                     })
                 });
                 if (response.match_found || response.room_name) {
@@ -233,6 +223,9 @@ export default function Dashboard() {
                     stopPolling();
                     setIsOffline(false);
                     showNotification(response.message);
+                } else if (response.status === 'quota_exceeded') {
+                    stopPolling();
+                    showNotification("Free limit reached! Consider subscribing or upgrading your plan.");
                 } else if (response.status === 'no_results') {
                     stopPolling();
                     showNotification(response.message);
@@ -247,6 +240,8 @@ export default function Dashboard() {
     };
 
     const startPersonaMatch = async (forceOffline: boolean = false) => {
+        if (isMatching || matchLockRef.current) return;
+        matchLockRef.current = true;
         setIsMatching(true);
         const intentText = "Persona Match";
         try {
@@ -270,10 +265,12 @@ export default function Dashboard() {
                 setOfferOfflinePrompt(true);
             } else if (response.status === 'offline_activated') {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 setIsOffline(false);
                 showNotification(response.message);
             } else if (response.match_found || response.room_name) {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || modePref}`;
             } else {
                 setSearchingIntent(intentText);
@@ -282,10 +279,13 @@ export default function Dashboard() {
         } catch (error) {
             console.error(error);
             setIsMatching(false);
+            matchLockRef.current = false;
         }
     };
 
     const startOmegleMatch = async () => {
+        if (isMatching || matchLockRef.current) return;
+        matchLockRef.current = true;
         setIsMatching(true);
         const activeMode = isOffline ? 'chat' : modePref;
         const intentText = `Random Opposite Gender ${activeMode}`;
@@ -310,15 +310,12 @@ export default function Dashboard() {
                 showNotification(response.message);
             } else if (response.status === 'quota_exceeded') {
                 setIsMatching(false);
-                showNotification("Free limit reached! Consider subscribing or using Gems.");
+                showNotification("Free limit reached! Consider subscribing or upgrading your plan.");
                 stopPolling();
             } else if (response.match_found || response.room_name || response.status === 'match_found') {
                 setIsMatching(false);
-                if (activeMode === 'video') {
-                     window.location.href = `/video-match?gender=${genderFilter}`;
-                } else {
-                     window.location.href = `/chat/room?id=${response.room_name}&mode=chat`;
-                }
+                matchLockRef.current = false;
+                window.location.href = `/chat/room?id=${response.room_name}&mode=chat`;
             } else {
                 setSearchingIntent(intentText);
                 pollForMatch(intentText);
@@ -326,12 +323,18 @@ export default function Dashboard() {
         } catch (error) {
             console.error(error);
             setIsMatching(false);
+            matchLockRef.current = false;
         }
     };
 
     const startMatching = async (overrideIntent?: string, forceOffline: boolean = false) => {
+        if (isMatching || matchLockRef.current) return;
+        matchLockRef.current = true;
         const intentText = overrideIntent || intent;
-        if (!intentText.trim()) return;
+        if (!intentText.trim()) {
+            matchLockRef.current = false;
+            return;
+        }
         setIsMatching(true);
         try {
             const response = await fetchApi('/matchmaking/join/', {
@@ -345,27 +348,37 @@ export default function Dashboard() {
                     country_filter: countryFilter,
                     language_filter: languageFilter,
                     gender_filter: genderFilter,
-                    distance_km: distanceKm
+                    distance_km: distanceKm,
+                    use_onboarding_data: true
                 })
             });
             if (response.status === 'no_online_users') {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 setPendingIntent(intentText);
                 setOfferOfflinePrompt(true);
             } else if (response.status === 'offline_activated') {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 setIsOffline(false);
                 showNotification(response.message);
+            } else if (response.status === 'quota_exceeded') {
+                setIsMatching(false);
+                matchLockRef.current = false;
+                showNotification("Free limit reached! Consider subscribing or upgrading your plan.");
             } else if (response.match_found || response.room_name) {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || 'chat'}`;
             } else if (response.status === 'discovery_results') {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 sessionStorage.setItem('glysmork_discovery_results', JSON.stringify(response.results));
                 sessionStorage.setItem('glysmork_searching_intent', intentText);
                 window.location.href = '/discovery';
             } else if (response.status === 'no_results') {
                 setIsMatching(false);
+                matchLockRef.current = false;
                 showNotification(response.message);
             } else {
                 setSearchingIntent(intentText);
@@ -374,6 +387,7 @@ export default function Dashboard() {
         } catch (error) {
             console.error(error);
             setIsMatching(false);
+            matchLockRef.current = false;
         }
     };
 
@@ -486,7 +500,7 @@ export default function Dashboard() {
                                                     body: JSON.stringify({
                                                         username: getUsername(),
                                                         target_username: notif.sender,
-                                                        action: 'request',
+                                                        action: notif.isReceivedRequest ? 'accept' : 'request',
                                                     }),
                                                 });
                                                 await fetch('http://127.0.0.1:8000/api/matchmaking/notifications/', {
@@ -497,9 +511,13 @@ export default function Dashboard() {
                                                 setChatNotifs(prev => prev.filter(n => n.id !== notif.id));
                                             } catch { }
                                         }}
-                                        className="flex-1 py-2 flex items-center justify-center gap-2 bg-white/50 border border-slate-200/50 text-slate-800 font-semibold text-xs rounded-full hover:bg-white/60 transition-colors"
+                                        className={`flex-1 py-2 flex items-center justify-center gap-2 font-semibold text-xs rounded-full transition-colors ${
+                                            notif.isReceivedRequest 
+                                            ? 'bg-green-100 border-green-200 text-green-700 hover:bg-green-200 border' 
+                                            : 'bg-white/50 border-slate-200/50 text-slate-800 hover:bg-white/60 border'
+                                        }`}
                                     >
-                                        <Zap className="w-3.5 h-3.5" /> Add Friend
+                                        <Zap className="w-3.5 h-3.5" /> {notif.isReceivedRequest ? 'Accept' : 'Add Friend'}
                                     </button>
                                 )}
                             </div>
@@ -782,19 +800,59 @@ export default function Dashboard() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.2 }}
-                            className="absolute z-10 w-[360px] bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[36px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] right-10 top-1/2 -translate-y-[60%]"
+                            className="absolute z-10 w-[360px] right-10 top-1/2 -translate-y-[60%]"
                         >
-                            <div className="flex justify-between items-start mb-6">
+                            <motion.div
+                                animate={{ y: [0, -12, 0] }}
+                                transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+                                className="bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[36px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]"
+                            >
+                             <div className="flex justify-between items-start mb-6">
                                 <div className="flex items-center gap-2">
                                     <span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
                                     <span className="font-semibold text-xs text-slate-600 uppercase tracking-widest">Active Status</span>
                                 </div>
+                                {profile?.subscription_tier !== 'free' && (
+                                    <motion.div 
+                                        initial={{ scale: 0.8 }}
+                                        animate={{ scale: 1 }}
+                                        className="bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-lg"
+                                    >
+                                        <Zap className="w-3 h-3 fill-current" />
+                                        Pro
+                                    </motion.div>
+                                )}
                                 <span className="text-[11px] font-bold text-slate-400 tracking-wider">02</span>
                             </div>
                             <h3 className="text-[26px] font-semibold mb-3 text-slate-800 tracking-[-0.03em] uppercase">
                                 {username ? username : 'PROFILE'}
                             </h3>
-                            <p className="text-[14px] text-slate-500 font-medium leading-relaxed">System synced. Ready for AI-powered networking.</p>
+                            <div className="space-y-4">
+                                <p className="text-[14px] text-slate-500 font-medium leading-relaxed">System synced. Ready for AI-powered networking.</p>
+                                
+                                <div className="mt-4 flex flex-col gap-3">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-slate-500 font-medium">Smart Searches</span>
+                                            <span className="font-bold text-slate-700">{profile?.subscription_tier === 'free' ? Math.max(0, 4 - (profile?.daily_ai_llm_searches || 0)) + ' / 4 left' : Math.max(0, 40 - (profile?.daily_ai_llm_searches || 0)) + ' / 40 left'}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-1">
+                                            <div className="bg-sky-500 h-1 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, 100 - ((profile?.daily_ai_llm_searches || 0) / (profile?.subscription_tier === 'free' ? 4 : 40) * 100))}%` }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-slate-500 font-medium">Roulette Matches</span>
+                                            <span className="font-bold text-slate-700">{profile?.subscription_tier === 'free' ? Math.max(0, 20 - (profile?.daily_roulette_searches || 0)) + ' / 20 left' : 'Unlimited'}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-1">
+                                            <div className="bg-green-500 h-1 rounded-full transition-all duration-500" style={{ width: profile?.subscription_tier === 'free' ? `${Math.max(0, 100 - ((profile?.daily_roulette_searches || 0) / 20 * 100))}%` : '100%' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </motion.div>
                         </motion.div>
 
                         {/* Card 1 — Top Left Overlapping Card (Intent Engine) */}
@@ -802,8 +860,13 @@ export default function Dashboard() {
                             initial={{ opacity: 0, x: -30, y: -30 }}
                             animate={{ opacity: 1, x: 0, y: 0 }}
                             transition={{ delay: 0.4 }}
-                            className="absolute z-20 top-[6%] left-[0%] w-[300px] bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-6 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
+                            className="absolute z-20 top-[6%] left-[0%] w-[300px]"
                         >
+                            <motion.div
+                                animate={{ y: [0, -8, 0] }}
+                                transition={{ delay: 0.4, repeat: Infinity, duration: 5, ease: "easeInOut" }}
+                                className="bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-6 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
+                            >
                             <div className="flex justify-between items-center mb-5">
                                 <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center border border-cyan-100">
                                     <Zap className="text-cyan-500 w-4 h-4" />
@@ -812,6 +875,7 @@ export default function Dashboard() {
                             </div>
                             <h3 className="text-[18px] font-semibold mb-2 text-slate-800 tracking-tight">Intent Engine</h3>
                             <p className="text-[13px] text-slate-500 font-medium leading-relaxed">AI searches thousands of robust profiles to find your ideal match.</p>
+                            </motion.div>
                         </motion.div>
 
                         {/* Card 3 — Bottom Right Overlapping (Roulette) */}
@@ -819,8 +883,13 @@ export default function Dashboard() {
                             initial={{ opacity: 0, x: 30, y: 30 }}
                             animate={{ opacity: 1, x: 0, y: 0 }}
                             transition={{ delay: 0.6 }}
-                            className="absolute z-20 bottom-[15%] right-[-5%] w-[290px] bg-white/90 backdrop-blur-xl border border-white/80 p-6 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
+                            className="absolute z-20 bottom-[2%] right-[-5%] w-[290px]"
                         >
+                            <motion.div
+                                animate={{ y: [0, -15, 0] }}
+                                transition={{ delay: 0.6, repeat: Infinity, duration: 7, ease: "easeInOut" }}
+                                className="bg-white/90 backdrop-blur-xl border border-white/80 p-6 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
+                            >
                             <div className="flex justify-between items-center mb-5">
                                 <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center border border-green-100">
                                     <Video className="text-green-500 w-4 h-4" />
@@ -829,6 +898,7 @@ export default function Dashboard() {
                             </div>
                             <h3 className="text-[18px] font-semibold mb-2 text-slate-800 tracking-tight">Global Roulette</h3>
                             <p className="text-[13px] text-slate-500 font-medium leading-relaxed">Strict parameters applied. Instant video integration.</p>
+                            </motion.div>
                         </motion.div>
 
                     </div>
