@@ -19,3 +19,5 @@ python-dotenv
 django-cors-headers
 stripe
 groq
+numpy
+scikit-learn
