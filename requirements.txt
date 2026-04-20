@@ -22,3 +22,5 @@ groq
 numpy
 scikit-learn
 razorpay
+firebase-admin
+requests
