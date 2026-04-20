@@ -7,6 +7,9 @@ import { fetchApi } from '@/lib/api';
 
 type Message = { role: 'model' | 'user'; text: string; isCrisis?: boolean };
 
+const ONBOARDING_URL = process.env.NEXT_PUBLIC_ONBOARDING_URL || 'http://localhost:8081';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api').replace('/api', '');
+
 export default function OnboardingChat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -96,7 +99,7 @@ export default function OnboardingChat() {
         const urlParams = new URLSearchParams(window.location.search);
         const isRetake = urlParams.get('retake') === 'true';
 
-        fetch(`http://127.0.0.1:8000/api/users/profile/${username}/`)
+        fetch(`${API_BASE}/api/users/profile/${username}/`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (!isRetake && data?.psychological_profile && Object.keys(data.psychological_profile).length > 0) {
@@ -120,7 +123,7 @@ export default function OnboardingChat() {
         try {
             // STEP 1: If it's the very first message
             if (step === 1 && userMsg) {
-                const res = await fetch('http://localhost:8081/onboarding/identify-buckets', {
+                const res = await fetch(`${ONBOARDING_URL}/onboarding/identify-buckets`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -134,7 +137,7 @@ export default function OnboardingChat() {
             }
 
             // STEP 2: The Chat Conversation
-            const res = await fetch('http://localhost:8081/onboarding/chat', {
+            const res = await fetch(`${ONBOARDING_URL}/onboarding/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -155,7 +158,7 @@ export default function OnboardingChat() {
                 setMessages(prev => [...prev, { role: 'model', text: data.reply }]);
             }
         } catch {
-            setMessages(prev => [...prev, { role: 'model', text: "What made you want to join GLYSMORK today?" }]);
+            setMessages(prev => [...prev, { role: 'model', text: "I'm having trouble connecting. Please wait a moment and try again." }]);
         } finally {
             setLoading(false);
         }
@@ -182,7 +185,7 @@ export default function OnboardingChat() {
         try {
             // STEP 3: Extraction and saving to the FastAPI matchmaking DB
             try {
-                await fetch('http://localhost:8081/onboarding/extract', {
+                await fetch(`${ONBOARDING_URL}/onboarding/extract`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -206,7 +209,7 @@ export default function OnboardingChat() {
                 });
 
                 try {
-                    await fetch('http://127.0.0.1:8000/api/users/onboarding/analyze/', {
+                    await fetch(`${API_BASE}/api/users/onboarding/analyze/`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
