@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # We only copy the onboarding_service folder for this microservice container
 COPY onboarding_service/ ./onboarding_service/
+# groq_client.py lives in the project root and is imported by the onboarding service
+COPY groq_client.py .
 
 EXPOSE 8081
 
