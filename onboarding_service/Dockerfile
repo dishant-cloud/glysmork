@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED 1
 
 RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY onboarding_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # We only copy the onboarding_service folder for this microservice container
