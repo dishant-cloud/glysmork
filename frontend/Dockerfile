@@ -7,6 +7,9 @@ RUN npm ci
 
 COPY . .
 
+# Hardcap Node.js RAM usage to avoid EC2 freezing
+ENV NODE_OPTIONS="--max_old_space_size=768"
+
 # Build the Next.js app
 RUN npm run build
 
