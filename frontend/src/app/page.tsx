@@ -17,14 +17,8 @@ export default function Home() {
   }, []);
 
   // Subtle floating animation for cards
-  const floatingAnimation = {
-    y: ["-5px", "10px", "-5px"],
-    transition: {
-      duration: 6,
-      repeat: Infinity,
-      ease: "easeInOut"
-    }
-  };
+  const floatingAnimate = { y: ["-5px", "10px", "-5px"] };
+  const floatingTransition = { duration: 6, repeat: Infinity, ease: "easeInOut" as const };
 
   return (
     <main className="min-h-screen w-full font-sans text-slate-900 bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] overflow-hidden relative selection:bg-cyan-500/30">
@@ -115,8 +109,8 @@ export default function Home() {
           {/* Main Central Card (Smart Matching) */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }} 
-            animate={{ opacity: 1, scale: 1, ...floatingAnimation }} 
-            transition={{ delay: 0.2 }}
+            animate={{ opacity: 1, scale: 1, ...floatingAnimate }} 
+            transition={{ delay: 0.2, ...floatingTransition }}
             className="absolute z-10 w-[360px] bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[36px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]"
           >
             <div className="bg-slate-50/80 rounded-[24px] p-6 mb-8 w-full flex justify-center items-center shadow-inner relative overflow-hidden h-[160px] border border-slate-100/50">
@@ -134,8 +128,8 @@ export default function Home() {
           {/* Top Left Overlapping Card (Intent Search) */}
           <motion.div 
             initial={{ opacity: 0, x: -30, y: -30 }} 
-            animate={{ opacity: 1, x: 0, y: 0, ...{...floatingAnimation, transition: {...floatingAnimation.transition, delay: 1}} }} 
-            transition={{ delay: 0.4 }}
+            animate={{ opacity: 1, x: 0, ...floatingAnimate }} 
+            transition={{ delay: 0.4, ...floatingTransition }}
             className="absolute z-20 top-[8%] left-[0%] xl:left-[-10%] w-[280px] bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-5 rounded-[28px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]"
           >
             <div className="flex justify-between items-center mb-4">
@@ -151,8 +145,8 @@ export default function Home() {
           {/* Bottom Right Overlapping Card (Direct Connection) */}
           <motion.div 
             initial={{ opacity: 0, x: 30, y: 30 }} 
-            animate={{ opacity: 1, x: 0, y: 0, ...{...floatingAnimation, transition: {...floatingAnimation.transition, delay: 2}} }} 
-            transition={{ delay: 0.6 }}
+            animate={{ opacity: 1, x: 0, ...floatingAnimate }} 
+            transition={{ delay: 0.6, ...floatingTransition }}
             className="absolute z-20 bottom-[8%] right-[-5%] xl:right-[-12%] w-[300px] bg-white/90 backdrop-blur-xl border border-white/80 p-5 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
           >
             <div className="flex justify-between items-center mb-4">
