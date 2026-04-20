@@ -23,4 +23,4 @@ RUN SECRET_KEY=dummy python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-CMD ["gunicorn", "shin_beginning.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "chat.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
