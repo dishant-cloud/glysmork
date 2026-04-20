@@ -21,3 +21,4 @@ stripe
 groq
 numpy
 scikit-learn
+razorpay
