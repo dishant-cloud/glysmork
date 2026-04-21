@@ -85,8 +85,7 @@ export default function ChatRoom() {
                 })
                 .catch(() => { });
 
-            fetch(`http://127.0.0.1:8000/api/room/${rm}/`)
-                .then(r => r.json())
+            fetchApi(`/room/${rm}/`)
                 .then(data => {
                     if (data.match_reason) setMatchReason(data.match_reason);
                     if (data.users) {
@@ -175,7 +174,11 @@ export default function ChatRoom() {
         try {
             const token = localStorage.getItem('access_token');
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsHost = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).host : '127.0.0.1:8000';
+            const host = window.location.hostname;
+            const isLocal = host === 'localhost' || host === '127.0.0.1';
+            const wsHost = process.env.NEXT_PUBLIC_API_URL 
+                ? new URL(process.env.NEXT_PUBLIC_API_URL).host 
+                : (isLocal ? `${host}:8000` : host);
             const ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/chat/${roomId}/?token=${token}`);
             wsRef.current = ws;
 

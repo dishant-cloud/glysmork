@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
@@ -12,11 +12,36 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
     const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "";
 
-    useEffect(() => {
+        if (searchParams.get('logout') === 'true') {
+            console.log("Hard Reset: Clearing all local data...");
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Clear all cookies
+            const cookies = document.cookie.split(";");
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i];
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+            
+            // Clear IndexedDB if used
+            if (window.indexedDB) {
+                window.indexedDB.databases().then(dbs => {
+                    dbs.forEach(db => {
+                        if (db.name) window.indexedDB.deleteDatabase(db.name);
+                    });
+                });
+            }
+            return;
+        }
+
         const existingUser = localStorage.getItem('user');
         if (existingUser) {
             try {

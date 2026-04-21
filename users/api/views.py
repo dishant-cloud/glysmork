@@ -507,11 +507,12 @@ class OnlineCountView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        from django.contrib.auth.models import User
         profiles = Profile.objects.select_related('user').all()
         online = sum(1 for p in profiles if p.is_online())
         return Response({
             "online_count": online,
-            "total_users": profiles.count(),
+            "total_users": User.objects.count(),
         })
 
 

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Phone, PhoneOff, Video, VideoOff, CheckCheck, Trash2, UserPlus, Check, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useCall } from '@/components/CallProvider';
+import { fetchApi } from '@/lib/api';
 
 type DmMessage = {
     id: any;
@@ -22,8 +23,6 @@ type DmMessage = {
     call_status?: 'ended' | 'declined' | 'no_answer' | 'unavailable' | 'cancelled';
     call_duration?: number;
 };
-
-const API = 'http://127.0.0.1:8000/api';
 
 export default function DMPage() {
     const params = useParams();
@@ -72,8 +71,7 @@ export default function DMPage() {
 
         // Check friendship status
         if (!roomName.startsWith('session_')) {
-            fetch(`${API}/matchmaking/friends/?username=${encodeURIComponent(myUsername)}`)
-                .then(r => r.json())
+            fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(myUsername)}`)
                 .then(data => {
                     const isFriend = data.friends?.some((f: any) => (f.username === friend || f === friend));
                     const isPending = data.sent?.some((f: any) => (f.username === friend || f === friend));
@@ -96,30 +94,38 @@ export default function DMPage() {
         else setLoadingMore(true);
 
         try {
-            const url = `${API}/room/${roomName}/messages/?username=${myUsername}${cursor ? `&cursor=${cursor}` : ''}`;
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                const newMsgs = (data.results || []).map((m: any) => ({
-                    ...m,
-                    timestamp: m.date_iso ? new Date(m.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (m.date ? new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.timestamp)
-                }));
-                if (cursor) {
-                    setMessages(prev => {
-                        const existingIds = new Set(prev.map(m => m.id));
-                        const uniqueNew = newMsgs.filter((m: any) => !existingIds.has(m.id));
-                        return [...uniqueNew, ...prev];
-                    });
-                } else {
-                    setMessages(newMsgs);
-                }
-                setHasMore(data.has_more);
-                setNextCursor(data.next_cursor);
-                
-                // If we just loaded the first batch, send a read receipt
-                if (!cursor && newMsgs.length > 0) {
-                   sendReadReceipt();
-                }
+            const data = await fetchApi(`/room/${roomName}/messages/?username=${myUsername}${cursor ? `&cursor=${cursor}` : ''}`);
+            const newMsgs = (data.results || []).map((m: any) => ({
+                id: m.id,
+                sender: m.sender_username,
+                text: m.text,
+                timestamp: m.date_iso ? new Date(m.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (m.date ? new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.timestamp),
+                status: m.is_read ? 'read' : 'sent',
+                isRead: m.is_read,
+                deletedForEveryone: m.deleted_for_everyone,
+                is_ephemeral: m.is_ephemeral,
+                is_call_log: m.is_call_log,
+                call_mode: m.call_mode,
+                call_status: m.call_status,
+                call_duration: m.call_duration,
+            }));
+
+            if (cursor) {
+                setMessages(prev => {
+                    const existingIds = new Set(prev.map(m => m.id));
+                    const uniqueNew = newMsgs.filter((m: any) => !existingIds.has(m.id));
+                    return [...uniqueNew, ...prev];
+                });
+            } else {
+                setMessages(newMsgs);
+                setTimeout(() => scrollToBottom('instant'), 100);
+            }
+            setHasMore(data.has_more);
+            setNextCursor(data.next_cursor);
+            
+            // If we just loaded the first batch, send a read receipt
+            if (!cursor && newMsgs.length > 0) {
+               sendReadReceipt();
             }
         } catch (err) {
             console.error("Load messages error:", err);
@@ -132,20 +138,14 @@ export default function DMPage() {
     const clearNotifications = async () => {
         if (!myUsername || !friend) return;
         try {
-            // Fetch unread notifications for this user
-            const url = `${API}/matchmaking/notifications/?username=${encodeURIComponent(myUsername)}`;
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                const relevantNotifs = data.notifications?.filter((n: any) => n.sender === friend);
-                if (relevantNotifs && relevantNotifs.length > 0) {
-                    const ids = relevantNotifs.map((n: any) => n.id);
-                    await fetch(`${API}/matchmaking/notifications/`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ids }),
-                    });
-                }
+            const data = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(myUsername)}`);
+            const relevantNotifs = data.notifications?.filter((n: any) => n.sender === friend);
+            if (relevantNotifs && relevantNotifs.length > 0) {
+                const ids = relevantNotifs.map((n: any) => n.id);
+                await fetchApi(`/matchmaking/notifications/`, {
+                    method: 'POST',
+                    body: JSON.stringify({ ids }),
+                });
             }
         } catch (err) {
             console.error("Clear notifications error:", err);
@@ -155,8 +155,15 @@ export default function DMPage() {
     const connectWS = () => {
         if (wsRef.current) wsRef.current.close();
         const token = localStorage.getItem('access_token');
+        
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
-        const wsUrl = `ws://${host}:8000/ws/chat/${roomName}/?token=${token}`;
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
+        const wsHost = process.env.NEXT_PUBLIC_API_URL 
+            ? new URL(process.env.NEXT_PUBLIC_API_URL).host 
+            : (isLocal ? `${host}:8000` : host);
+
+        const wsUrl = `${wsProtocol}//${wsHost}/ws/chat/${roomName}/?token=${token}`;
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
@@ -268,9 +275,8 @@ export default function DMPage() {
         }
 
         try {
-            await fetch(`${API}/room/${roomName}/messages/`, {
+            await fetchApi(`/room/${roomName}/messages/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: myUsername, text, client_id: clientId }),
             });
         } catch { /* optimistic handling */ }
@@ -280,9 +286,8 @@ export default function DMPage() {
     const deleteForEveryone = async (msgId: number) => {
         setContextMenu(null);
         try {
-            await fetch(`${API}/room/messages/${msgId}/action/`, {
+            await fetchApi(`/room/messages/${msgId}/action/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete_for_everyone' }),
             });
             setMessages(prev => prev.map(m =>
@@ -291,8 +296,12 @@ export default function DMPage() {
         } catch { }
     };
 
+    const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+        bottomRef.current?.scrollIntoView({ behavior });
+    };
+
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom();
     }, [messages, peerTyping]);
 
     const friendInitial = friend.replace('session_', '').charAt(0).toUpperCase();
@@ -320,9 +329,8 @@ export default function DMPage() {
                             onClick={async () => {
                                 if (friendStatus !== 'none') return;
                                 try {
-                                    await fetch(`${API}/matchmaking/friends/`, {
+                                    await fetchApi(`/matchmaking/friends/`, {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ username: myUsername, target_username: friend, action: 'request' }),
                                     });
                                     setFriendStatus('pending');

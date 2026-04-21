@@ -49,7 +49,7 @@ export default function Header() {
         localStorage.removeItem('user');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.replace('/login');
+        window.location.replace('/login?logout=true');
     };
 
     return (

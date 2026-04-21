@@ -72,11 +72,12 @@ export default function NotificationProvider({ children }: { children: React.Rea
             return;
         }
 
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsHost = process.env.NEXT_PUBLIC_API_URL
             ? new URL(process.env.NEXT_PUBLIC_API_URL).host
-            : `${host}:8000`;
+            : (isLocal ? `${host}:8000` : host);
 
         const connect = () => {
             const currentToken = localStorage.getItem('access_token');
@@ -145,7 +146,7 @@ export default function NotificationProvider({ children }: { children: React.Rea
 
         // FAILSAFE: Polling fallback — only shows toast if WS didn't already handle it
         let lastNotifId = 0;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || `http://${host}:8000`;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || (isLocal ? `http://${host}:8000` : `https://${host}`);
 
         const poll = async () => {
             if (!user?.username) return;

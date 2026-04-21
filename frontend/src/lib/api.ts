@@ -2,7 +2,24 @@
  * Utility for making authenticated API requests to the Django backend.
  * Uses Django Session Authentication via cookies (credentials: 'include').
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+// Robust API base resolution
+// Robust API base resolution - Locked to production by default
+const getApiBase = () => {
+    if (typeof window === 'undefined') return 'https://api.glysmork.com/api';
+    
+    const hostname = window.location.hostname;
+    // Only use localhost fallback if explicitly on a local dev environment
+    const isLocalDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+    
+    if (isLocalDev) {
+        return process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+    }
+    
+    // Default to production for all other domains (glysmork.com, etc.)
+    return 'https://api.glysmork.com/api';
+};
+
+const API_BASE_URL = getApiBase();
 
 function getCsrfToken(): string {
     if (typeof document === 'undefined') return '';
@@ -41,7 +58,11 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
         if (csrfToken) headers['X-CSRFToken'] = csrfToken;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    // Construct and normalize URL (prevents double slashes)
+    const rawUrl = `${API_BASE_URL}${endpoint}`;
+    const url = rawUrl.replace(/([^:]\/)\/+/g, "$1");
+
+    const response = await fetch(url, {
         ...options,
         headers,
         credentials: 'include', // Send session cookie cross-origin

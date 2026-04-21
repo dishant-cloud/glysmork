@@ -92,6 +92,14 @@ export default function Dashboard() {
             window.location.href = '/login';
         }
 
+    const handleLogout = () => {
+        localStorage.removeItem('user');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login?logout=true';
+    };
+
+    useEffect(() => {
         const interval = setInterval(() => {
             setActiveIndex((prev) => (prev + 1) % 8);
         }, 1000);
@@ -99,23 +107,29 @@ export default function Dashboard() {
         // Fetch online count
         const fetchOnline = async () => {
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/users/online-count/');
-                if (res.ok) {
-                    const data = await res.json();
-                    setOnlineCount(data.online_count);
-                    setTotalUsers(data.total_users);
+                const data = await fetchApi('/users/online-count/');
+                setOnlineCount(data.online_count);
+                setTotalUsers(data.total_users);
+            } catch (err: any) {
+                console.error("Online count fetch failed:", err);
+                if (err?.message?.includes('404') || err?.message?.includes('401')) {
+                    handleLogout();
                 }
-            } catch { }
+            }
             // Send heartbeat to keep this user's last_seen fresh
             const u = getUsername();
             if (u) {
                 try {
-                    await fetch('http://127.0.0.1:8000/api/users/heartbeat/', {
+                    await fetchApi('/users/heartbeat/', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ username: u }),
                     });
-                } catch { }
+                } catch (err: any) {
+                    console.error("Heartbeat failed for user", u, err);
+                    if (err?.message?.includes('404') || err?.message?.includes('401')) {
+                        handleLogout();
+                    }
+                }
             }
         };
         fetchOnline();
@@ -157,7 +171,11 @@ export default function Dashboard() {
                             unshown.forEach((n: any) => shownNotifsRef.current.add(n.id));
                         }
                     }
-            } catch { }
+            } catch (err: any) {
+                if (err?.message?.includes('404') || err?.message?.includes('401')) {
+                    handleLogout();
+                }
+            }
         };
         fetchNotifs();
         const notifInterval = setInterval(fetchNotifs, 5000);
@@ -503,7 +521,7 @@ export default function Dashboard() {
                                                         action: notif.isReceivedRequest ? 'accept' : 'request',
                                                     }),
                                                 });
-                                                await fetch('http://127.0.0.1:8000/api/matchmaking/notifications/', {
+                                                await fetchApi('/matchmaking/notifications/', {
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({ ids: [notif.id] }),

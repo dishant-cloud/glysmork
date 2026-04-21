@@ -884,5 +884,7 @@ class UpdateLocationView(APIView):
             
             profile.save()
             return Response({"status": "Location updated", "lat": lat, "lng": lng, "geohash": profile.geohash}, status=status.HTTP_200_OK)
+        except (User.DoesNotExist, Profile.DoesNotExist):
+            return Response({"error": f"User or Profile for {username} not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

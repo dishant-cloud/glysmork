@@ -51,6 +51,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',
     'https://glysmork.com',
     'https://www.glysmork.com',
+    'https://api.glysmork.com',
 ]
 
 if 'CSRF_TRUSTED_ORIGINS' in os.environ:
@@ -98,6 +99,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://www.glysmork.com",
     "https://glysmork.com",
+    "https://api.glysmork.com",
     "https://glysmork-weld.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
@@ -151,8 +153,8 @@ ASGI_APPLICATION = 'chat.asgi.application'
 # Channel Layer
 # Set USE_REDIS to False if your Redis version is older than 5.0 (causes 'BZPOPMIN' error)
 # Force USE_REDIS to False to avoid BZPOPMIN errors on old Redis versions
-USE_REDIS = False
-# USE_REDIS = os.environ.get('USE_REDIS', 'False') == 'True'
+USE_REDIS = os.environ.get('USE_REDIS', 'True') == 'True'
+# Set USE_REDIS to False if your Redis version is older than 5.0 (causes 'BZPOPMIN' error)
 REDIS_URL = os.environ.get('REDIS_URL')
 
 if USE_REDIS and REDIS_URL:

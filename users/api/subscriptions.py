@@ -48,8 +48,8 @@ class StripeCheckoutView(APIView):
                     },
                 ],
                 mode='subscription',
-                success_url=os.environ.get('FRONTEND_URL', 'http://localhost:3000') + '/pricing/success?session_id={CHECKOUT_SESSION_ID}',
-                cancel_url=os.environ.get('FRONTEND_URL', 'http://localhost:3000') + '/pricing/cancel',
+                success_url=os.environ.get('FRONTEND_URL', 'https://www.glysmork.com') + '/pricing/success?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=os.environ.get('FRONTEND_URL', 'https://www.glysmork.com') + '/pricing/cancel',
                 metadata={
                     'user_id': request.user.id,
                     'plan_type': plan_type

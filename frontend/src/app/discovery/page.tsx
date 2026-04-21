@@ -134,9 +134,8 @@ export default function DiscoveryPage() {
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={() => {
-                                                fetch('http://127.0.0.1:8000/api/matchmaking/notify/', {
+                                                fetchApi('/matchmaking/notify/', {
                                                     method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({
                                                         sender: getUsername(),
                                                         receiver: result.username,
