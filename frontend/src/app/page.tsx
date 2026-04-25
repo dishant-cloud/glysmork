@@ -36,10 +36,8 @@ export default function Home() {
         </div>
         
         <ul className="hidden md:flex gap-10 text-[15px] font-medium text-slate-600">
-          <li><Link href="/connections" className="hover:text-black transition-colors">Connections</Link></li>
-          <li><Link href="/help" className="hover:text-black transition-colors">Help</Link></li>
-          <li><Link href="/premium" className="hover:text-black transition-colors">Pricing</Link></li>
-          <li><Link href="/events" className="hover:text-black transition-colors">Events</Link></li>
+          <li><Link href="/login" className="hover:text-black transition-colors">Sign In</Link></li>
+          <li><Link href="/signup" className="hover:text-black transition-colors">Get Started</Link></li>
         </ul>
 
         <div className="hidden md:flex items-center gap-4">

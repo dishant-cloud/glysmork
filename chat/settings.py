@@ -97,6 +97,8 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://13.60.46.93:3000",
+    "http://13.60.46.93",
     "https://www.glysmork.com",
     "https://glysmork.com",
     "https://api.glysmork.com",
@@ -104,7 +106,13 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow Google OAuth popup to communicate back (fixes COOP postMessage block)
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+
 CSRF_TRUSTED_ORIGINS = [
+    "http://13.60.46.93",
+    "http://13.60.46.93:3000",
+    "http://13.60.46.93:8000",
     "https://www.glysmork.com",
     "https://glysmork.com",
     "https://api.glysmork.com",

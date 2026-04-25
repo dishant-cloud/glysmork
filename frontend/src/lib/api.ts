@@ -5,17 +5,23 @@
 // Robust API base resolution
 // Robust API base resolution - Locked to production by default
 const getApiBase = () => {
-    if (typeof window === 'undefined') return 'https://api.glysmork.com/api';
+    if (typeof window === 'undefined') {
+        return process.env.NEXT_PUBLIC_API_URL || 'https://api.glysmork.com/api';
+    }
     
     const hostname = window.location.hostname;
-    // Only use localhost fallback if explicitly on a local dev environment
     const isLocalDev = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
     
     if (isLocalDev) {
         return process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
     }
     
-    // Default to production for all other domains (glysmork.com, etc.)
+    // For production (any domain or IP), use the env variable if set, else fallback to same-host port 8000
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return process.env.NEXT_PUBLIC_API_URL;
+    }
+
+    // Default to the correct production API if no env variable is set
     return 'https://api.glysmork.com/api';
 };
 
