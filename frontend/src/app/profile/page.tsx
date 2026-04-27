@@ -164,7 +164,7 @@ export default function ProfilePage() {
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            className="bg-white/80 backdrop-blur-2xl border border-slate-200/60 p-8 rounded-[32px] shadow-xl relative overflow-hidden group"
+                            className="bg-white/80 backdrop-blur-2xl border border-slate-200/60 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-xl relative overflow-hidden group"
                         >
                             {/* The Persona Image */}
                             <div className="aspect-square w-full bg-slate-100 border border-slate-200 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center shadow-inner">
@@ -284,7 +284,7 @@ export default function ProfilePage() {
                                 <div>
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">{profileData?.user?.username}</h2>
+                                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">{profileData?.user?.username}</h2>
                                             <div className="text-xs font-bold text-slate-400 flex flex-wrap gap-2 items-center">
                                                 <span>{profileData?.gender === 'M' ? 'Male' : profileData?.gender === 'F' ? 'Female' : 'Other'}</span>
                                                 <span className="w-1 h-1 bg-slate-200 rounded-full" />
@@ -326,7 +326,7 @@ export default function ProfilePage() {
                             initial={{ y: 40, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.2 }}
-                            className="bg-white/90 backdrop-blur-2xl border border-slate-200/60 p-10 rounded-[32px] shadow-xl relative overflow-hidden h-full"
+                            className="bg-white/90 backdrop-blur-2xl border border-slate-200/60 p-6 md:p-10 rounded-[24px] md:rounded-[32px] shadow-xl relative overflow-hidden h-full"
                         >
                             <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
                                 <Brain className="w-48 h-48 text-indigo-900" />

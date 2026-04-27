@@ -483,7 +483,7 @@ export default function Dashboard() {
             </AnimatePresence>
 
             {/* Chat Notification Toasts */}
-            <div className="fixed top-28 right-6 z-[60] flex flex-col gap-3 max-w-sm w-80">
+            <div className="fixed top-28 right-4 sm:right-6 z-[60] flex flex-col gap-3 max-w-[calc(100vw-2rem)] w-80">
                 <AnimatePresence>
                     {chatNotifs.map((notif) => (
                         <motion.div
@@ -588,7 +588,7 @@ export default function Dashboard() {
             <Header />
 
             {/* Main Content */}
-            <div className="relative z-10 w-full max-w-[1400px] mx-auto min-h-screen flex flex-col justify-center px-6 md:px-12 pt-32 pb-20">
+            <div className="relative z-10 w-full max-w-[1400px] mx-auto min-h-screen flex flex-col justify-center px-4 md:px-12 pt-32 pb-20">
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
@@ -602,11 +602,11 @@ export default function Dashboard() {
                         </div>
 
                         {/* Clean Hero Heading */}
-                        <h1 className="text-[55px] md:text-[75px] leading-[0.95] font-semibold tracking-[-0.03em] text-slate-900 mb-6 drop-shadow-sm">
+                        <h1 className="text-4xl sm:text-[55px] md:text-[75px] leading-[0.95] font-semibold tracking-[-0.03em] text-slate-900 mb-6 drop-shadow-sm">
                             Glysmork
                         </h1>
 
-                        <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 text-slate-800 uppercase leading-tight">
+                        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter mb-4 text-slate-800 uppercase leading-tight">
                             Find The<br />Right Person
                         </h2>
 
@@ -667,8 +667,8 @@ export default function Dashboard() {
 
                         {/* Expanded Filter Drawer */}
                         {showFilters && (
-                            <div className="w-full max-w-xl mb-8 p-5 bg-white border border-slate-200/50 rounded-2xl flex flex-wrap gap-4 items-end shadow-sm">
-                                <div className="flex flex-col gap-2 min-w-[280px]">
+                            <div className="w-full max-w-xl mb-8 p-4 sm:p-5 bg-white border border-slate-200/50 rounded-2xl flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-end shadow-sm">
+                                <div className="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[280px]">
                                     <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Countries {countryFilter.length > 0 && `(${countryFilter.length})`}</label>
                                     <div className="flex flex-wrap gap-1.5">
                                         {[
@@ -686,7 +686,7 @@ export default function Dashboard() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2 min-w-[280px]">
+                                <div className="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[280px]">
                                     <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Languages {languageFilter.length > 0 && `(${languageFilter.length})`}</label>
                                     <div className="flex flex-wrap gap-1.5">
                                         {[
@@ -704,7 +704,7 @@ export default function Dashboard() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-1 min-w-[200px]">
+                                <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[200px]">
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                         Distance {distanceKm > 0 ? `— within ${distanceKm} km` : '— any'}
                                     </label>
@@ -721,7 +721,7 @@ export default function Dashboard() {
                                         <span>Any</span><span>250km</span><span>500km</span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                <div className="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[200px]">
                                     <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Gender {genderFilter !== 'A' && `(${genderFilter})`}</label>
                                     <div className="flex flex-wrap gap-1.5">
                                         {[

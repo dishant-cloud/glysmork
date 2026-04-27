@@ -54,51 +54,7 @@ export default function OnboardingChat() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, loading]);
 
-    // Force background on html/body to prevent "white bleed" or cutoffs during overscroll
-    useEffect(() => {
-        const html = document.documentElement;
-        const body = document.body;
-        const originalHtmlBg = html.style.backgroundColor;
-        const originalHtmlBgImg = html.style.backgroundImage;
-        const originalHtmlBgSize = html.style.backgroundSize;
-        const originalHtmlBgPos = html.style.backgroundPosition;
-        const originalHtmlBgAttachment = html.style.backgroundAttachment;
-        const orgBodyBgImg = body.style.backgroundImage;
-        const orgBodyBgSize = body.style.backgroundSize;
-        const orgBodyBgPos = body.style.backgroundPosition;
-        const orgBodyBgColor = body.style.backgroundColor;
-        const orgBodyBgAttachment = body.style.backgroundAttachment;
-        
-        html.style.backgroundColor = '#050508';
-        html.style.backgroundImage = "linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/glysmork_signup.png')";
-        html.style.backgroundSize = "cover";
-        html.style.backgroundPosition = "center";
-        html.style.backgroundAttachment = 'fixed';
-        html.style.overscrollBehavior = 'none';
-
-        body.style.backgroundImage = "linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/glysmork_signup.png')";
-        body.style.backgroundSize = "cover";
-        body.style.backgroundPosition = "center";
-        body.style.backgroundColor = '#050508';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.overscrollBehavior = 'none';
-        
-        return () => {
-            html.style.backgroundColor = originalHtmlBg;
-            html.style.backgroundImage = originalHtmlBgImg;
-            html.style.backgroundSize = originalHtmlBgSize;
-            html.style.backgroundPosition = originalHtmlBgPos;
-            html.style.backgroundAttachment = originalHtmlBgAttachment;
-            html.style.overscrollBehavior = '';
-
-            body.style.backgroundImage = orgBodyBgImg;
-            body.style.backgroundSize = orgBodyBgSize;
-            body.style.backgroundPosition = orgBodyBgPos;
-            body.style.backgroundColor = orgBodyBgColor;
-            body.style.backgroundAttachment = orgBodyBgAttachment;
-            body.style.overscrollBehavior = '';
-        };
-    }, []);
+    // Legacy full-screen background effect removed in favor of clean component styling.
 
     // Guard: if user already completed onboarding, skip to dashboard. Otherwise fire opening question.
     useEffect(() => {
@@ -257,7 +213,7 @@ export default function OnboardingChat() {
 
     return (
         <div
-            className="min-h-screen flex flex-col items-center justify-between text-white relative overflow-hidden"
+            className="min-h-screen bg-[#050508] flex flex-col items-center justify-between text-white relative overflow-hidden overscroll-none"
         >
             <div className="bg-noise" />
 

@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
                         </div>
 
                         {/* Growth Chart */}
-                        <div className="lg:col-span-8 bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] relative overflow-hidden">
+                        <div className="lg:col-span-8 bg-white/80 backdrop-blur-2xl border border-white p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] relative overflow-hidden">
                             <div className="flex justify-between items-center mb-10">
                                 <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                     <TrendingUp className="w-4 h-4 text-sky-400" /> Join Velocity (7 Days)
@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
                         </div>
 
                         {/* Top Locations */}
-                        <div className="lg:col-span-4 bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] flex flex-col justify-between">
+                        <div className="lg:col-span-4 bg-white/80 backdrop-blur-2xl border border-white p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] flex flex-col justify-between">
                             <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-8">
                                 <Globe className="w-4 h-4 text-purple-400" /> Regional Reach
                             </h3>
@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
                         </div>
 
                         {/* Gender Diversity */}
-                        <div className="lg:col-span-4 bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]">
+                        <div className="lg:col-span-4 bg-white/80 backdrop-blur-2xl border border-white p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]">
                             <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-8">
                                 <PieChart className="w-4 h-4 text-rose-400" /> network demographics
                             </h3>
@@ -179,7 +179,7 @@ export default function AnalyticsPage() {
 
                         {/* Interests & Expertise */}
                         <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]">
+                            <div className="bg-white/80 backdrop-blur-2xl border border-white p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]">
                                 <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-8">
                                     <Brain className="w-4 h-4 text-sky-400" /> Hot Interests
                                 </h3>
@@ -195,7 +195,7 @@ export default function AnalyticsPage() {
                                     )}
                                 </div>
                             </div>
-                            <div className="bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]">
+                            <div className="bg-white/80 backdrop-blur-2xl border border-white p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]">
                                 <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-8">
                                     <Cpu className="w-4 h-4 text-purple-400" /> Core Expertise
                                 </h3>
@@ -230,7 +230,7 @@ function MetricCard({ icon, label, value, color, subValue }: { icon: React.React
     };
 
     return (
-        <div className={`bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] group hover:-translate-y-1 transition-all duration-300`}>
+        <div className={`bg-white/80 backdrop-blur-2xl border border-white p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] group hover:-translate-y-1 transition-all duration-300`}>
             <div className="flex justify-between items-start mb-6">
                 <div className={`p-3 rounded-2xl border ${colorClasses[color]}`}>
                     {icon}

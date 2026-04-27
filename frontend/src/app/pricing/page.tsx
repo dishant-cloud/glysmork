@@ -109,7 +109,7 @@ export default function PricingPage() {
                         <Sparkles className="w-3 h-3" />
                         Premium Experience
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
+                    <h1 className="text-3xl md:text-6xl font-bold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
                         Unlock Your Full Potential
                     </h1>
                     <p className="max-w-xl mx-auto text-slate-400 text-lg leading-relaxed">
@@ -125,7 +125,7 @@ export default function PricingPage() {
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
-                            className={`relative group bg-slate-900/40 backdrop-blur-xl border ${plan.borderColor} rounded-[32px] p-8 md:p-10 flex flex-col h-full shadow-2xl overflow-hidden`}
+                            className={`relative group bg-slate-900/40 backdrop-blur-xl border ${plan.borderColor} rounded-[32px] p-6 md:p-10 flex flex-col h-full shadow-2xl overflow-hidden`}
                         >
                             {plan.recommended && (
                                 <div className="absolute top-0 right-0 pt-6 pr-6">
