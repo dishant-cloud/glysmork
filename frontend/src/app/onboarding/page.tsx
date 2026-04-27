@@ -7,8 +7,28 @@ import { fetchApi } from '@/lib/api';
 
 type Message = { role: 'model' | 'user'; text: string; isCrisis?: boolean };
 
-const ONBOARDING_URL = process.env.NEXT_PUBLIC_ONBOARDING_URL || 'http://localhost:8081';
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api').replace('/api', '');
+const getOnboardingUrl = () => {
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.')) {
+            return process.env.NEXT_PUBLIC_ONBOARDING_URL || 'https://api.glysmork.com';
+        }
+    }
+    return process.env.NEXT_PUBLIC_ONBOARDING_URL || 'http://localhost:8081';
+};
+
+const getApiBaseUrl = () => {
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.')) {
+            return (process.env.NEXT_PUBLIC_API_URL || 'https://api.glysmork.com/api').replace('/api', '');
+        }
+    }
+    return (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api').replace('/api', '');
+};
+
+const ONBOARDING_URL = getOnboardingUrl();
+const API_BASE = getApiBaseUrl();
 
 export default function OnboardingChat() {
     const [messages, setMessages] = useState<Message[]>([]);
