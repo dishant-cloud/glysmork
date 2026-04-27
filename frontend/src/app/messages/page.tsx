@@ -121,7 +121,7 @@ export default function InboxPage() {
                 ) : (
                     <div className="space-y-12">
                         {/* Unread Messages (Notifications) */}
-                        {chatNotifs.length > 0 ? (
+                        {chatNotifs.length > 0 && (
                             <section>
                                 <h2 className="text-xs font-sans text-[13px] font-medium text-purple-400 uppercase tracking-widest mb-6 border-b border-purple-500/20 pb-2">New Messages</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -167,7 +167,49 @@ export default function InboxPage() {
                                     ))}
                                 </div>
                             </section>
-                        ) : (
+                        )}
+
+                        {/* Friend Requests Section */}
+                        {friendsData.received && friendsData.received.length > 0 && (
+                            <section>
+                                <h2 className="text-xs font-sans text-[13px] font-medium text-emerald-400 uppercase tracking-widest mb-6 border-b border-emerald-500/20 pb-2">Friend Requests</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {friendsData.received.map(req => (
+                                        <div key={req.id} className="p-4 bg-white/80 border border-emerald-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-black text-white rounded-none border border-emerald-400/50">
+                                                    {req.username.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-slate-900 uppercase tracking-tight">{req.username}</span>
+                                                    <p className="text-[10px] text-gray-400 font-sans text-[13px] font-medium italic">
+                                                        Wants to be friends!
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleFriendAction(req.username, 'accept')}
+                                                    className="px-3 py-1.5 bg-emerald-500/20 text-emerald-600 font-sans text-[13px] font-medium text-[10px] uppercase tracking-widest border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1"
+                                                >
+                                                    <UserCheck className="w-3 h-3" /> Accept
+                                                </button>
+                                                <button
+                                                    onClick={() => handleFriendAction(req.username, 'reject')}
+                                                    className="px-2 py-1.5 bg-red-500/10 text-red-400 font-sans text-[13px] font-medium text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                    title="Reject"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Empty State */}
+                        {chatNotifs.length === 0 && (!friendsData.received || friendsData.received.length === 0) && (
                             <div className="flex flex-col items-center justify-center py-20 bg-white/40 border border-dashed border-slate-200">
                                 <MessageSquare className="w-12 h-12 text-slate-200 mb-4" />
                                 <p className="text-sm font-sans text-[13px] font-medium text-slate-400 italic">No new notifications. You're all caught up!</p>

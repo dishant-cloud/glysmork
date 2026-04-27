@@ -97,7 +97,7 @@ export default function DMPage() {
             const data = await fetchApi(`/room/${roomName}/messages/?username=${myUsername}${cursor ? `&cursor=${cursor}` : ''}`);
             const newMsgs = (data.results || []).map((m: any) => ({
                 id: m.id,
-                sender: m.sender_username,
+                sender: m.sender || m.sender_username,
                 text: m.text,
                 timestamp: m.date_iso ? new Date(m.date_iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (m.date ? new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : m.timestamp),
                 status: m.is_read ? 'read' : 'sent',
