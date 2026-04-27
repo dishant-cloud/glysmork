@@ -35,10 +35,10 @@ export default function Home() {
       <div className="absolute top-[40%] right-[30%] w-[400px] h-[400px] bg-cyan-200/20 blur-[100px] rounded-full mix-blend-overlay pointer-events-none" />
 
       {/* Navbar */}
-      <nav className="flex justify-between items-center px-6 md:px-12 py-8 relative z-20 max-w-[1600px] mx-auto">
-        <div className="flex items-center gap-2 text-[26px] font-bold tracking-tight text-slate-800">
+      <nav className="flex justify-between items-center px-4 md:px-12 py-6 md:py-8 relative z-20 max-w-[1600px] mx-auto">
+        <div className="flex items-center gap-2 text-[22px] md:text-[26px] font-bold tracking-tight text-slate-800">
           Glysmork
-          <Network className="w-6 h-6 text-slate-500" />
+          <Network className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
         </div>
         
         <ul className="hidden md:flex gap-10 text-[15px] font-medium text-slate-600">
@@ -48,6 +48,7 @@ export default function Home() {
           <li><Link href="/events" className="hover:text-black transition-colors">Events</Link></li>
         </ul>
 
+        {/* Desktop Buttons */}
         <div className="hidden md:flex items-center gap-4">
           <Link href="/login" className="text-[14px] font-semibold text-slate-700 hover:text-black transition-colors px-4 py-2">
             Sign In
@@ -57,10 +58,20 @@ export default function Home() {
             <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
+
+        {/* Mobile Buttons */}
+        <div className="flex md:hidden items-center gap-2">
+          <Link href="/login" className="text-[12px] font-semibold text-slate-700 hover:text-black px-2 py-1">
+            Sign In
+          </Link>
+          <Link href="/signup" className="flex items-center gap-1 px-4 py-2 rounded-full bg-slate-800 text-white text-[12px] font-semibold">
+            Join
+          </Link>
+        </div>
       </nav>
 
       {/* Hero Content */}
-      <div className="relative z-10 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 px-6 md:px-12 pt-16 pb-24 items-center min-h-[calc(100vh-100px)]">
+      <div className="relative z-10 max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 px-4 md:px-12 pt-8 md:pt-16 pb-16 md:pb-24 items-center min-h-[calc(100vh-100px)]">
         
         {/* Left Col: Main Text & CTA */}
         <div className="lg:col-span-6 flex flex-col items-start xl:pl-8 relative z-20">
@@ -71,11 +82,11 @@ export default function Home() {
             ))}
           </div>
           
-          <h1 className="text-[64px] md:text-[90px] leading-[0.95] font-semibold tracking-[-0.03em] text-slate-900 mb-8 drop-shadow-sm">
+          <h1 className="text-[48px] sm:text-[64px] md:text-[90px] leading-[1.05] md:leading-[0.95] font-semibold tracking-[-0.03em] text-slate-900 mb-6 md:mb-8 drop-shadow-sm">
             Find Exactly<br />Who You<br />Need.
           </h1>
 
-          <p className="text-[18px] text-slate-600 mb-10 max-w-[480px] leading-relaxed font-medium">
+          <p className="text-[16px] sm:text-[18px] text-slate-600 mb-8 md:mb-10 max-w-[480px] leading-relaxed font-medium">
             Not another algorithm. Describe a topic, a mindset, or an expertise. Our smart engine connects you to the exact person you need to scale your growth instantly.
           </p>
 
@@ -95,38 +106,38 @@ export default function Home() {
           </div>
 
           {/* Connected Social Proof Line */}
-          <div className="flex items-center gap-4 bg-white/40 backdrop-blur-xl px-4 py-2 rounded-full border border-white/60 shadow-sm w-max">
-            <div className="flex -space-x-3">
+          <div className="flex items-center gap-3 sm:gap-4 bg-white/40 backdrop-blur-xl px-4 py-2 rounded-full border border-white/60 shadow-sm w-full max-w-max mx-auto sm:mx-0">
+            <div className="flex -space-x-3 shrink-0">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-100 bg-slate-200 overflow-hidden relative z-10 transition-transform hover:z-20 hover:scale-110 object-cover">
                   <img src={`https://i.pravatar.cc/100?img=${i + 22}`} className="w-full h-full object-cover" alt="User" />
                 </div>
               ))}
             </div>
-            <span className="text-[14px] font-medium text-slate-700 pr-2">
-              Joined by <strong className="text-slate-900 font-bold">25k+</strong> professionals
+            <span className="text-[12px] sm:text-[14px] font-medium text-slate-700 pr-2 whitespace-nowrap">
+              Joined by <strong className="text-slate-900 font-bold">25k+</strong> pros
             </span>
           </div>
         </div>
 
         {/* Right Col: Layered "Cluster" of Feature Cards */}
-        <div className="lg:col-span-6 relative h-full w-full min-h-[600px] flex justify-center items-center mt-12 lg:mt-0 xl:mr-10">
+        <div className="lg:col-span-6 relative w-full h-[450px] sm:h-[500px] lg:h-full lg:min-h-[600px] flex justify-center items-center mt-12 lg:mt-0 xl:mr-10 scale-[0.8] sm:scale-[0.9] lg:scale-100">
           
           {/* Main Central Card (Smart Matching) */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }} 
             animate={{ opacity: 1, scale: 1, ...floatingAnimation }} 
             transition={{ delay: 0.2 }}
-            className="absolute z-10 w-[360px] bg-white/80 backdrop-blur-2xl border border-white p-8 rounded-[36px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]"
+            className="absolute z-10 w-[90%] sm:w-[360px] bg-white/80 backdrop-blur-2xl border border-white p-6 sm:p-8 rounded-[36px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)]"
           >
-            <div className="bg-slate-50/80 rounded-[24px] p-6 mb-8 w-full flex justify-center items-center shadow-inner relative overflow-hidden h-[160px] border border-slate-100/50">
+            <div className="bg-slate-50/80 rounded-[24px] p-6 mb-6 sm:mb-8 w-full flex justify-center items-center shadow-inner relative overflow-hidden h-[120px] sm:h-[160px] border border-slate-100/50">
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50" />
-              <div className="relative z-10 w-20 h-20 bg-white rounded-[20px] shadow-sm flex items-center justify-center border border-slate-100">
-                 <Brain className="w-10 h-10 text-purple-600" />
+              <div className="relative z-10 w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-[20px] shadow-sm flex items-center justify-center border border-slate-100">
+                 <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-purple-600" />
               </div>
             </div>
-            <h3 className="text-[26px] font-semibold mb-3 text-slate-800 tracking-[-0.03em]">Smart Matching</h3>
-            <p className="text-[15px] text-slate-500 font-medium leading-relaxed">
+            <h3 className="text-[22px] sm:text-[26px] font-semibold mb-2 sm:mb-3 text-slate-800 tracking-[-0.03em]">Smart Matching</h3>
+            <p className="text-[14px] sm:text-[15px] text-slate-500 font-medium leading-relaxed">
               Every profile is analyzed for pure conceptual compatibility and personality resonance.
             </p>
           </motion.div>
@@ -136,16 +147,16 @@ export default function Home() {
             initial={{ opacity: 0, x: -30, y: -30 }} 
             animate={{ opacity: 1, x: 0, y: 0, ...{...floatingAnimation, transition: {...floatingAnimation.transition, delay: 1}} }} 
             transition={{ delay: 0.4 }}
-            className="absolute z-20 top-[8%] left-[0%] xl:left-[-10%] w-[280px] bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-5 rounded-[28px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]"
+            className="absolute z-20 top-[0%] sm:top-[8%] left-[0%] xl:left-[-10%] w-[80%] sm:w-[280px] bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-4 sm:p-5 rounded-[24px] sm:rounded-[28px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]"
           >
-            <div className="flex justify-between items-center mb-4">
-              <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center border border-cyan-100">
-                <Search className="text-cyan-500 w-4 h-4" />
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-cyan-50 flex items-center justify-center border border-cyan-100">
+                <Search className="text-cyan-500 w-3 h-3 sm:w-4 sm:h-4" />
               </div>
               <span className="text-[10px] font-bold text-slate-400">01</span>
             </div>
-            <h3 className="text-[16px] font-semibold mb-1 text-slate-800 tracking-tight">Intent Search</h3>
-            <p className="text-[13px] text-slate-500 font-medium leading-relaxed">Specify exactly who you need to meet instantly.</p>
+            <h3 className="text-[14px] sm:text-[16px] font-semibold mb-1 text-slate-800 tracking-tight">Intent Search</h3>
+            <p className="text-[12px] sm:text-[13px] text-slate-500 font-medium leading-relaxed">Specify exactly who you need to meet instantly.</p>
           </motion.div>
 
           {/* Bottom Right Overlapping Card (Direct Connection) */}
@@ -153,16 +164,16 @@ export default function Home() {
             initial={{ opacity: 0, x: 30, y: 30 }} 
             animate={{ opacity: 1, x: 0, y: 0, ...{...floatingAnimation, transition: {...floatingAnimation.transition, delay: 2}} }} 
             transition={{ delay: 0.6 }}
-            className="absolute z-20 bottom-[8%] right-[-5%] xl:right-[-12%] w-[300px] bg-white/90 backdrop-blur-xl border border-white/80 p-5 rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
+            className="absolute z-20 bottom-[0%] sm:bottom-[8%] right-[0%] xl:right-[-12%] w-[85%] sm:w-[300px] bg-white/90 backdrop-blur-xl border border-white/80 p-4 sm:p-5 rounded-[24px] sm:rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
           >
-            <div className="flex justify-between items-center mb-4">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
-                <Network className="text-orange-500 w-4 h-4" />
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
+                <Network className="text-orange-500 w-3 h-3 sm:w-4 sm:h-4" />
               </div>
               <span className="text-[10px] font-bold text-slate-400">03</span>
             </div>
-            <h3 className="text-[16px] font-semibold mb-1 text-slate-800 tracking-tight">Direct Connection</h3>
-            <p className="text-[13px] text-slate-500 font-medium leading-relaxed">Get instantly routed, bypassing all the noise.</p>
+            <h3 className="text-[14px] sm:text-[16px] font-semibold mb-1 text-slate-800 tracking-tight">Direct Connection</h3>
+            <p className="text-[12px] sm:text-[13px] text-slate-500 font-medium leading-relaxed">Get instantly routed, bypassing all the noise.</p>
           </motion.div>
 
         </div>

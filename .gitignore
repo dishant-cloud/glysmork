@@ -35,3 +35,5 @@ frontend/out/
 test_output*.txt
 test_api_*.py
 test_api_*.txt
+
+pem_folder/
