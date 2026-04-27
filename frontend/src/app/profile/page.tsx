@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import Link from 'next/link';
-import { ArrowLeft, User, Activity, Edit3, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowLeft, User, Activity, Edit3, AlertTriangle, ShieldCheck, Upload, CheckCircle, X, Camera } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProfilePage() {
     const [profileData, setProfileData] = useState<any>(null);
@@ -21,6 +21,18 @@ export default function ProfilePage() {
     const [editLatitude, setEditLatitude] = useState<number | null>(null);
     const [editLongitude, setEditLongitude] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
+
+    // Avatar state
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [avatarTab, setAvatarTab] = useState<'upload' | 'preset'>('upload');
+    const [uploadingImage, setUploadingImage] = useState(false);
+
+    const PRESET_AVATARS = [
+        "https://api.dicebear.com/7.x/shapes/png?seed=Felix&backgroundColor=0a0a0a",
+        "https://api.dicebear.com/7.x/shapes/png?seed=Aneka&backgroundColor=0a0a0a",
+        "https://api.dicebear.com/7.x/shapes/png?seed=Mimi&backgroundColor=0a0a0a",
+        "https://api.dicebear.com/7.x/shapes/png?seed=Jack&backgroundColor=0a0a0a"
+    ];
 
     useEffect(() => {
         loadProfile();
@@ -107,6 +119,52 @@ export default function ProfilePage() {
         );
     };
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append('image', file);
+        try {
+            const res = await fetchApi('/users/profile/image/', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.image_url) {
+                setProfileData({ ...profileData, image: res.image_url });
+                setShowAvatarModal(false);
+            }
+        } catch (err) {
+            alert('Failed to upload image. Keep file size under 5MB.');
+            console.error(err);
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    const handlePresetSelect = async (url: string) => {
+        setUploadingImage(true);
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const formData = new FormData();
+            formData.append('image', blob, 'preset.png');
+            const res = await fetchApi('/users/profile/image/', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.image_url) {
+                setProfileData({ ...profileData, image: res.image_url });
+                setShowAvatarModal(false);
+            }
+        } catch (err) {
+            alert('Failed to set preset image');
+            console.error(err);
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#fafaf9] flex items-center justify-center text-slate-900 flex-col gap-6 relative overflow-hidden text-center">
@@ -142,6 +200,8 @@ export default function ProfilePage() {
     }
 
     const psychologicalProfile = profileData?.psychological_profile || {};
+    const isDefaultImage = profileData?.image?.endsWith('default.jpg');
+    const avatarSrc = (!isDefaultImage && profileData?.image) ? profileData.image : profileData?.persona_image_url;
 
     return (
         <div className="min-h-screen bg-[#fafaf9] text-slate-900 selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">
@@ -167,12 +227,12 @@ export default function ProfilePage() {
                             className="bg-white/80 backdrop-blur-2xl border border-slate-200/60 p-6 md:p-8 rounded-[24px] md:rounded-[32px] shadow-xl relative overflow-hidden group"
                         >
                             {/* The Persona Image */}
-                            <div className="aspect-square w-full bg-slate-100 border border-slate-200 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center shadow-inner">
-                                {profileData?.persona_image_url ? (
+                            <div className="aspect-square w-full bg-slate-100 border border-slate-200 rounded-[24px] mb-6 relative overflow-hidden flex items-center justify-center shadow-inner group/avatar">
+                                {avatarSrc ? (
                                     <img
-                                        src={profileData.persona_image_url}
-                                        alt="AI Persona"
-                                        className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
+                                        src={avatarSrc}
+                                        alt="User Avatar"
+                                        className="w-full h-full object-cover mix-blend-luminosity group-hover/avatar:mix-blend-normal transition-all duration-700 scale-105 group-hover/avatar:scale-100"
                                     />
                                 ) : (
                                     <div className="text-slate-500 text-xs text-center p-6 flex flex-col items-center gap-3">
@@ -180,6 +240,15 @@ export default function ProfilePage() {
                                         <p className="font-medium">Profile visual pending.<br /><span className="text-[10px] opacity-70">Complete onboarding to generate.</span></p>
                                     </div>
                                 )}
+                                
+                                {/* Edit Avatar Overlay */}
+                                <button
+                                    onClick={() => setShowAvatarModal(true)}
+                                    className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 group-hover/avatar:opacity-100 transition-all flex items-center justify-center flex-col gap-2 z-20"
+                                >
+                                    <Camera className="w-8 h-8 text-white" />
+                                    <span className="text-xs font-bold uppercase tracking-widest text-white">Edit Photo</span>
+                                </button>
 
                                 <div className={`absolute top-3 right-3 backdrop-blur-md border shadow-sm px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-bold z-10 ${
                                     profileData?.trust_tier === 'A' ? 'bg-green-50/90 text-green-700 border-green-200' :
@@ -407,6 +476,87 @@ export default function ProfilePage() {
 
                 </div>
             </div>
+
+            {/* Avatar Update Modal */}
+            <AnimatePresence>
+                {showAvatarModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl relative"
+                        >
+                            <button onClick={() => setShowAvatarModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-100 transition-all">
+                                <X className="w-5 h-5"/>
+                            </button>
+                            <h3 className="text-xl font-black mb-6 text-slate-900">Update Profile Photo</h3>
+                            
+                            <div className="flex gap-4 mb-8">
+                                <button 
+                                    onClick={() => setAvatarTab('upload')} 
+                                    className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all ${avatarTab === 'upload' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                >
+                                    Upload Local
+                                </button>
+                                <button 
+                                    onClick={() => setAvatarTab('preset')} 
+                                    className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all ${avatarTab === 'preset' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                >
+                                    Use Preset
+                                </button>
+                            </div>
+
+                            {avatarTab === 'upload' ? (
+                                <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[24px] p-8 text-center bg-slate-50 relative group cursor-pointer hover:border-cyan-500 hover:bg-cyan-50/50 transition-all">
+                                    {uploadingImage ? (
+                                        <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Upload className="w-8 h-8 text-slate-400 group-hover:text-cyan-500 mb-4 transition-colors" />
+                                            <p className="text-sm font-bold text-slate-600 mb-1">Click to browse</p>
+                                            <p className="text-xs text-slate-400">PNG, JPG up to 5MB</p>
+                                        </>
+                                    )}
+                                    <input 
+                                        type="file" 
+                                        accept="image/png, image/jpeg, image/webp" 
+                                        onChange={handleImageUpload} 
+                                        disabled={uploadingImage} 
+                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                                        title="Choose a profile picture"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4 relative">
+                                    {PRESET_AVATARS.map((url, idx) => (
+                                        <button 
+                                            key={idx} 
+                                            onClick={() => handlePresetSelect(url)}
+                                            disabled={uploadingImage}
+                                            className="aspect-square rounded-[24px] bg-slate-100 overflow-hidden relative group hover:ring-4 hover:ring-cyan-500 transition-all"
+                                        >
+                                            <img src={url} alt={`Preset ${idx+1}`} className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-slate-900/40 transition-opacity">
+                                                <CheckCircle className="w-8 h-8 text-white" />
+                                            </div>
+                                        </button>
+                                    ))}
+                                    {uploadingImage && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10 rounded-[24px]">
+                                            <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
