@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Brain, Network, ArrowUpRight, ArrowRight, Star } from 'lucide-react';
+import { Search, Brain, Network, ArrowUpRight, ArrowRight, Star, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem('user')) {
@@ -51,15 +52,35 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Mobile Buttons */}
+        {/* Mobile Buttons & Toggle */}
         <div className="flex md:hidden items-center gap-2">
-          <Link href="/login" className="text-[12px] font-semibold text-slate-700 hover:text-black px-2 py-1">
+          <Link href="/login" className="text-[13px] font-semibold text-slate-700 hover:text-black">
             Sign In
           </Link>
-          <Link href="/signup" className="flex items-center gap-1 px-4 py-2 rounded-full bg-slate-800 text-white text-[12px] font-semibold">
-            Join
-          </Link>
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="text-slate-800 ml-2"
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
+
+        {/* Mobile Nav Dropdown */}
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-3xl border-b border-slate-200 shadow-xl md:hidden flex flex-col px-6 py-6 z-50"
+          >
+            <Link href="/connections" className="py-3 text-[16px] font-semibold text-slate-700 border-b border-slate-100">Connections</Link>
+            <Link href="/help" className="py-3 text-[16px] font-semibold text-slate-700 border-b border-slate-100">Help</Link>
+            <Link href="/premium" className="py-3 text-[16px] font-semibold text-slate-700 border-b border-slate-100">Pricing</Link>
+            <Link href="/events" className="py-3 text-[16px] font-semibold text-slate-700 mb-2">Events</Link>
+            <Link href="/signup" className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full bg-slate-900 text-white text-[15px] font-semibold hover:bg-slate-800 transition-all shadow-md">
+              Get Started <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </motion.div>
+        )}
       </nav>
 
       {/* Hero Content */}
