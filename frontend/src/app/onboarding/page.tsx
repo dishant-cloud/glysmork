@@ -119,8 +119,7 @@ export default function OnboardingChat() {
         const urlParams = new URLSearchParams(window.location.search);
         const isRetake = urlParams.get('retake') === 'true';
 
-        fetch(`${API_BASE}/api/users/profile/${username}/`)
-            .then(r => r.ok ? r.json() : null)
+        fetchApi(`/users/profile/${username}/`)
             .then(data => {
                 if (!isRetake && data?.psychological_profile && Object.keys(data.psychological_profile).length > 0) {
                     // Profile already built — no need to redo onboarding
@@ -229,10 +228,8 @@ export default function OnboardingChat() {
                 });
 
                 try {
-                    await fetch(`${API_BASE}/api/users/onboarding/analyze/`, {
+                    await fetchApi(`/users/onboarding/analyze/`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
                         body: JSON.stringify({
                             username: username,
                             answers: conversationAnswers,
