@@ -134,8 +134,8 @@ export default function ProfilePage() {
                 setProfileData({ ...profileData, image: res.image_url });
                 setShowAvatarModal(false);
             }
-        } catch (err) {
-            alert('Failed to upload image. Keep file size under 5MB.');
+        } catch (err: any) {
+            alert(`Failed to upload image: ${err.message || 'Server error'}`);
             console.error(err);
         } finally {
             setUploadingImage(false);
@@ -157,8 +157,8 @@ export default function ProfilePage() {
                 setProfileData({ ...profileData, image: res.image_url });
                 setShowAvatarModal(false);
             }
-        } catch (err) {
-            alert('Failed to set preset image');
+        } catch (err: any) {
+            alert(`Failed to set preset image: ${err.message || 'Server error'}`);
             console.error(err);
         } finally {
             setUploadingImage(false);
