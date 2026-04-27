@@ -158,7 +158,7 @@ export default function Home() {
           {/* Top Left Overlapping Card (Intent Search) */}
           <motion.div 
             initial={{ opacity: 0, x: -30, y: -30 }} 
-            animate={{ opacity: 1, x: 0, y: 0, ...floatingAnimate }} 
+            animate={{ opacity: 1, x: 0, ...floatingAnimate }} 
             transition={{ delay: 0.4, ...floatingTransition }}
             className="absolute z-20 top-[0%] sm:top-[8%] left-[0%] xl:left-[-10%] w-[80%] sm:w-[280px] bg-[#fdfdfc]/90 backdrop-blur-xl border border-white/80 p-4 sm:p-5 rounded-[24px] sm:rounded-[28px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]"
           >
@@ -175,7 +175,7 @@ export default function Home() {
           {/* Bottom Right Overlapping Card (Direct Connection) */}
           <motion.div 
             initial={{ opacity: 0, x: 30, y: 30 }} 
-            animate={{ opacity: 1, x: 0, y: 0, ...floatingAnimate }} 
+            animate={{ opacity: 1, x: 0, ...floatingAnimate }} 
             transition={{ delay: 0.6, ...floatingTransition }}
             className="absolute z-20 bottom-[0%] sm:bottom-[8%] right-[0%] xl:right-[-12%] w-[85%] sm:w-[300px] bg-white/90 backdrop-blur-xl border border-white/80 p-4 sm:p-5 rounded-[24px] sm:rounded-[28px] shadow-[0_25px_50px_-15px_rgba(0,0,0,0.1)]"
           >
