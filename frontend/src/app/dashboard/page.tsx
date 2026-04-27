@@ -91,6 +91,7 @@ export default function Dashboard() {
             console.error("Failed to parse user data");
             window.location.href = '/login';
         }
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('user');

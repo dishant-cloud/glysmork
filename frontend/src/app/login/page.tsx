@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { Network, Fingerprint, ChevronRight } from 'lucide-react';
 
-export default function Login() {
+function LoginContent() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +17,7 @@ export default function Login() {
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
     const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "";
 
+    useEffect(() => {
         if (searchParams.get('logout') === 'true') {
             console.log("Hard Reset: Clearing all local data...");
             localStorage.clear();
@@ -277,5 +278,13 @@ export default function Login() {
                 </motion.div>
             </div>
         </GoogleOAuthProvider>
+    );
+}
+
+export default function Login() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[#dcedec] flex items-center justify-center text-slate-800">Loading...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 }
