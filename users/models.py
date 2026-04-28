@@ -137,13 +137,18 @@ class Profile(models.Model):
 
         try:
             img = Image.open(self.image.path)
-            if img.height > 300 or img.width > 300:
-                output_size = (300, 300)
-                img.thumbnail(output_size)
-                img.save(self.image.path)
-        except:
-             # Handle cases where image path is not accessible or other errors
-             pass
+            max_size = 800
+            if img.height > max_size or img.width > max_size:
+                img.thumbnail((max_size, max_size), Image.LANCZOS)
+                # Preserve quality — use 90 for JPEG, lossless for PNG
+                fmt = img.format or 'JPEG'
+                save_kwargs = {'format': fmt}
+                if fmt.upper() in ('JPEG', 'JPG'):
+                    save_kwargs['quality'] = 90
+                    save_kwargs['optimize'] = True
+                img.save(self.image.path, **save_kwargs)
+        except Exception:
+            pass
 
 class Subscription(models.Model):
     PLAN_CHOICES = [
