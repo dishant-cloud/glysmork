@@ -27,12 +27,55 @@ export default function ProfilePage() {
     const [avatarTab, setAvatarTab] = useState<'upload' | 'preset'>('upload');
     const [uploadingImage, setUploadingImage] = useState(false);
 
-    const PRESET_AVATARS = [
-        "https://api.dicebear.com/7.x/shapes/png?seed=Felix&backgroundColor=0a0a0a",
-        "https://api.dicebear.com/7.x/shapes/png?seed=Aneka&backgroundColor=0a0a0a",
-        "https://api.dicebear.com/7.x/shapes/png?seed=Mimi&backgroundColor=0a0a0a",
-        "https://api.dicebear.com/7.x/shapes/png?seed=Jack&backgroundColor=0a0a0a"
+    const PRESET_CATEGORIES = [
+        {
+            id: 'animals',
+            label: '🐾 Animals',
+            description: 'Spirit animal — reflects your instinct',
+            avatars: [
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Lion&backgroundColor=fef3c7', label: 'Lion' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Wolf&backgroundColor=e0e7ff', label: 'Wolf' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Fox&backgroundColor=fee2e2', label: 'Fox' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Bear&backgroundColor=d1fae5', label: 'Bear' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Eagle&backgroundColor=e0f2fe', label: 'Eagle' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Owl&backgroundColor=f3e8ff', label: 'Owl' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Tiger&backgroundColor=fff7ed', label: 'Tiger' },
+                { url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Dolphin&backgroundColor=cffafe', label: 'Dolphin' },
+            ]
+        },
+        {
+            id: 'characters',
+            label: '🧑 Characters',
+            description: 'Illustrated persona — your social face',
+            avatars: [
+                { url: 'https://api.dicebear.com/7.x/lorelei/png?seed=Aurora&backgroundColor=fef9c3', label: 'Aurora' },
+                { url: 'https://api.dicebear.com/7.x/lorelei/png?seed=Blaze&backgroundColor=fce7f3', label: 'Blaze' },
+                { url: 'https://api.dicebear.com/7.x/lorelei/png?seed=Storm&backgroundColor=e0f2fe', label: 'Storm' },
+                { url: 'https://api.dicebear.com/7.x/lorelei/png?seed=Nova&backgroundColor=f0fdf4', label: 'Nova' },
+                { url: 'https://api.dicebear.com/7.x/micah/png?seed=Raven&backgroundColor=1e1b4b&hair=fonze&hairColor=f9a8d4', label: 'Raven' },
+                { url: 'https://api.dicebear.com/7.x/micah/png?seed=Kai&backgroundColor=0f172a&hair=full&hairColor=7dd3fc', label: 'Kai' },
+                { url: 'https://api.dicebear.com/7.x/micah/png?seed=Zara&backgroundColor=064e3b&hair=dannyPhantom&hairColor=fde68a', label: 'Zara' },
+                { url: 'https://api.dicebear.com/7.x/micah/png?seed=Orion&backgroundColor=1c1917&hair=mrT&hairColor=a5f3fc', label: 'Orion' },
+            ]
+        },
+        {
+            id: 'artistic',
+            label: '🎨 Artistic',
+            description: 'Abstract identity — for the creatives',
+            avatars: [
+                { url: 'https://api.dicebear.com/7.x/rings/png?seed=Cosmic&backgroundColor=0f0f23', label: 'Cosmic' },
+                { url: 'https://api.dicebear.com/7.x/rings/png?seed=Nebula&backgroundColor=1a0033', label: 'Nebula' },
+                { url: 'https://api.dicebear.com/7.x/rings/png?seed=Prism&backgroundColor=012a1a', label: 'Prism' },
+                { url: 'https://api.dicebear.com/7.x/rings/png?seed=Aurora2&backgroundColor=1a1500', label: 'Aurora' },
+                { url: 'https://api.dicebear.com/7.x/identicon/png?seed=Matrix&backgroundColor=0a0a0a', label: 'Matrix' },
+                { url: 'https://api.dicebear.com/7.x/identicon/png?seed=Cipher&backgroundColor=0a0a0a', label: 'Cipher' },
+                { url: 'https://api.dicebear.com/7.x/shapes/png?seed=Vortex&backgroundColor=0f172a', label: 'Vortex' },
+                { url: 'https://api.dicebear.com/7.x/shapes/png?seed=Flux&backgroundColor=1c0a2e', label: 'Flux' },
+            ]
+        },
     ];
+    const [presetCategory, setPresetCategory] = useState('animals');
+    const activeCategory = PRESET_CATEGORIES.find(c => c.id === presetCategory) || PRESET_CATEGORIES[0];
 
     useEffect(() => {
         loadProfile();
@@ -533,25 +576,48 @@ export default function ProfilePage() {
                                     />
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-4 relative">
-                                    {PRESET_AVATARS.map((url, idx) => (
-                                        <button 
-                                            key={idx} 
-                                            onClick={() => handlePresetSelect(url)}
-                                            disabled={uploadingImage}
-                                            className="aspect-square rounded-[24px] bg-slate-100 overflow-hidden relative group hover:ring-4 hover:ring-cyan-500 transition-all"
-                                        >
-                                            <img src={url} alt={`Preset ${idx+1}`} className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-slate-900/40 transition-opacity">
-                                                <CheckCircle className="w-8 h-8 text-white" />
+                                <div className="space-y-4">
+                                    {/* Category Tabs */}
+                                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                                        {PRESET_CATEGORIES.map(cat => (
+                                            <button
+                                                key={cat.id}
+                                                onClick={() => setPresetCategory(cat.id)}
+                                                className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                                                    presetCategory === cat.id
+                                                        ? 'bg-slate-900 text-white shadow-md'
+                                                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                {cat.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 font-medium">{activeCategory.description}</p>
+
+                                    {/* Preset Grid */}
+                                    <div className="grid grid-cols-4 gap-2.5 relative">
+                                        {activeCategory.avatars.map((preset, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handlePresetSelect(preset.url)}
+                                                disabled={uploadingImage}
+                                                title={preset.label}
+                                                className="aspect-square rounded-2xl bg-slate-100 overflow-hidden relative group hover:ring-4 hover:ring-cyan-500 transition-all"
+                                            >
+                                                <img src={preset.url} alt={preset.label} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-slate-900/60 transition-opacity gap-1">
+                                                    <CheckCircle className="w-5 h-5 text-white" />
+                                                    <span className="text-[9px] font-bold text-white uppercase tracking-widest">{preset.label}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                        {uploadingImage && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-10 rounded-2xl">
+                                                <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
                                             </div>
-                                        </button>
-                                    ))}
-                                    {uploadingImage && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10 rounded-[24px]">
-                                            <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
