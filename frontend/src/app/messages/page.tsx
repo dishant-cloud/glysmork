@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, getMediaUrl } from '@/lib/api';
 import Header from '@/components/Header';
 import { MessageSquare, Clock, ArrowRight, User, Trash2, Users, UserCheck, UserPlus, X, Phone, Video, ArrowLeft } from 'lucide-react';
 import { useNotification } from '@/components/NotificationProvider';
@@ -16,8 +16,8 @@ export default function InboxPage() {
     const { sendSignal } = useNotification();
     const router = useRouter();
     const [friendsData, setFriendsData] = useState<{
-        friends: { id: number, username: string, is_online?: boolean }[],
-        received: { id: number, username: string }[],
+        friends: { id: number, username: string, is_online?: boolean, profile_image?: string | null }[],
+        received: { id: number, username: string, profile_image?: string | null }[],
         sent: { id: number, username: string }[]
     }>({ friends: [], received: [], sent: [] });
     const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
@@ -128,8 +128,12 @@ export default function InboxPage() {
                                     {chatNotifs.map(n => (
                                         <div key={n.id} className="p-4 bg-white/80 border border-purple-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-black text-white rounded-none border border-purple-400/50">
-                                                    {n.sender.charAt(0).toUpperCase()}
+                                                <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-purple-600 to-indigo-600 border border-purple-400/50 shrink-0 flex items-center justify-center">
+                                                    {(n as any).profile_image ? (
+                                                        <img src={getMediaUrl((n as any).profile_image)} alt={n.sender} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="font-black text-white">{n.sender.charAt(0).toUpperCase()}</span>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <span className="font-bold text-slate-900  uppercase tracking-tight">{n.sender}</span>
@@ -177,8 +181,12 @@ export default function InboxPage() {
                                     {friendsData.received.map(req => (
                                         <div key={req.id} className="p-4 bg-white/80 border border-emerald-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-black text-white rounded-none border border-emerald-400/50">
-                                                    {req.username.charAt(0).toUpperCase()}
+                                                <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-emerald-500 to-teal-600 border border-emerald-400/50 shrink-0 flex items-center justify-center">
+                                                    {req.profile_image ? (
+                                                        <img src={getMediaUrl(req.profile_image)} alt={req.username} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="font-black text-white">{req.username.charAt(0).toUpperCase()}</span>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <span className="font-bold text-slate-900 uppercase tracking-tight">{req.username}</span>

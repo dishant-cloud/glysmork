@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Phone, PhoneOff, Video, VideoOff, CheckCheck, Trash2, UserPlus, Check, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useCall } from '@/components/CallProvider';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, getMediaUrl } from '@/lib/api';
 
 type DmMessage = {
     id: any;
@@ -31,6 +31,7 @@ export default function DMPage() {
     const { startCall } = useCall();
 
     const [myUsername, setMyUsername] = useState<string | null>(null);
+    const [friendProfileImage, setFriendProfileImage] = useState<string | null>(null);
     const [messages, setMessages] = useState<DmMessage[]>([]);
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
@@ -75,7 +76,11 @@ export default function DMPage() {
                 .then(data => {
                     const isFriend = data.friends?.some((f: any) => (f.username === friend || f === friend));
                     const isPending = data.sent?.some((f: any) => (f.username === friend || f === friend));
-                    if (isFriend) setFriendStatus('accepted');
+                    if (isFriend) {
+                        setFriendStatus('accepted');
+                        const friendData = data.friends?.find((f: any) => f.username === friend);
+                        if (friendData?.profile_image) setFriendProfileImage(friendData.profile_image);
+                    }
                     else if (isPending) setFriendStatus('pending');
                 }).catch(() => { });
         } else {
@@ -314,8 +319,12 @@ export default function DMPage() {
                     <ArrowLeft className="w-5 h-5 text-slate-600" />
                 </button>
                 <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center font-bold text-white text-sm shadow-sm">
-                        {friendInitial}
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                        {friendProfileImage ? (
+                            <img src={getMediaUrl(friendProfileImage)} alt={friend} className="w-full h-full object-cover" />
+                        ) : (
+                            <span>{friendInitial}</span>
+                        )}
                     </div>
                     <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
                 </div>

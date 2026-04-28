@@ -752,13 +752,31 @@ class FriendshipActionView(APIView):
         
         friends_data = []
         for f in friends:
+            profile = f.to_user.profile if hasattr(f.to_user, 'profile') else None
+            profile_image = None
+            if profile:
+                if profile.image and not str(profile.image).endswith('default.jpg'):
+                    profile_image = profile.image.url
+                elif profile.persona_image_url:
+                    profile_image = profile.persona_image_url
             friends_data.append({
                 "id": f.to_user.id,
                 "username": f.to_user.username,
-                "is_online": f.to_user.profile.is_online() if hasattr(f.to_user, 'profile') else False
+                "is_online": profile.is_online() if profile else False,
+                "profile_image": profile_image,
             })
 
-        received_data = [{"id": f.from_user.id, "username": f.from_user.username} for f in requests_received]
+        received_data = []
+        for f in requests_received:
+            profile = f.from_user.profile if hasattr(f.from_user, 'profile') else None
+            profile_image = None
+            if profile:
+                if profile.image and not str(profile.image).endswith('default.jpg'):
+                    profile_image = profile.image.url
+                elif profile.persona_image_url:
+                    profile_image = profile.persona_image_url
+            received_data.append({"id": f.from_user.id, "username": f.from_user.username, "profile_image": profile_image})
+
         sent_data = [{"id": f.to_user.id, "username": f.to_user.username} for f in requests_sent]
 
         return Response({
