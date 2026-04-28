@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, getMediaUrl } from '@/lib/api';
 import Link from 'next/link';
 import { ArrowLeft, User, Activity, Edit3, AlertTriangle, ShieldCheck, Upload, CheckCircle, X, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -201,7 +201,8 @@ export default function ProfilePage() {
 
     const psychologicalProfile = profileData?.psychological_profile || {};
     const isDefaultImage = profileData?.image?.endsWith('default.jpg');
-    const avatarSrc = (!isDefaultImage && profileData?.image) ? profileData.image : profileData?.persona_image_url;
+    const rawAvatarSrc = (!isDefaultImage && profileData?.image) ? profileData.image : profileData?.persona_image_url;
+    const avatarSrc = getMediaUrl(rawAvatarSrc);
 
     return (
         <div className="min-h-screen bg-[#fafaf9] text-slate-900 selection:bg-cyan-500/30 font-sans p-6 md:p-12 relative overflow-hidden pb-32">

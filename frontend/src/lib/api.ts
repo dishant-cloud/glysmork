@@ -25,7 +25,14 @@ const getApiBase = () => {
     return 'https://api.glysmork.com/api';
 };
 
-const API_BASE_URL = getApiBase();
+export const API_BASE_URL = getApiBase();
+
+export function getMediaUrl(path: string | null | undefined): string {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const rootUrl = API_BASE_URL.replace(/\/api$/, '');
+    return `${rootUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+}
 
 function getCsrfToken(): string {
     if (typeof document === 'undefined') return '';
