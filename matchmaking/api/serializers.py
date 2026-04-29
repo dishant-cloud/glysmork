@@ -3,9 +3,20 @@ from matchmaking.models import Loop, CallRequest, ChatNotification
 
 class ChatNotificationSerializer(serializers.ModelSerializer):
     sender = serializers.CharField(source='sender.username', read_only=True)
+    sender_profile_image = serializers.SerializerMethodField()
+
     class Meta:
         model = ChatNotification
-        fields = ['id', 'sender', 'message', 'room_name', 'created_at']
+        fields = ['id', 'sender', 'sender_profile_image', 'message', 'room_name', 'created_at']
+
+    def get_sender_profile_image(self, obj):
+        try:
+            profile = obj.sender.profile
+            if profile.image and not str(profile.image).endswith('default.jpg'):
+                return profile.image.url
+            return profile.persona_image_url or None
+        except Exception:
+            return None
 
 
 class LoopSerializer(serializers.ModelSerializer):

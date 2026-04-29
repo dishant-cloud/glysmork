@@ -20,7 +20,7 @@ export default function InboxPage() {
         received: { id: number, username: string, profile_image?: string | null }[],
         sent: { id: number, username: string }[]
     }>({ friends: [], received: [], sent: [] });
-    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
+    const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; sender_profile_image?: string | null; message: string; room_name: string }[]>([]);
 
 
 
@@ -129,8 +129,8 @@ export default function InboxPage() {
                                         <div key={n.id} className="p-4 bg-white/80 border border-purple-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(168,85,247,0.1)]">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-purple-600 to-indigo-600 border border-purple-400/50 shrink-0 flex items-center justify-center">
-                                                    {(n as any).profile_image ? (
-                                                        <img src={getMediaUrl((n as any).profile_image)} alt={n.sender} className="w-full h-full object-cover" />
+                                                    {n.sender_profile_image ? (
+                                                        <img src={getMediaUrl(n.sender_profile_image)} alt={n.sender} className="w-full h-full object-cover" />
                                                     ) : (
                                                         <span className="font-black text-white">{n.sender.charAt(0).toUpperCase()}</span>
                                                     )}
