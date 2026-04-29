@@ -29,8 +29,10 @@ export const API_BASE_URL = getApiBase();
 
 export function getMediaUrl(path: string | null | undefined): string {
     if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    const rootUrl = API_BASE_URL.replace(/\/api$/, '');
+    // Upgrade insecure http to https to prevent mixed-content blocking
+    if (path.startsWith('http://')) path = path.replace('http://', 'https://');
+    if (path.startsWith('https://')) return path;
+    const rootUrl = API_BASE_URL.replace(/\/api$/, '').replace('http://', 'https://');
     return `${rootUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 

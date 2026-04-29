@@ -74,7 +74,8 @@ export default function DMPage() {
         const friendUsername = friend.startsWith('session_') ? friend.replace('session_', '') : friend;
         fetchApi(`/users/profile/${encodeURIComponent(friendUsername)}/`)
             .then(data => {
-                const img = data?.image && !data.image.endsWith('default.jpg') ? data.image
+                const isDefault = !data?.image || data.image.includes('default.jpg');
+                const img = !isDefault ? data.image
                     : data?.persona_image_url || null;
                 if (img) setFriendProfileImage(img);
             })
