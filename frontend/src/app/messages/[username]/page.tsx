@@ -74,12 +74,15 @@ export default function DMPage() {
         const friendUsername = friend.startsWith('session_') ? friend.replace('session_', '') : friend;
         fetchApi(`/users/profile/${encodeURIComponent(friendUsername)}/`)
             .then(data => {
-                const isDefault = !data?.image || data.image.includes('default.jpg');
-                const img = !isDefault ? data.image
-                    : data?.persona_image_url || null;
-                if (img) setFriendProfileImage(img);
+                // fast_avatar is always set: uploaded photo or instant DiceBear CDN URL
+                const img = data?.fast_avatar || data?.image;
+                const isDefault = !img || img.includes('default.jpg');
+                if (!isDefault && img) setFriendProfileImage(img);
+                else setFriendProfileImage(`https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(friendUsername)}&size=200`);
             })
-            .catch(() => {});
+            .catch(() => {
+                setFriendProfileImage(`https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(friendUsername)}&size=200`);
+            });
 
         // Check friendship status (for non-session rooms)
         if (!roomName.startsWith('session_')) {

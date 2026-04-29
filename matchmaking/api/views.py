@@ -753,29 +753,18 @@ class FriendshipActionView(APIView):
         friends_data = []
         for f in friends:
             profile = f.to_user.profile if hasattr(f.to_user, 'profile') else None
-            profile_image = None
-            if profile:
-                if profile.image and not str(profile.image).endswith('default.jpg'):
-                    profile_image = profile.image.url
-                elif profile.persona_image_url:
-                    profile_image = profile.persona_image_url
+            from matchmaking.api.serializers import get_profile_image
             friends_data.append({
                 "id": f.to_user.id,
                 "username": f.to_user.username,
                 "is_online": profile.is_online() if profile else False,
-                "profile_image": profile_image,
+                "profile_image": get_profile_image(profile, f.to_user.username),
             })
 
         received_data = []
         for f in requests_received:
             profile = f.from_user.profile if hasattr(f.from_user, 'profile') else None
-            profile_image = None
-            if profile:
-                if profile.image and not str(profile.image).endswith('default.jpg'):
-                    profile_image = profile.image.url
-                elif profile.persona_image_url:
-                    profile_image = profile.persona_image_url
-            received_data.append({"id": f.from_user.id, "username": f.from_user.username, "profile_image": profile_image})
+            received_data.append({"id": f.from_user.id, "username": f.from_user.username, "profile_image": get_profile_image(profile, f.from_user.username)})
 
         sent_data = [{"id": f.to_user.id, "username": f.to_user.username} for f in requests_sent]
 

@@ -12,6 +12,7 @@ from django_countries.serializer_fields import CountryField
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     country = CountryField(allow_blank=True)
+    fast_avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -23,11 +24,20 @@ class ProfileSerializer(serializers.ModelSerializer):
             'last_quiz_taken', 'is_profile_public',
             'show_ai_analysis', 'hidden_data_fields',
             'country', 'state', 'languages', 'latitude', 'longitude',
-            'persona_image_url', 'trust_score', 'trust_tier',
+            'persona_image_url', 'fast_avatar', 'trust_score', 'trust_tier',
             'subscription_tier', 'is_premium',
             'daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches',
         ]
         read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics', 'trust_score', 'trust_tier']
+
+    def get_fast_avatar(self, instance):
+        """Uploaded photo → DiceBear (instant CDN). Never uses slow Pollinations URLs."""
+        try:
+            if instance.image and not str(instance.image).endswith('default.jpg'):
+                return instance.image.url.replace('http://', 'https://')
+        except Exception:
+            pass
+        return f'https://api.dicebear.com/7.x/adventurer/png?seed={instance.user.username}&size=200'
 
     def update(self, instance, validated_data):
         user_data = self.context['request'].data.get('user')
@@ -57,6 +67,7 @@ class ProfileSerializer(serializers.ModelSerializer):
                 data.pop('psychological_profile', None)
                 
         return data
+
 
 class OnboardingQuizSerializer(serializers.Serializer):
     """

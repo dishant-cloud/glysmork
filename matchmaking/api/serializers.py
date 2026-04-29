@@ -1,6 +1,25 @@
 from rest_framework import serializers
 from matchmaking.models import Loop, CallRequest, ChatNotification
 
+
+def get_profile_image(profile, username=None):
+    """
+    Returns the best available profile image URL.
+    Priority: uploaded photo > DiceBear (instant CDN avatar, deterministic by username).
+    We intentionally skip persona_image_url (Pollinations) as it's too slow (~30s generation).
+    """
+    try:
+        if profile and profile.image and not str(profile.image).endswith('default.jpg'):
+            url = profile.image.url
+            # Ensure https
+            return url.replace('http://', 'https://')
+    except Exception:
+        pass
+    # Fast deterministic fallback: DiceBear (CDN-hosted, <50ms)
+    seed = username or (profile.user.username if profile else 'user')
+    return f'https://api.dicebear.com/7.x/adventurer/png?seed={seed}&size=200'
+
+
 class ChatNotificationSerializer(serializers.ModelSerializer):
     sender = serializers.CharField(source='sender.username', read_only=True)
     sender_profile_image = serializers.SerializerMethodField()
@@ -11,12 +30,10 @@ class ChatNotificationSerializer(serializers.ModelSerializer):
 
     def get_sender_profile_image(self, obj):
         try:
-            profile = obj.sender.profile
-            if profile.image and not str(profile.image).endswith('default.jpg'):
-                return profile.image.url
-            return profile.persona_image_url or None
+            return get_profile_image(obj.sender.profile, obj.sender.username)
         except Exception:
-            return None
+            return f'https://api.dicebear.com/7.x/adventurer/png?seed={obj.sender.username}&size=200'
+
 
 
 class LoopSerializer(serializers.ModelSerializer):
