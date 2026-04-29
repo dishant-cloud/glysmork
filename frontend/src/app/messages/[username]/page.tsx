@@ -70,17 +70,23 @@ export default function DMPage() {
         connectWS();
         clearNotifications();
 
-        // Check friendship status
+        // Always fetch friend's profile image regardless of friendship or session type
+        const friendUsername = friend.startsWith('session_') ? friend.replace('session_', '') : friend;
+        fetchApi(`/users/profile/${encodeURIComponent(friendUsername)}/`)
+            .then(data => {
+                const img = data?.image && !data.image.endsWith('default.jpg') ? data.image
+                    : data?.persona_image_url || null;
+                if (img) setFriendProfileImage(img);
+            })
+            .catch(() => {});
+
+        // Check friendship status (for non-session rooms)
         if (!roomName.startsWith('session_')) {
             fetchApi(`/matchmaking/friends/?username=${encodeURIComponent(myUsername)}`)
                 .then(data => {
                     const isFriend = data.friends?.some((f: any) => (f.username === friend || f === friend));
                     const isPending = data.sent?.some((f: any) => (f.username === friend || f === friend));
-                    if (isFriend) {
-                        setFriendStatus('accepted');
-                        const friendData = data.friends?.find((f: any) => f.username === friend);
-                        if (friendData?.profile_image) setFriendProfileImage(friendData.profile_image);
-                    }
+                    if (isFriend) setFriendStatus('accepted');
                     else if (isPending) setFriendStatus('pending');
                 }).catch(() => { });
         } else {
@@ -403,9 +409,19 @@ export default function DMPage() {
                             }
 
                             return (
-                                <motion.div key={msg.id || idx} initial={{ opacity: 0, x: isMe ? 10 : -10 }} animate={{ opacity: 1, x: 0 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <motion.div key={msg.id || idx} initial={{ opacity: 0, x: isMe ? 10 : -10 }} animate={{ opacity: 1, x: 0 }} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                    {/* Avatar for incoming messages */}
+                                    {!isMe && (
+                                        <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center shrink-0 mb-1 shadow-sm">
+                                            {friendProfileImage ? (
+                                                <img src={getMediaUrl(friendProfileImage)} alt={friend} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-white text-[10px] font-black">{friendInitial}</span>
+                                            )}
+                                        </div>
+                                    )}
                                     <div 
-                                        className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                                        className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                                         onContextMenu={(e) => { if (isMe && !isDeleted) { e.preventDefault(); setContextMenu({ id: msg.id, x: e.clientX, y: e.clientY }); } }}
                                     >
                                         <div className={`px-5 py-3 text-[15px] leading-relaxed shadow-sm ${isDeleted ? 'bg-slate-100 text-slate-500 italic rounded-[24px]' : isMe ? 'bg-slate-900 text-white rounded-[24px] rounded-br-sm' : 'bg-white text-slate-800 border border-slate-200/60 rounded-[24px] rounded-bl-sm'}`}>
