@@ -328,6 +328,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
         if (existingStream) setLocalStream(existingStream);
         if (!stream) {
             console.error("[WEBRTC ERROR] Could not get media stream. Answer aborted.");
+            alert("Could not access your camera or microphone. Please ensure permissions are granted and the device is not in use by another tab.");
             return;
         }
 
