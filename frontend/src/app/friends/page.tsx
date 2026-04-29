@@ -19,7 +19,7 @@ export default function FriendsPage() {
     const [friendsData, setFriendsData] = useState<{
         friends: { id: number, username: string, is_online?: boolean, profile_image?: string | null }[],
         received: { id: number, username: string, profile_image?: string | null }[],
-        sent: { id: number, username: string }[]
+        sent: { id: number, username: string, profile_image?: string | null }[]
     }>({ friends: [], received: [], sent: [] });
     const [chatNotifs, setChatNotifs] = useState<{ id: number; sender: string; message: string; room_name: string }[]>([]);
 
@@ -196,11 +196,12 @@ export default function FriendsPage() {
                                         <div key={f.id} className="p-4 bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-emerald-500 to-teal-600 border border-emerald-400/50 shadow-sm shrink-0 flex items-center justify-center">
-                                                    {f.profile_image ? (
-                                                        <img src={getMediaUrl(f.profile_image)} alt={f.username} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span className="font-black text-white">{f.username.charAt(0).toUpperCase()}</span>
-                                                    )}
+                                                    <img 
+                                                        src={f.profile_image || `https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(f.username)}&size=200`} 
+                                                        alt={f.username} 
+                                                        className="w-full h-full object-cover"
+                                                        onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+                                                    />
                                                 </div>
                                                 <span className="font-bold text-slate-400">{f.username}</span>
                                             </div>
