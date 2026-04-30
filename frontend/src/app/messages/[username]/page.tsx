@@ -42,6 +42,7 @@ export default function DMPage() {
     
     const [peerTyping, setPeerTyping] = useState(false);
     const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted'>('none');
+    const [isFriendOnline, setIsFriendOnline] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ id: number; x: number; y: number } | null>(null);
 
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -79,6 +80,8 @@ export default function DMPage() {
                 const isDefault = !img || img.includes('default.jpg');
                 if (!isDefault && img) setFriendProfileImage(img);
                 else setFriendProfileImage(`https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(friendUsername)}&size=200`);
+                // Set online status from API
+                setIsFriendOnline(!!data?.is_online);
             })
             .catch(() => {
                 setFriendProfileImage(`https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(friendUsername)}&size=200`);
@@ -336,7 +339,7 @@ export default function DMPage() {
                             <span>{friendInitial}</span>
                         )}
                     </div>
-                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
+                    {isFriendOnline && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />}
                 </div>
                 <div className="flex-1 min-w-0">
                     <h2 className="font-bold text-[15px] uppercase tracking-wide text-slate-800 truncate">{friend.replace('session_', 'Guest ')}</h2>

@@ -13,6 +13,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     country = CountryField(allow_blank=True)
     fast_avatar = serializers.SerializerMethodField()
+    is_online = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -27,8 +28,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             'persona_image_url', 'fast_avatar', 'trust_score', 'trust_tier',
             'subscription_tier', 'is_premium',
             'daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches',
+            'is_online',
         ]
         read_only_fields = ['psychological_profile', 'last_quiz_taken', 'diamonds', 'is_verified', 'conversation_topics', 'trust_score', 'trust_tier']
+
+    def get_is_online(self, instance):
+        return instance.is_online()
 
     def get_fast_avatar(self, instance):
         """Uploaded photo → DiceBear (instant CDN). Never uses slow Pollinations URLs."""
