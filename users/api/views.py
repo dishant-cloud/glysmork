@@ -586,6 +586,80 @@ class AnalyticsView(APIView):
             "top_expertise": top_expertise
         })
 
+from rest_framework.permissions import IsAdminUser
+from django.db.models import Sum
+
+class AdminAnalyticsView(APIView):
+    """
+    Returns private admin analytics, specifically for Phase 1 beta tracking.
+    Requires is_staff=True.
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        from users.models import Report, Profile
+        from room.models import Room, Message
+        from wallet.models import Transaction
+
+        now = timezone.now()
+        one_day_ago = now - timedelta(days=1)
+        seven_days_ago = now - timedelta(days=7)
+
+        # 1. Retention Metrics (Estimated)
+        # Users joined exactly ~1 day ago vs seen today
+        joined_yesterday = Profile.objects.filter(user__date_joined__date=one_day_ago.date())
+        day_1_retained = joined_yesterday.filter(last_seen__gte=one_day_ago).count()
+        total_yesterday = joined_yesterday.count()
+        day_1_retention = f"{(day_1_retained / total_yesterday * 100):.1f}%" if total_yesterday > 0 else "0%"
+
+        joined_week_ago = Profile.objects.filter(user__date_joined__date=seven_days_ago.date())
+        day_7_retained = joined_week_ago.filter(last_seen__gte=seven_days_ago).count()
+        total_week_ago = joined_week_ago.count()
+        day_7_retention = f"{(day_7_retained / total_week_ago * 100):.1f}%" if total_week_ago > 0 else "0%"
+
+        # 2. Toxicity Index
+        total_reports = Report.objects.count()
+        banned_users = Profile.objects.filter(is_banned=True).count()
+        flagged_users = Profile.objects.filter(flagged_for_review=True).count()
+
+        # 3. Matchmaking Quality
+        total_rooms = Room.objects.count()
+        total_messages = Message.objects.count()
+        qualifying_sessions = Profile.objects.aggregate(total=Sum('qualifying_sessions'))['total'] or 0
+
+        # 4. Financials & Costs
+        total_revenue = Transaction.objects.filter(status='SUCCESS').aggregate(total=Sum('amount_inr'))['total'] or 0.00
+        
+        # Cost heuristic: LLM calls + Onboarding quiz per user
+        # Let's say onboarding = 2 API calls. Each daily quota burn = 1 API call.
+        total_users = Profile.objects.count()
+        api_calls_estimate = (total_users * 2) + (total_messages / 5) # Rough estimate from % 5 logic
+        projected_api_cost_usd = float(api_calls_estimate) * 0.001 # $0.001 per call avg
+        
+        profit_inr = float(total_revenue) - (projected_api_cost_usd * 83.0) # Approx conversion
+
+        return Response({
+            "retention": {
+                "day_1": day_1_retention,
+                "day_7": day_7_retention
+            },
+            "toxicity": {
+                "total_reports": total_reports,
+                "banned_users": banned_users,
+                "flagged_users": flagged_users
+            },
+            "engagement": {
+                "total_rooms": total_rooms,
+                "total_messages": total_messages,
+                "qualifying_sessions": qualifying_sessions
+            },
+            "financials": {
+                "total_revenue_inr": float(total_revenue),
+                "projected_api_cost_usd": projected_api_cost_usd,
+                "estimated_profit_inr": profit_inr
+            }
+        })
+
 
 class ImageUploadView(APIView):
     """
