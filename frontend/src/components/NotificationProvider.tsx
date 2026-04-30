@@ -200,7 +200,15 @@ export default function NotificationProvider({ children }: { children: React.Rea
                             initial={{ opacity: 0, y: -20, scale: 0.9, filter: 'blur(10px)' }}
                             animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                             exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
-                            className="pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/40 p-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-start gap-4 min-w-[320px] max-w-sm relative overflow-hidden"
+                            onClick={() => {
+                                if (notif.text === 'Wants to be friends!') {
+                                    window.location.href = '/messages';
+                                } else {
+                                    window.location.href = `/messages/${notif.sender}`;
+                                }
+                                setNotifications(prev => prev.filter(n => n.id !== notif.id));
+                            }}
+                            className="pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/40 p-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-start gap-4 min-w-[320px] max-w-sm relative overflow-hidden cursor-pointer hover:bg-white/90 transition-colors"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-indigo-600" />
 
@@ -223,7 +231,10 @@ export default function NotificationProvider({ children }: { children: React.Rea
                             </div>
 
                             <button
-                                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                }}
                                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0 mt-0.5"
                             >
                                 <X className="w-4 h-4" />
