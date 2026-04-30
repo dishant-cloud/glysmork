@@ -39,6 +39,7 @@ export default function OnboardingChat() {
     const [finalQuestion, setFinalQuestion] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [capDetected, setCapDetected] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const didInit = useRef(false); // prevent React StrictMode double-call
 

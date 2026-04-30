@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, LogOut, UserPlus, Phone, Video, VideoOff, Check, AlertTriangle, Fingerprint, Activity, Terminal, ArrowLeft } from 'lucide-react';
+import { Send, LogOut, UserPlus, Phone, Video, VideoOff, Check, AlertTriangle, Fingerprint, Activity, Terminal, ArrowLeft, ShieldAlert } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useCall } from '@/components/CallProvider';
 import { fetchApi } from '@/lib/api';

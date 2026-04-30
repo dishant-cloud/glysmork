@@ -113,7 +113,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="mt-6 pt-4 border-t border-slate-800">
                             <p className="text-xs text-slate-500">
-                                * Qualifying sessions represent users who completed meaningful interactions (e.g., > 2min chats).
+                                * Qualifying sessions represent users who completed meaningful interactions (e.g., &gt; 2min chats).
                             </p>
                         </div>
                     </div>
