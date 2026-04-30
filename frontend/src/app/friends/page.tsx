@@ -124,7 +124,7 @@ export default function FriendsPage() {
                                         return (
                                             <div key={f.id} className="p-6 bg-white/80 border border-slate-200/60 shadow-sm flex flex-col justify-between group">
                                                 <div className="flex items-center justify-between mb-6">
-                                                    <div className="flex items-center gap-4">
+                                                    <Link href={`/profile/${encodeURIComponent(f.username)}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                                                         <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-900 border border-slate-200/60 shadow-sm shrink-0 flex items-center justify-center">
                                                             {f.profile_image ? (
                                                                 <img src={getMediaUrl(f.profile_image)} alt={f.username} className="w-full h-full object-cover" />
@@ -141,7 +141,7 @@ export default function FriendsPage() {
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </Link>
                                                 </div>
 
                                                 <div className="grid grid-cols-3 gap-2 mt-auto">
@@ -194,7 +194,7 @@ export default function FriendsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {friendsData.sent.map(f => (
                                         <div key={f.id} className="p-4 bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
+                                            <Link href={`/profile/${encodeURIComponent(f.username)}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-emerald-500 to-teal-600 border border-emerald-400/50 shadow-sm shrink-0 flex items-center justify-center">
                                                     <img 
                                                         src={f.profile_image || `https://api.dicebear.com/7.x/adventurer/png?seed=${encodeURIComponent(f.username)}&size=200`} 
@@ -204,7 +204,7 @@ export default function FriendsPage() {
                                                     />
                                                 </div>
                                                 <span className="font-bold text-slate-400">{f.username}</span>
-                                            </div>
+                                            </Link>
                                             <button
                                                 onClick={() => handleFriendAction(f.username, 'cancel')}
                                                 className="text-[10px] font-sans text-[13px] font-medium text-red-400 uppercase tracking-tighter hover:underline"
