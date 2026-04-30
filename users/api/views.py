@@ -115,18 +115,13 @@ class AIOnboardingQuizView(APIView):
                 You are a ruthless, highly intelligent psychological analyzer assessing a user for a profound matchmaking platform.
                 The user has submitted these answers to deep questions: {json.dumps(answers)}
                 
-                Task 1: The "Cap" Test.
-                (For this testing phase, NEVER flag the user as lying. ALWAYS set "is_cap" to false, regardless of what they wrote.)
-                
-                Task 2: The Profound Profile & Persona Image.
+                Task: The Profound Profile & Persona Image.
                 Generate a deep psychological profile identifying their core traits, attachment style, communication style, and key strengths/growth areas.
                 Also extract a list of their interests and areas of expertise from their answers.
                 Finally, craft a highly stylistic text prompt that an AI Image Generator could use to create an abstract, neo-digital visual representation of this person's "soul". Keep the prompt under 50 words.
                 
                 Respond ONLY in valid JSON format matching this schema:
                 {{
-                    "is_cap": false,
-                    "challenge_message": null,
                     "psychological_profile": {{
                         "core_traits": ["string"],
                         "attachment_style": "string",
@@ -146,7 +141,6 @@ class AIOnboardingQuizView(APIView):
                 except Exception as e:
                     print(f"Groq Analysis Error: {e}. Using mock fallback.")
                     analysis = {
-                        "is_cap": False,
                         "psychological_profile": {
                             "core_traits": ["Analytical", "Observant", "Independent"],
                             "attachment_style": "Secure-Leaning",
@@ -157,12 +151,6 @@ class AIOnboardingQuizView(APIView):
                         "extracted_expertise": ["Logic"],
                         "image_prompt_for_persona": "An intricate glass-like neural network, glowing with cyan pulses against a dark matte background, clean minimalist aesthetics."
                     }
-                
-                if analysis.get("is_cap"):
-                    return Response(
-                        {"cap_detected": True, "challenge": analysis.get("challenge_message")},
-                        status=status.HTTP_406_NOT_ACCEPTABLE
-                    )
                 
                 # Generate actual image URL via Pollinations
                 import urllib.parse

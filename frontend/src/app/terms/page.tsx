@@ -67,7 +67,6 @@ export default function TermsOfService() {
                             <li>Your onboarding responses are summarized and embedded into a vector representation using third-party LLM APIs (e.g., Google Gemini). This data is stored on our servers to enable matchmaking.</li>
                             <li>Your intent queries during searching may be sent to LLM APIs to compute semantic matches. We minimize such calls to control costs — this is also why daily AI search limits exist.</li>
                             <li>Conversations may be analyzed by AI to improve your profile and connection accuracy. This also includes automated fraud and misconduct detection.</li>
-                            <li>Our system is designed to detect dishonest or surface-level answers (&quot;the Cap Test&quot;). If flagged, you will be asked to provide more thoughtful answers. Repeated dishonest behavior may restrict your access to matching features.</li>
                             <li>The onboarding quiz can only be re-taken once per week to ensure genuine responses.</li>
                         </ul>
                     </section>

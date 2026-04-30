@@ -38,7 +38,6 @@ export default function OnboardingChat() {
     const [inCrisis, setInCrisis] = useState(false);
     const [finalQuestion, setFinalQuestion] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [capDetected, setCapDetected] = useState<string | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const didInit = useRef(false); // prevent React StrictMode double-call
@@ -156,7 +155,6 @@ export default function OnboardingChat() {
 
     const buildProfile = async (msgs: Message[]) => {
         setIsAnalyzing(true);
-        setCapDetected(null);
         try {
             // STEP 3: Extraction and saving to the FastAPI matchmaking DB
             try {
