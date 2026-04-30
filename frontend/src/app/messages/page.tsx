@@ -179,7 +179,7 @@ export default function InboxPage() {
                                 <h2 className="text-xs font-sans text-[13px] font-medium text-emerald-400 uppercase tracking-widest mb-6 border-b border-emerald-500/20 pb-2">Friend Requests</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {friendsData.received.map(req => (
-                                        <div key={req.id} className="p-4 bg-white/80 border border-emerald-500/30 flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                                        <div key={req.id} className="p-4 bg-white/80 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-tr from-emerald-500 to-teal-600 border border-emerald-400/50 shrink-0 flex items-center justify-center">
                                                     {req.profile_image ? (
@@ -195,19 +195,19 @@ export default function InboxPage() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 w-full sm:w-auto">
                                                 <button
                                                     onClick={() => handleFriendAction(req.username, 'accept')}
-                                                    className="px-3 py-1.5 bg-emerald-500/20 text-emerald-600 font-sans text-[13px] font-medium text-[10px] uppercase tracking-widest border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1"
+                                                    className="flex-1 sm:flex-none justify-center px-3 py-1.5 bg-emerald-500/20 text-emerald-600 font-sans text-[13px] font-medium text-[10px] uppercase tracking-widest border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1"
                                                 >
                                                     <UserCheck className="w-3 h-3" /> Accept
                                                 </button>
                                                 <button
                                                     onClick={() => handleFriendAction(req.username, 'reject')}
-                                                    className="px-2 py-1.5 bg-red-500/10 text-red-400 font-sans text-[13px] font-medium text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                                    className="flex-1 sm:flex-none justify-center px-2 py-1.5 bg-red-500/10 text-red-400 font-sans text-[13px] font-medium text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center gap-1"
                                                     title="Reject"
                                                 >
-                                                    <X className="w-3 h-3" />
+                                                    <X className="w-3 h-3" /> Reject
                                                 </button>
                                             </div>
                                         </div>

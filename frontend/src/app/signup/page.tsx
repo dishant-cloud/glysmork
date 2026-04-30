@@ -21,7 +21,10 @@ import Logo from '@/components/Logo';
 
 export default function SignUp() {
     const router = useRouter();
-    const [step, setStep] = useState(1); // 1: Social, 2: Profile Setup
+    const [step, setStep] = useState(1); // 1: Auth, 2: Profile Setup
+    const [signupMethod, setSignupMethod] = useState<'social' | 'email'>('social');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [gender, setGender] = useState('O');
     const [age, setAge] = useState('');
@@ -124,29 +127,65 @@ export default function SignUp() {
         }
     };
 
+    const handleEmailContinue = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email || !password) {
+            setErrorMsg("Email and password are required.");
+            return;
+        }
+        if (password.length < 8) {
+            setErrorMsg("Password must be at least 8 characters long.");
+            return;
+        }
+        setSignupMethod('email');
+        setStep(2);
+        setErrorMsg('');
+    };
+
     const handleProfileHydration = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg('');
         setIsSubmitting(true);
 
         try {
-            // Update profile with username, age, and gender
-            const data = await fetchApi('/users/profile/', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    user: { username: name },
-                    gender: gender,
-                    age: age ? parseInt(age) : 18
-                })
-            });
+            if (signupMethod === 'email') {
+                // Register via standard endpoint
+                const data = await fetchApi('/users/register/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        username: name,
+                        gender,
+                        age: age ? parseInt(age) : 18
+                    })
+                });
+                
+                // Store tokens
+                localStorage.setItem('user', JSON.stringify(data.user));
+                if (data.access) localStorage.setItem('access_token', data.access);
+                if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+                
+                router.push('/onboarding');
+            } else {
+                // Update profile for social logins
+                const data = await fetchApi('/users/profile/', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        user: { username: name },
+                        gender: gender,
+                        age: age ? parseInt(age) : 18
+                    })
+                });
 
-            // Update local user data
-            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-            localStorage.setItem('user', JSON.stringify({ ...currentUser, ...data }));
+                // Update local user data
+                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                localStorage.setItem('user', JSON.stringify({ ...currentUser, ...data }));
 
-            router.push('/onboarding');
+                router.push('/onboarding');
+            }
         } catch (error: any) {
-            setErrorMsg(error?.message || "Profile setup failed. Please try a different username.");
+            setErrorMsg(error?.message || "Registration failed. Please try a different username or email.");
             setIsSubmitting(false);
         }
     };
@@ -215,6 +254,47 @@ export default function SignUp() {
                                         </svg>
                                         Signup with Facebook
                                     </button>
+                                    
+                                    <div className="w-full max-w-[320px] flex items-center gap-4 my-2">
+                                        <div className="h-px bg-slate-200 flex-1" />
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">or</span>
+                                        <div className="h-px bg-slate-200 flex-1" />
+                                    </div>
+
+                                    <form onSubmit={handleEmailContinue} className="w-full max-w-[320px] space-y-4">
+                                        <div className="space-y-1.5 group">
+                                            <div className="relative">
+                                                <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                <input
+                                                    type="email"
+                                                    value={email}
+                                                    onChange={(e) => setEmail(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-[14px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all"
+                                                    placeholder="Corporate or personal email"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1.5 group">
+                                            <div className="relative">
+                                                <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                <input
+                                                    type="password"
+                                                    value={password}
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-[14px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all"
+                                                    placeholder="Secure password"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="w-full bg-slate-900 text-white rounded-xl py-3 text-[14px] font-bold tracking-wide hover:bg-slate-800 transition-all"
+                                        >
+                                            Continue with Email
+                                        </button>
+                                    </form>
                                 </div>
 
                                 {errorMsg && (

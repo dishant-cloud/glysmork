@@ -213,9 +213,11 @@ export default function OnboardingChat() {
 
     return (
         <div
-            className="min-h-screen bg-[#050508] flex flex-col items-center justify-between text-white relative overflow-hidden overscroll-none"
+            className="min-h-screen flex flex-col items-center justify-between relative overflow-hidden overscroll-none bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] text-slate-900 font-sans"
         >
-            <div className="bg-noise" />
+            {/* Ambient Background Glows */}
+            <div className="absolute top-[10%] left-[20%] w-[600px] h-[600px] bg-white/60 blur-[150px] rounded-full mix-blend-overlay pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-100/50 blur-[120px] rounded-full mix-blend-overlay pointer-events-none" />
 
             {/* Header */}
             <div className="relative z-10 w-full max-w-2xl px-6 pt-20 pb-6 flex flex-col items-center">
@@ -224,24 +226,24 @@ export default function OnboardingChat() {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col items-center w-full"
                 >
-                    <h1 className="text-3xl font-black tracking-[0.3em] flex gap-1.5 mb-8 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                    <h1 className="text-3xl font-black tracking-[0.3em] flex gap-1.5 mb-8">
                         {['G', 'L', 'Y', 'S', 'M', 'O', 'R', 'K'].map((l, i) => (
-                            <span key={i} className={`transition-all duration-500 inline-block drop-shadow-md ${i === activeIndex
-                                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-500 scale-125 -translate-y-2'
-                                    : 'text-white/30'
+                            <span key={i} className={`transition-all duration-500 inline-block ${i === activeIndex
+                                    ? 'text-cyan-600 scale-125 -translate-y-1'
+                                    : 'text-slate-400'
                                 }`}>{l}</span>
                         ))}
                     </h1>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden border border-white/5 backdrop-blur-md">
+                    <div className="w-full h-2 bg-white/50 rounded-full overflow-hidden border border-white/60 shadow-inner">
                         <motion.div
-                            className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 shadow-[0_0_20px_rgba(34,211,238,0.6)]"
+                            className="h-full bg-cyan-500 shadow-sm"
                             animate={{ width: `${progressPct}%` }}
                             transition={{ type: "spring", stiffness: 50, damping: 20 }}
                         />
                     </div>
                     <div className="w-full flex justify-between items-center mt-2 px-1">
-                        <span className="text-[10px] font-sans text-[13px] font-medium text-slate-800/50 uppercase tracking-widest leading-none">AI Integration Active</span>
-                        <span className="text-[10px] font-sans text-[13px] font-medium text-white/30 uppercase tracking-tighter leading-none">{step} / {totalSteps} Sync Points</span>
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest leading-none">AI Integration Active</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tighter leading-none">{step} / {totalSteps} Sync Points</span>
                     </div>
                 </motion.div>
             </div>
@@ -260,24 +262,24 @@ export default function OnboardingChat() {
                         >
                             <div className={`flex items-end gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                 {msg.role === 'model' && (
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg mb-1 shadow-lg border backdrop-blur-md transition-all duration-500 ${msg.isCrisis
-                                            ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse'
-                                            : 'bg-white/80 border-slate-200/60 shadow-sm text-slate-500 group-hover:border-slate-200'
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg mb-1 shadow-sm border bg-white/90 border-slate-200 transition-all duration-500 ${msg.isCrisis
+                                            ? 'bg-red-50 border-red-200 text-red-500 animate-pulse'
+                                            : 'text-cyan-600'
                                         }`}>
-                                        {msg.isCrisis ? <ShieldAlert className="w-5 h-5 text-red-400" /> : <Sparkles className="w-4 h-4 text-slate-400 animate-pulse" />}
+                                        {msg.isCrisis ? <ShieldAlert className="w-5 h-5" /> : <Sparkles className="w-4 h-4 animate-pulse" />}
                                     </div>
                                 )}
                                 
-                                <div className={`relative px-5 py-4 text-[15px] leading-relaxed transition-all duration-300 ${msg.role === 'user'
-                                        ? 'bg-cyan-500/10 border border-cyan-500/30 text-white rounded-2xl rounded-tr-none shadow-[0_4px_20px_rgba(34,211,238,0.1)]'
+                                <div className={`relative px-5 py-4 text-[15px] leading-relaxed transition-all duration-300 font-medium ${msg.role === 'user'
+                                        ? 'bg-slate-900 border border-slate-800 text-white rounded-2xl rounded-tr-none shadow-[0_10px_30px_rgba(15,23,42,0.15)]'
                                         : msg.isCrisis
-                                            ? 'bg-red-500/10 border border-red-500/30 text-red-50 rounded-2xl rounded-tl-none'
-                                            : 'bg-white/70 backdrop-blur-2xl border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] text-gray-100 rounded-2xl rounded-tl-none hover:border-white/20'
+                                            ? 'bg-red-50 border border-red-200 text-red-700 rounded-2xl rounded-tl-none shadow-sm'
+                                            : 'bg-white/80 backdrop-blur-2xl border border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] text-slate-800 rounded-2xl rounded-tl-none'
                                     }`}>
                                     {msg.text}
                                     {/* Subtle highlight for user messages */}
                                     {msg.role === 'user' && (
-                                        <div className="absolute top-0 right-0 w-full h-full rounded-2xl bg-gradient-to-tr from-transparent via-transparent to-cyan-400/5 pointer-events-none" />
+                                        <div className="absolute top-0 right-0 w-full h-full rounded-2xl bg-gradient-to-tr from-transparent via-transparent to-white/5 pointer-events-none" />
                                     )}
                                 </div>
                             </div>
@@ -293,13 +295,13 @@ export default function OnboardingChat() {
                             exit={{ opacity: 0 }}
                             className="flex justify-start items-center gap-3"
                         >
-                            <div className="w-9 h-9 rounded-xl bg-white/80 border border-slate-200/60 shadow-sm flex items-center justify-center text-slate-500 backdrop-blur-md">
-                                <Loader2 className="w-4 h-4 animate-spin shadow-cyan-500" />
+                            <div className="w-9 h-9 rounded-xl bg-white/90 border border-slate-200 shadow-sm flex items-center justify-center text-cyan-600">
+                                <Loader2 className="w-4 h-4 animate-spin" />
                             </div>
-                            <div className="bg-white/70 backdrop-blur-2xl border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] px-5 py-4 rounded-2xl rounded-tl-none border border-white/5 flex gap-2 items-center">
+                            <div className="bg-white/80 backdrop-blur-2xl border border-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.08)] px-5 py-4 rounded-2xl rounded-tl-none flex gap-2 items-center">
                                 <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                                 <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                                <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                             </div>
                         </motion.div>
                     )}
@@ -316,11 +318,11 @@ export default function OnboardingChat() {
                                 <div className="absolute inset-0 bg-cyan-500/20 blur-2xl animate-pulse rounded-full" />
                                 <Loader2 className="w-16 h-16 text-slate-500 animate-spin relative z-10" />
                             </div>
-                            <div className="text-center">
-                                <h2 className="text-2xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-400 to-purple-500 mb-2">
+                            <div className="text-center mt-4">
+                                <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-800 mb-2">
                                     Synthesizing Persona
                                 </h2>
-                                <p className="text-white/40 font-sans text-[13px] font-medium text-[10px] uppercase tracking-[0.2em]">Neural Architect at work</p>
+                                <p className="text-slate-500 font-semibold text-[10px] uppercase tracking-[0.2em]">Neural Architect at work</p>
                             </div>
                         </motion.div>
                     )}
@@ -355,8 +357,8 @@ export default function OnboardingChat() {
                         animate={{ opacity: 1, y: 0 }}
                         className="group relative"
                     >
-                        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-3xl blur opacity-25 group-focus-within:opacity-100 transition duration-500" />
-                        <div className="relative flex items-center gap-4 bg-[#0a0a0f]/80 backdrop-blur-2xl border border-slate-200/60 shadow-sm rounded-2xl p-2.5 pl-5 focus-within:border-slate-200 transition-all duration-300">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-slate-200 to-slate-100 rounded-3xl blur opacity-50 group-focus-within:opacity-100 transition duration-500" />
+                        <div className="relative flex items-center gap-4 bg-white/80 backdrop-blur-2xl border border-white/80 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] rounded-full p-2.5 pl-6 focus-within:border-slate-300 transition-all duration-300">
                             <input
                                 type="text"
                                 value={input}
@@ -365,20 +367,20 @@ export default function OnboardingChat() {
                                 placeholder={inCrisis ? "Express your thoughts freely..." : "Feed the engine..."}
                                 disabled={loading}
                                 autoFocus
-                                className="flex-1 bg-transparent text-white placeholder-white/20 font-light text-[15px] focus:outline-none disabled:opacity-40"
+                                className="flex-1 bg-transparent text-slate-900 font-medium placeholder-slate-400 text-[15px] focus:outline-none disabled:opacity-40"
                             />
                             <motion.button
-                                whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(34,211,238,0.4)" }} 
+                                whileHover={{ scale: 1.05 }} 
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleSend}
                                 disabled={!input.trim() || loading}
-                                className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center disabled:opacity-30 disabled:grayscale shadow-lg"
+                                className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center disabled:opacity-30 disabled:grayscale shadow-md hover:shadow-lg transition-all"
                             >
                                 <ArrowRight className="w-5 h-5 text-white" />
                             </motion.button>
                         </div>
                     </motion.div>
-                    <p className="text-center text-[9px] text-white/20 font-sans text-[13px] font-medium mt-4 uppercase tracking-[0.3em] font-black">Neural Link Established</p>
+                    <p className="text-center text-[10px] text-slate-400 font-semibold mt-4 uppercase tracking-[0.3em]">Neural Link Established</p>
                 </div>
             )}
         </div>
