@@ -195,19 +195,19 @@ export default function InboxPage() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 w-full sm:w-auto">
+                                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                                 <button
                                                     onClick={() => handleFriendAction(req.username, 'accept')}
-                                                    className="flex-1 sm:flex-none justify-center px-3 py-1.5 bg-emerald-500/20 text-emerald-600 font-sans text-[13px] font-medium text-[10px] uppercase tracking-widest border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1"
+                                                    className="w-full sm:w-auto justify-center px-4 py-2 sm:px-3 sm:py-1.5 bg-emerald-500/20 text-emerald-600 font-sans text-[13px] font-bold text-[10px] uppercase tracking-widest border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-1.5 rounded-lg"
                                                 >
-                                                    <UserCheck className="w-3 h-3" /> Accept
+                                                    <UserCheck className="w-4 h-4 sm:w-3 sm:h-3" /> Accept
                                                 </button>
                                                 <button
                                                     onClick={() => handleFriendAction(req.username, 'reject')}
-                                                    className="flex-1 sm:flex-none justify-center px-2 py-1.5 bg-red-500/10 text-red-400 font-sans text-[13px] font-medium text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center gap-1"
+                                                    className="w-full sm:w-auto justify-center px-4 py-2 sm:px-2 sm:py-1.5 bg-red-500/10 text-red-400 font-sans text-[13px] font-bold text-[10px] uppercase border border-red-500/30 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center gap-1.5 rounded-lg"
                                                     title="Reject"
                                                 >
-                                                    <X className="w-3 h-3" /> Reject
+                                                    <X className="w-4 h-4 sm:w-3 sm:h-3" /> Reject
                                                 </button>
                                             </div>
                                         </div>
