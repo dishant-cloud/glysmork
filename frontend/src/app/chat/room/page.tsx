@@ -448,6 +448,21 @@ export default function ChatRoom() {
                     )}
 
                     <button
+                        onClick={() => {
+                            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                                wsRef.current.send(JSON.stringify({ type: 'manual_analyze_chat' }));
+                                setShowToast("AI Analysis Triggered. Deducting 1 quota.");
+                                setTimeout(() => setShowToast(null), 3000);
+                            }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-500 border border-rose-200"
+                        title="Analyze Chat (AI)"
+                    >
+                        <ShieldAlert className="w-4 h-4" />
+                        <span className="hidden sm:inline">AI Analyze</span>
+                    </button>
+
+                    <button
                         onClick={() => setShowExitModal(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-500 border border-sky-200"
                         title="Leave Chat"

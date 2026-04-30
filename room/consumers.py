@@ -101,6 +101,43 @@ def _get_user_by_username(username):
     except User.DoesNotExist:
         return None
 
+@sync_to_async
+def _is_user_premium(username):
+    from django.contrib.auth.models import User
+    try:
+        user = User.objects.get(username=username)
+        return user.profile.subscription_tier in ['plus', 'premium', 'elite']
+    except Exception:
+        return False
+
+@sync_to_async
+def _check_and_deduct_ai_quota(username):
+    """
+    Check if the user has remaining AI LLM search quota.
+    If so, deduct 1 and return True. Otherwise return False.
+    """
+    from django.contrib.auth.models import User
+    try:
+        user = User.objects.get(username=username)
+        profile = user.profile
+        
+        # Determine quota limit based on subscription tier
+        tier = profile.subscription_tier
+        if tier == 'free':
+            limit = 4
+        elif tier in ['plus', 'premium', 'elite']:
+            limit = 40
+        else:
+            limit = 4
+            
+        if profile.daily_ai_llm_searches < limit:
+            profile.daily_ai_llm_searches += 1
+            profile.save(update_fields=['daily_ai_llm_searches'])
+            return True
+        return False
+    except Exception:
+        return False
+
 
 @sync_to_async
 def _save_friend_message(sender, room_name, text):
@@ -1243,7 +1280,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await sync_to_async(_cache_append_message)(self.room_name, msg_data)
 
             if len(self.message_history) % 5 == 0:
-                asyncio.create_task(self.analyze_chat_history(username))
+                if self.user and self.user.is_authenticated:
+                    is_premium = await _is_user_premium(self.user.username)
+                    if is_premium:
+                        has_quota = await _check_and_deduct_ai_quota(self.user.username)
+                        if has_quota:
+                            asyncio.create_task(self.analyze_chat_history(username))
+
+        elif message_type == 'manual_analyze_chat':
+            if self.user and self.user.is_authenticated:
+                has_quota = await _check_and_deduct_ai_quota(self.user.username)
+                if has_quota:
+                    # Analyze the most recent sender or the other person
+                    recent_sender = "Peer"
+                    if len(self.message_history) > 0:
+                        recent_sender = self.message_history[-1].split(":")[0]
+                    asyncio.create_task(self.analyze_chat_history(recent_sender))
+                else:
+                    await self.send(text_data=json.dumps({
+                        'type': 'system_error',
+                        'message': 'AI Analysis Quota Exceeded. Please upgrade your plan.'
+                    }))
 
         elif message_type == 'video_signal':
             await self.channel_layer.group_send(

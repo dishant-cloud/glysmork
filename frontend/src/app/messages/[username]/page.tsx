@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Phone, PhoneOff, Video, VideoOff, CheckCheck, Trash2, UserPlus, Check, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Send, Phone, PhoneOff, Video, VideoOff, CheckCheck, Trash2, UserPlus, Check, MoreHorizontal, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useCall } from '@/components/CallProvider';
 import { fetchApi, getMediaUrl } from '@/lib/api';
@@ -360,6 +360,17 @@ export default function DMPage() {
                             {friendStatus === 'accepted' ? <Check className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
                         </button>
                     )}
+                    <button 
+                        onClick={() => {
+                            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                                wsRef.current.send(JSON.stringify({ type: 'manual_analyze_chat' }));
+                            }
+                        }} 
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
+                        title="AI Analysis"
+                    >
+                        <ShieldAlert className="w-5 h-5" />
+                    </button>
                     <button onClick={() => startCall(friend.replace('session_', ''), 'audio', roomName || undefined)} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"><Phone className="w-5 h-5" /></button>
                     <button onClick={() => startCall(friend.replace('session_', ''), 'video', roomName || undefined)} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"><Video className="w-5 h-5" /></button>
                 </div>
