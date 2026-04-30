@@ -331,20 +331,22 @@ export default function DMPage() {
                 <button onClick={() => window.history.length > 2 ? router.back() : router.push('/dashboard')} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                     <ArrowLeft className="w-5 h-5 text-slate-600" />
                 </button>
-                <div className="relative">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center font-bold text-white text-sm shadow-sm">
-                        {friendProfileImage ? (
-                            <img src={getMediaUrl(friendProfileImage)} alt={friend} className="w-full h-full object-cover" />
-                        ) : (
-                            <span>{friendInitial}</span>
-                        )}
+                <Link href={`/profile/${encodeURIComponent(friend.replace('session_', ''))}`} className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="relative">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                            {friendProfileImage ? (
+                                <img src={getMediaUrl(friendProfileImage)} alt={friend} className="w-full h-full object-cover" />
+                            ) : (
+                                <span>{friendInitial}</span>
+                            )}
+                        </div>
+                        {isFriendOnline && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />}
                     </div>
-                    {isFriendOnline && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h2 className="font-bold text-[15px] uppercase tracking-wide text-slate-800 truncate">{friend.replace('session_', 'Guest ')}</h2>
-                    <p className="text-[12px] font-medium text-slate-500">{roomName?.startsWith('session_') ? 'Discovery Session' : 'Direct Message'}</p>
-                </div>
+                    <div className="flex-1 min-w-0">
+                        <h2 className="font-bold text-[15px] uppercase tracking-wide text-slate-800 truncate">{friend.replace('session_', 'Guest ')}</h2>
+                        <p className="text-[12px] font-medium text-slate-500">{roomName?.startsWith('session_') ? 'Discovery Session' : 'Direct Message'}</p>
+                    </div>
+                </Link>
                 <div className="flex items-center gap-1">
                     {!roomName?.startsWith('session_') && (
                         <button
