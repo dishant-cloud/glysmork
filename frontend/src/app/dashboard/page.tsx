@@ -145,7 +145,9 @@ export default function Dashboard() {
 
                 const data = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(u)}`);
                 if (data.notifications?.length > 0) {
-                    const unshown = data.notifications.filter((n: any) => !shownNotifsRef.current.has(n.id));
+                    const shownIds = JSON.parse(sessionStorage.getItem('shownDashboardNotifs') || '[]');
+                    const unshown = data.notifications.filter((n: any) => !shownIds.includes(n.id));
+                    
                     if (unshown.length > 0) {
                             const now = new Date().getTime();
                             const freshNotifs = unshown.filter((n: any) => {
@@ -169,7 +171,8 @@ export default function Dashboard() {
                             }
 
                             // Mark all as shown so they don't pop up again even if stale
-                            unshown.forEach((n: any) => shownNotifsRef.current.add(n.id));
+                            const newShownIds = [...shownIds, ...unshown.map((n: any) => n.id)];
+                            sessionStorage.setItem('shownDashboardNotifs', JSON.stringify(newShownIds));
                         }
                     }
             } catch (err: any) {
@@ -755,7 +758,7 @@ export default function Dashboard() {
                                     value={intent}
                                     onChange={(e) => setIntent(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && startMatching()}
-                                    placeholder="e.g. e.g. Backend dev who knows Python and system design..."
+                                    placeholder="e.g. Backend dev who knows Python and system design..."
                                     className="flex-1 px-5 py-4 bg-white border border-slate-200/50 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-slate-400/50 transition-all rounded-2xl shadow-sm"
                                 />
                                 <motion.button

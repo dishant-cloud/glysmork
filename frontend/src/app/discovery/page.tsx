@@ -86,7 +86,7 @@ export default function DiscoveryPage() {
                             >
                                 <div className="absolute top-3 right-3">
                                     <div className="text-[9px] font-black uppercase tracking-widest text-slate-900 border border-slate-200 bg-white/80 backdrop-blur-md px-2.5 py-1 rounded-full shadow-sm">
-                                        {result.score}% Compatibility
+                                        {result.score}% Match
                                     </div>
                                 </div>
 

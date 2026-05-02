@@ -212,7 +212,7 @@ export default function OnboardingChat() {
 
     return (
         <div
-            className="min-h-screen flex flex-col items-center justify-between relative overflow-hidden overscroll-none bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] text-slate-900 font-sans"
+            className="fixed inset-0 flex flex-col items-center justify-between overflow-hidden bg-gradient-to-br from-[#dcedec] via-[#f5f3ed] to-[#fadac0] text-slate-900 font-sans"
         >
             {/* Ambient Background Glows */}
             <div className="absolute top-[10%] left-[20%] w-[600px] h-[600px] bg-white/60 blur-[150px] rounded-full mix-blend-overlay pointer-events-none" />
