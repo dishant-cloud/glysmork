@@ -38,24 +38,41 @@ class StripeCheckoutView(APIView):
 
         try:
             profile = request.user.profile
-            checkout_session = stripe.checkout.Session.create(
-                customer_email=request.user.email,
-                payment_method_types=['card'],
-                line_items=[
-                    {
-                        'price': price_id,
-                        'quantity': 1,
-                    },
-                ],
-                mode='subscription',
-                success_url=os.environ.get('FRONTEND_URL', 'https://www.glysmork.com') + '/pricing/success?session_id={CHECKOUT_SESSION_ID}',
-                cancel_url=os.environ.get('FRONTEND_URL', 'https://www.glysmork.com') + '/pricing/cancel',
-                metadata={
-                    'user_id': request.user.id,
-                    'plan_type': plan_type
-                }
+            
+            # --- DUMMY UPGRADE LOGIC ---
+            # 1. Set Subscription Expiry
+            expiry_date = timezone.now()
+            if plan_type == 'weekly':
+                expiry_date += timedelta(days=7)
+            else:
+                expiry_date += timedelta(days=30)
+                
+            profile.subscription_tier = plan_type
+            profile.subscription_expiry = expiry_date
+            
+            # 2. Instantly Replenish Quota
+            profile.daily_ai_llm_searches = 0
+            profile.daily_standard_searches = 0
+            profile.daily_roulette_searches = 0
+            profile.last_quota_reset_date = timezone.localtime(timezone.now()).date()
+            
+            profile.save()
+            
+            # 3. Log the Subscription
+            Subscription.objects.create(
+                user=request.user,
+                plan_type=plan_type,
+                stripe_subscription_id=f"dummy_sub_{timezone.now().timestamp()}",
+                status='active',
+                amount=5.99 if plan_type == 'weekly' else 19.99,
+                currency='usd',
+                ends_at=expiry_date
             )
-            return Response({'checkout_url': checkout_session.url})
+            
+            # 4. Redirect straight to Success
+            success_url = os.environ.get('FRONTEND_URL', 'https://www.glysmork.com') + '/pricing/success?session_id=dummy_payment'
+            return Response({'checkout_url': success_url})
+            
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
