@@ -4,8 +4,8 @@ from .models import Profile, Report
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'age', 'gender', 'is_verified', 'is_banned', 'reports_received', 'last_quiz_taken']
-    list_filter = ['is_verified', 'is_banned', 'gender', 'is_profile_public', 'show_ai_analysis']
+    list_display = ['user', 'age', 'gender', 'is_verified', 'subscription_tier', 'daily_ai_llm_searches', 'is_banned', 'reports_received', 'last_quiz_taken']
+    list_filter = ['is_verified', 'is_banned', 'subscription_tier', 'gender', 'is_profile_public', 'show_ai_analysis']
     search_fields = ['user__username', 'user__email', 'bio']
     readonly_fields = ['psychological_profile', 'self_reported_traits', 'conversation_topics', 'last_quiz_taken']
     
@@ -26,6 +26,9 @@ class ProfileAdmin(admin.ModelAdmin):
         }),
         ('Economy', {
             'fields': ('diamonds', 'call_price'),
+        }),
+        ('Quotas & Subscriptions', {
+            'fields': ('subscription_tier', 'subscription_expiry', 'daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches', 'last_quota_reset_date'),
         }),
     )
 
