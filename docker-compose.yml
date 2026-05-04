@@ -36,6 +36,8 @@ services:
     build: 
       context: .
       dockerfile: onboarding_service/Dockerfile
+    ports:
+      - "8081:8081"
     env_file:
       - .env.prod
     depends_on:
