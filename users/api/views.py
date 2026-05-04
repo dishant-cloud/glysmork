@@ -292,6 +292,7 @@ class GoogleLoginView(APIView):
     Verifies a Google ID token and returns JWT access/refresh tokens.
     If the user doesn't exist, a new account is created and marked as verified.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
