@@ -338,7 +338,7 @@ export default function Dashboard() {
             } else if (response.match_found || response.room_name || response.status === 'match_found') {
                 setIsMatching(false);
                 matchLockRef.current = false;
-                window.location.href = `/chat/room?id=${response.room_name}&mode=chat`;
+                window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || activeMode}`;
             } else {
                 setSearchingIntent(intentText);
                 pollForMatch(intentText);
@@ -393,7 +393,7 @@ export default function Dashboard() {
             } else if (response.match_found || response.room_name) {
                 setIsMatching(false);
                 matchLockRef.current = false;
-                window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || 'chat'}`;
+                window.location.href = `/chat/room?id=${response.room_name}&mode=${response.mode || modePref}`;
             } else if (response.status === 'discovery_results') {
                 setIsMatching(false);
                 matchLockRef.current = false;
