@@ -116,9 +116,10 @@ class Profile(models.Model):
     def is_premium(self):
         if self.subscription_tier == 'free':
             return False
-        if self.subscription_expiry and self.subscription_expiry > timezone.now():
-            return True
-        return False
+        # If explicitly expired, return False. Otherwise assume active if tier is not free.
+        if self.subscription_expiry and self.subscription_expiry < timezone.now():
+            return False
+        return True
 
     def __str__(self):
         return f'{self.user.username}'

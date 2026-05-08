@@ -261,7 +261,7 @@ export default function Dashboard() {
         setPollRef(p);
     };
 
-    const startPersonaMatch = async (forceOffline: boolean = false) => {
+    const startPersonaMatch = async (forceOffline: boolean = false, isRetry: boolean = false) => {
         if (isMatching || matchLockRef.current) return;
         matchLockRef.current = true;
         setIsMatching(true);
@@ -278,7 +278,8 @@ export default function Dashboard() {
                     country_filter: countryFilter,
                     language_filter: languageFilter,
                     gender_filter: genderFilter,
-                    distance_km: distanceKm
+                    distance_km: distanceKm,
+                    is_polling: isRetry
                 })
             });
             if (response.status === 'no_online_users') {
@@ -349,7 +350,7 @@ export default function Dashboard() {
         }
     };
 
-    const startMatching = async (overrideIntent?: string, forceOffline: boolean = false) => {
+    const startMatching = async (overrideIntent?: string, forceOffline: boolean = false, isRetry: boolean = false) => {
         if (isMatching || matchLockRef.current) return;
         matchLockRef.current = true;
         const intentText = overrideIntent || intent;
@@ -371,7 +372,8 @@ export default function Dashboard() {
                     language_filter: languageFilter,
                     gender_filter: genderFilter,
                     distance_km: distanceKm,
-                    use_onboarding_data: true
+                    use_onboarding_data: true,
+                    is_polling: isRetry
                 })
             });
             if (response.status === 'no_online_users') {
@@ -455,9 +457,9 @@ export default function Dashboard() {
                                     onClick={() => {
                                         setOfferOfflinePrompt(false);
                                         if (pendingIntent === 'Persona Match') {
-                                            startPersonaMatch(true);
+                                            startPersonaMatch(true, true);
                                         } else {
-                                            startMatching(pendingIntent || undefined, true);
+                                            startMatching(pendingIntent || undefined, true, true);
                                         }
                                     }}
                                     className="flex-1 py-3 px-4 rounded-xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow transition-all"
