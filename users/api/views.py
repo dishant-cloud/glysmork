@@ -413,6 +413,8 @@ class FacebookLoginView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
+    
     def post(self, request):
         print("DEBUG: LoginView.post started")
         username = request.data.get('username')
@@ -422,6 +424,8 @@ class LoginView(APIView):
         print(f"DEBUG: LoginView.post - user is {user}")
         
         if user is not None:
+            # We don't really need to login(request, user) if we just use JWT,
+            # but keeping it doesn't hurt unless we want statelessness. Let's keep it.
             login(request, user)
             print("DEBUG: LoginView.post - generating tokens")
             refresh = RefreshToken.for_user(user)
@@ -440,6 +444,8 @@ class LoginView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
+    
     def post(self, request):
         print("DEBUG: RegisterView.post started")
         from django.contrib.auth.models import User
