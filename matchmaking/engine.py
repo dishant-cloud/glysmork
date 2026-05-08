@@ -212,38 +212,49 @@ class MatchEvaluator:
 
         elif node_type == "vector_concept":
             concept_vector = self._get_cached_embedding(value)
-            if not concept_vector:
-                return 0.0
             
-            c_vec = np.array(concept_vector)
             best_score = 0.0
             
-            def check_embeddings(emb_list):
-                nonlocal best_score
-                if not emb_list: return
-                if isinstance(emb_list, list) and len(emb_list) > 0 and isinstance(emb_list[0], list):
-                    for u_vec_data in emb_list:
-                        score = cosine_similarity(c_vec, np.array(u_vec_data))
+            if concept_vector:
+                c_vec = np.array(concept_vector)
+                
+                def check_embeddings(emb_list):
+                    nonlocal best_score
+                    if not emb_list: return
+                    if isinstance(emb_list, list) and len(emb_list) > 0 and isinstance(emb_list[0], list):
+                        for u_vec_data in emb_list:
+                            score = cosine_similarity(c_vec, np.array(u_vec_data))
+                            if score > best_score:
+                                best_score = score
+                    elif isinstance(emb_list, list) and len(emb_list) > 0 and isinstance(emb_list[0], (int, float)):
+                        score = cosine_similarity(c_vec, np.array(emb_list))
                         if score > best_score:
                             best_score = score
-                elif isinstance(emb_list, list) and len(emb_list) > 0 and isinstance(emb_list[0], (int, float)):
-                    score = cosine_similarity(c_vec, np.array(emb_list))
-                    if score > best_score:
-                        best_score = score
+                
+                if field in ("interests", "any"):
+                    check_embeddings(getattr(profile, 'interests_embedding', None))
+                if field in ("expertise", "any"):
+                    check_embeddings(getattr(profile, 'expertise_embedding', None))
+                
+                if best_score == 0.0 and field != "any":
+                    check_embeddings(getattr(profile, 'interests_embedding', None))
+                    check_embeddings(getattr(profile, 'expertise_embedding', None))
+                    if best_score > 0:
+                        best_score *= 0.8
+                        
+            # --- ROBUST SUBSTRING FALLBACK ---
+            # If embedding matching failed or scored low, fallback to literal keyword match.
+            val_lower = str(value).lower()
+            bio_lower = (profile.bio or "").lower()
+            items = [str(x).lower() for x in (profile.interests or [])] + [str(x).lower() for x in (profile.expertise_areas or [])]
             
-            if field in ("interests", "any"):
-                check_embeddings(getattr(profile, 'interests_embedding', None))
-            if field in ("expertise", "any"):
-                check_embeddings(getattr(profile, 'expertise_embedding', None))
-            
-            # Fallback: if specific field search (expertise/interests) yielded 0, 
-            # try the other field just in case user intent was fuzzy or data is in the "wrong" bucket.
-            if best_score == 0.0 and field != "any":
-                check_embeddings(getattr(profile, 'interests_embedding', None))
-                check_embeddings(getattr(profile, 'expertise_embedding', None))
-                if best_score > 0:
-                    best_score *= 0.8 # 20% penalty for field mismatch fallback
-            
+            # Massive boost if the literal term is in their interests or expertise
+            if any(val_lower in item or item in val_lower for item in items):
+                best_score = max(best_score, 1.0)
+            # Strong boost if the term is in their bio
+            elif val_lower in bio_lower:
+                best_score = max(best_score, 0.8)
+
             base_score = max(0.0, float(best_score))
 
         return base_score * weight
