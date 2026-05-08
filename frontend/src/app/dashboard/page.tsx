@@ -749,6 +749,26 @@ export default function Dashboard() {
                             </div>
                         )}
 
+                        {/* Mobile Usage Stats (Visible only on small screens) */}
+                        <div className="w-full max-w-xl mb-6 md:hidden">
+                            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Smart Searches Left</span>
+                                    <span className="text-sm font-bold text-slate-800">{profile?.subscription_tier === 'free' ? Math.max(0, 4 - (profile?.daily_ai_llm_searches || 0)) + ' / 4' : Math.max(0, 40 - (profile?.daily_ai_llm_searches || 0)) + ' / 40'}</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-1.5 mb-5">
+                                    <div className="bg-sky-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, 100 - ((profile?.daily_ai_llm_searches || 0) / (profile?.subscription_tier === 'free' ? 4 : 40) * 100))}%` }}></div>
+                                </div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Roulette Matches Left</span>
+                                    <span className="text-sm font-bold text-slate-800">{profile?.subscription_tier === 'free' ? Math.max(0, 20 - (profile?.daily_roulette_searches || 0)) + ' / 20' : 'Unlimited'}</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                    <div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: profile?.subscription_tier === 'free' ? `${Math.max(0, 100 - ((profile?.daily_roulette_searches || 0) / 20 * 100))}%` : '100%' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Mode 1: Smart Search */}
                         <div className="w-full max-w-xl space-y-3 mb-8">
                             <h3 className="text-base font-bold uppercase tracking-widest text-slate-800">01. Smart Search</h3>
