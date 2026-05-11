@@ -48,7 +48,7 @@ export default function WalletPage() {
 
             // 2. Open Razorpay Checkouot
             const options = {
-                key: "rzp_test_mock_key_123", // Must match backend mock/real key
+                key: "rzp_live_SmZthQ4ktSlNh6", // Must match backend live key
                 amount: orderRes.amount,
                 currency: orderRes.currency,
                 name: "Glysmork AI",
