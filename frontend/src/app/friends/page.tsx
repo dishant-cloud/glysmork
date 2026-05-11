@@ -187,6 +187,43 @@ export default function FriendsPage() {
                             )}
                         </section>
 
+                        {/* Received Requests */}
+                        {friendsData.received.length > 0 && (
+                            <section>
+                                <h2 className="text-xs font-sans text-[13px] font-medium text-emerald-600 uppercase tracking-widest mb-6 border-b border-emerald-500/20 pb-2">Received Requests (Pending)</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {friendsData.received.map(f => (
+                                        <div key={f.id} className="p-4 bg-emerald-50/50 border border-emerald-200/60 shadow-sm flex items-center justify-between">
+                                            <Link href={`/profile/${encodeURIComponent(f.username)}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 border border-emerald-200 shrink-0 flex items-center justify-center">
+                                                    {f.profile_image ? (
+                                                        <img src={getMediaUrl(f.profile_image)} alt={f.username} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="font-black text-white">{f.username.charAt(0).toUpperCase()}</span>
+                                                    )}
+                                                </div>
+                                                <span className="font-bold text-slate-800">{f.username}</span>
+                                            </Link>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleFriendAction(f.username, 'accept')}
+                                                    className="px-3 py-1.5 bg-emerald-500 text-white font-sans text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-colors rounded-sm"
+                                                >
+                                                    Accept
+                                                </button>
+                                                <button
+                                                    onClick={() => handleFriendAction(f.username, 'decline')}
+                                                    className="px-3 py-1.5 bg-slate-200 text-slate-600 font-sans text-[10px] font-bold uppercase tracking-widest hover:bg-slate-300 transition-colors rounded-sm"
+                                                >
+                                                    Decline
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
                         {/* Sent Requests */}
                         {friendsData.sent.length > 0 && (
                             <section className="opacity-60 grayscale hover:grayscale-0 transition-all">
