@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
-import { Crown, Sparkles, Gem, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
+import { Crown, Sparkles, Gem, ShieldCheck, Zap, AlertCircle, ChevronLeft } from 'lucide-react';
 
 const PLANS = [
     { id: 1, name: 'Weekly', duration: 7, price: 99, discount: '' },
@@ -15,6 +16,7 @@ const PLANS = [
 
 
 export default function WalletPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
 
@@ -93,8 +95,19 @@ export default function WalletPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pt-20 pb-24 px-4 bg-[url('/noise.png')]">
-            <div className="max-w-4xl mx-auto space-y-16">
+        <div className="min-h-screen bg-slate-50 pt-8 pb-24 px-4 bg-[url('/noise.png')]">
+            <div className="max-w-4xl mx-auto space-y-12">
+                
+                {/* Navigation */}
+                <nav className="flex items-center">
+                    <button 
+                        onClick={() => router.push('/dashboard')}
+                        className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
+                    >
+                        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-bold uppercase tracking-widest">Dashboard</span>
+                    </button>
+                </nav>
                 
                 {/* Header */}
                 <div className="text-center space-y-4">
