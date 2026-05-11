@@ -50,7 +50,7 @@ export default function WalletPage() {
 
             // 2. Open Razorpay Checkouot
             const options = {
-                key: "rzp_live_SmZthQ4ktSlNh6", // Must match backend live key
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "", // Will use Vercel env var
                 amount: orderRes.amount,
                 currency: orderRes.currency,
                 name: "Glysmork AI",

@@ -274,5 +274,5 @@ EMAIL_HOST_USER = 'glysmork@gmail.com'
 EMAIL_HOST_PASSWORD = 'rxhp pgls pogm ykay'
 
 # Razorpay Configuration
-RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', 'rzp_live_SmZthQ4ktSlNh6')
-RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', 'xZgMnYJSgbZIZeYe7d5Wo3XP')
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')

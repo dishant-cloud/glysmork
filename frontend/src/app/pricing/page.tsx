@@ -65,8 +65,7 @@ export default function PricingPage() {
 
             // 2. Open Razorpay Modal
             const options = {
-                // Hardcoding the live key to avoid .env.local test key interference
-                key: 'rzp_live_SmZthQ4ktSlNh6',
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
                 amount: orderData.amount,
                 currency: orderData.currency,
                 name: "Glysmork",
