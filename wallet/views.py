@@ -1,14 +1,27 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, permissions
 from django.conf import settings
 from .models import Transaction, UserSubscription, SubscriptionPlan
 import razorpay
 from django.utils import timezone
 
-# Mock Razorpay Client for testing
-razorpay_client = razorpay.Client(auth=("rzp_test_mock_key_123", "rzp_test_mock_secret_123"))
+# Razorpay Client
+razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+class PlanListView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def get(self, request):
+        plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price_inr')
+        data = [{
+            "id": p.id,
+            "name": p.name,
+            "price": float(p.price_inr),
+            "duration_days": p.duration_days,
+            "features": p.features
+        } for p in plans]
+        return Response(data)
 
 class CreateOrderView(APIView):
     def post(self, request):

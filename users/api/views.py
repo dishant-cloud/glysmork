@@ -189,6 +189,7 @@ class AIOnboardingQuizView(APIView):
 
                 profile.persona_image_url = pollinations_url
                 profile.last_quiz_taken = timezone.now()
+                profile.is_verified = True  # Mark them as verified so they appear in matchmaking
                 profile.save()
 
                 return Response({

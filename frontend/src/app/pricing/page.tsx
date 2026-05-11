@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { motion } from 'framer-motion';
+import Script from 'next/script';
 import { 
     Check, 
     Zap, 
@@ -16,69 +17,132 @@ import {
 } from 'lucide-react';
 import Logo from '@/components/Logo';
 
+interface Plan {
+    id: number;
+    name: string;
+    price: number;
+    duration_days: number;
+    features: string[];
+}
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 export default function PricingPage() {
     const router = useRouter();
-    const [isLoading, setIsLoading] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState<number | null>(null);
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [isFetching, setIsFetching] = useState(true);
 
-    const plans = [
-        {
-            id: 'weekly',
-            name: 'Weekly Pass',
-            price: '$5.99',
-            duration: 'per week',
-            icon: <Clock className="w-6 h-6 text-cyan-400" />,
-            features: [
-                'Unlimited Matches',
-                'Priority Discovery',
-                'Ad-free Experience',
-                'Pro Badge on Profile',
-                'Weekly AI Insight Report'
-            ],
-            color: 'from-cyan-500/20 to-blue-500/20',
-            borderColor: 'border-cyan-500/30'
-        },
-        {
-            id: 'monthly',
-            name: 'Monthly Pro',
-            price: '$19.99',
-            duration: 'per month',
-            icon: <Crown className="w-6 h-6 text-amber-400" />,
-            features: [
-                'All Weekly Features',
-                'Unlimited AI Analysis',
-                'Exclusive "Incognito" Mode',
-                'Direct DM to Any Profile',
-                'Save 20% vs Weekly'
-            ],
-            recommended: true,
-            color: 'from-amber-500/20 to-orange-500/20',
-            borderColor: 'border-amber-500/30'
-        }
-    ];
+    useEffect(() => {
+        const loadPlans = async () => {
+            try {
+                const data = await fetchApi('/wallet/plans/');
+                setPlans(data);
+            } catch (error) {
+                console.error("Failed to load plans:", error);
+            } finally {
+                setIsFetching(false);
+            }
+        };
+        loadPlans();
+    }, []);
 
-    const handleSubscribe = async (planType: string) => {
-        setIsLoading(planType);
+    const handleSubscribe = async (plan: Plan) => {
+        setIsLoading(plan.id);
         try {
-            const data = await fetchApi('/users/subscription/checkout/', {
+            // 1. Create Order on Backend
+            const orderData = await fetchApi('/wallet/order/create/', {
                 method: 'POST',
-                body: JSON.stringify({ plan_type: planType })
+                body: JSON.stringify({ 
+                    item_type: 'SUBSCRIPTION',
+                    item_id: plan.id 
+                })
             });
 
-            if (data.checkout_url) {
-                window.location.href = data.checkout_url;
-            } else {
-                throw new Error("Checkout URL not received.");
-            }
+            // 2. Open Razorpay Modal
+            const options = {
+                // Hardcoding the live key to avoid .env.local test key interference
+                key: 'rzp_live_SmZthQ4ktSlNh6',
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: "Glysmork",
+                description: `Upgrade to ${plan.name} Plan`,
+                order_id: orderData.order_id,
+                handler: async function (response: any) {
+                    // 3. Verify Payment on Backend
+                    try {
+                        setIsLoading(plan.id);
+                        await fetchApi('/wallet/order/verify/', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature
+                            })
+                        });
+                        router.push('/pricing/success');
+                    } catch (err) {
+                        console.error("Verification failed:", err);
+                        alert("Payment verification failed. Please contact support.");
+                    } finally {
+                        setIsLoading(null);
+                    }
+                },
+                prefill: {
+                    name: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).username : "",
+                    email: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).email : "",
+                },
+                theme: {
+                    color: "#06b6d4",
+                },
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (response: any) {
+                alert(`Payment failed: ${response.error.description}`);
+            });
+            rzp.open();
+
         } catch (error) {
             console.error("Subscription Error:", error);
-            alert("Failed to initiate checkout. Please ensure you are logged in.");
+            alert("Failed to initiate payment. Please ensure you are logged in.");
         } finally {
             setIsLoading(null);
         }
     };
 
+    const getIcon = (name: string) => {
+        if (name.toLowerCase().includes('weekly')) return <Clock className="w-6 h-6 text-cyan-400" />;
+        if (name.toLowerCase().includes('monthly')) return <Calendar className="w-6 h-6 text-amber-400" />;
+        return <Crown className="w-6 h-6 text-purple-400" />;
+    };
+
+    const getColor = (idx: number) => {
+        const colors = [
+            'from-cyan-500/20 to-blue-500/20',
+            'from-amber-500/20 to-orange-500/20',
+            'from-purple-500/20 to-pink-500/20'
+        ];
+        return colors[idx % colors.length];
+    };
+
+    const getBorder = (idx: number) => {
+        const borders = [
+            'border-cyan-500/30',
+            'border-amber-500/30',
+            'border-purple-500/30'
+        ];
+        return borders[idx % borders.length];
+    };
+
     return (
         <div className="min-h-screen bg-[#0a0f18] text-white selection:bg-cyan-500/30 font-sans overflow-x-hidden">
+            <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+            
             {/* Fluid Background Elements */}
             <div className="fixed top-[-10%] left-[-5%] w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none animate-pulse" />
             <div className="fixed bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-purple-500/10 blur-[150px] rounded-full pointer-events-none" />
@@ -118,69 +182,75 @@ export default function PricingPage() {
                 </motion.div>
 
                 {/* Plans Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
-                    {plans.map((plan, idx) => (
-                        <motion.div
-                            key={plan.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className={`relative group bg-slate-900/40 backdrop-blur-xl border ${plan.borderColor} rounded-[32px] p-6 md:p-10 flex flex-col h-full shadow-2xl overflow-hidden`}
-                        >
-                            {plan.recommended && (
-                                <div className="absolute top-0 right-0 pt-6 pr-6">
-                                    <div className="bg-amber-500 text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-tighter">
-                                        Best Value
+                {isFetching ? (
+                    <div className="flex justify-center items-center h-64">
+                        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-7xl">
+                        {plans.map((plan, idx) => (
+                            <motion.div
+                                key={plan.id}
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.1 }}
+                                className={`relative group bg-slate-900/40 backdrop-blur-xl border ${getBorder(idx)} rounded-[32px] p-6 md:p-10 flex flex-col h-full shadow-2xl overflow-hidden`}
+                            >
+                                {idx === 1 && (
+                                    <div className="absolute top-0 right-0 pt-6 pr-6">
+                                        <div className="bg-amber-500 text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-tighter">
+                                            Most Popular
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Background Glow */}
-                            <div className={`absolute -top-24 -left-24 w-64 h-64 bg-gradient-to-br ${plan.color} blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity`} />
+                                {/* Background Glow */}
+                                <div className={`absolute -top-24 -left-24 w-64 h-64 bg-gradient-to-br ${getColor(idx)} blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity`} />
 
-                            <div className="relative space-y-6 flex-grow">
-                                <div className="p-3 bg-white/5 rounded-2xl w-fit border border-white/10">
-                                    {plan.icon}
-                                </div>
-                                
-                                <div>
-                                    <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
-                                    <div className="flex items-baseline gap-2 mt-2">
-                                        <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
-                                        <span className="text-slate-500 text-sm font-medium">{plan.duration}</span>
+                                <div className="relative space-y-6 flex-grow">
+                                    <div className="p-3 bg-white/5 rounded-2xl w-fit border border-white/10">
+                                        {getIcon(plan.name)}
                                     </div>
+                                    
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
+                                        <div className="flex items-baseline gap-2 mt-2">
+                                            <span className="text-4xl font-bold tracking-tight">₹{plan.price}</span>
+                                            <span className="text-slate-500 text-sm font-medium">/ {plan.duration_days} days</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-white/5 w-full" />
+
+                                    <ul className="space-y-4">
+                                        {plan.features.map((feature, i) => (
+                                            <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
+                                                <div className="shrink-0 w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                                                    <Check className="w-3 h-3 text-cyan-400" />
+                                                </div>
+                                                {feature}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
 
-                                <div className="h-px bg-white/5 w-full" />
-
-                                <ul className="space-y-4">
-                                    {plan.features.map((feature, i) => (
-                                        <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
-                                            <div className="shrink-0 w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                                                <Check className="w-3 h-3 text-cyan-400" />
-                                            </div>
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div className="mt-10 relative">
-                                <button
-                                    onClick={() => handleSubscribe(plan.id)}
-                                    disabled={isLoading !== null}
-                                    className={`w-full py-4 rounded-2xl font-bold text-sm tracking-wide transition-all ${
-                                        plan.recommended 
-                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-[1.02] hover:shadow-[0_10px_30px_-5px_rgba(245,158,11,0.3)]' 
-                                        : 'bg-white text-black hover:scale-[1.02] hover:shadow-[0_10px_30px_-5px_rgba(255,255,255,0.1)]'
-                                    } disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed`}
-                                >
-                                    {isLoading === plan.id ? 'Initiating...' : 'Get Access Now'}
-                                </button>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
+                                <div className="mt-10 relative">
+                                    <button
+                                        onClick={() => handleSubscribe(plan)}
+                                        disabled={isLoading !== null}
+                                        className={`w-full py-4 rounded-2xl font-bold text-sm tracking-wide transition-all ${
+                                            idx === 1 
+                                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:scale-[1.02] hover:shadow-[0_10px_30px_-5px_rgba(245,158,11,0.3)]' 
+                                            : 'bg-white text-black hover:scale-[1.02] hover:shadow-[0_10px_30px_-5px_rgba(255,255,255,0.1)]'
+                                        } disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed`}
+                                    >
+                                        {isLoading === plan.id ? 'Connecting...' : 'Get Started'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Trust Badges */}
                 <motion.div 
@@ -191,7 +261,7 @@ export default function PricingPage() {
                 >
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest">
                         <ShieldCheck className="w-4 h-4" />
-                        Secure Checkout
+                        Secure Payment
                     </div>
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest">
                         <Zap className="w-4 h-4" />
@@ -199,7 +269,7 @@ export default function PricingPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest">
                         <Calendar className="w-4 h-4" />
-                        Cancel Anytime
+                        Automated Tracking
                     </div>
                 </motion.div>
             </main>
