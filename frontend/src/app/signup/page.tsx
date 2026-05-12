@@ -30,6 +30,7 @@ export default function SignUp() {
     const [age, setAge] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
 
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
     const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "";
@@ -230,8 +231,93 @@ export default function SignUp() {
                                     <p className="text-sm font-medium text-slate-500 mt-1 text-center">Verification is required for a high-trust network</p>
                                 </div>
 
+                                {/* Terms and Conditions */}
+                                <div className="w-full max-w-[320px] flex flex-col gap-3 mx-auto">
+                                    <div className="bg-white/60 border border-slate-200 rounded-xl p-4 h-[160px] overflow-y-auto text-[11px] text-slate-600 space-y-4 shadow-inner custom-scrollbar">
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-[12px] mb-1">Terms of Service</h4>
+                                            <p className="mb-2">By accessing or using this website, you agree to be bound by these Terms.</p>
+                                            <ul className="space-y-1.5">
+                                                <li><strong>1. User Responsibility:</strong> Users are solely responsible for their actions, behavior, and interactions with other users both online and offline.</li>
+                                                <li><strong>2. No Background Verification:</strong> We do not verify the identity, background, or intentions of any user. You agree to interact with others at your own risk.</li>
+                                                <li><strong>3. Platform Role:</strong> This website acts only as a platform to connect individuals. We do not participate in, control, or take responsibility for any interactions, meetings, or agreements between users.</li>
+                                                <li><strong>4. Prohibited Activities:</strong> Users must not engage in illegal, harmful, abusive, fraudulent, or misleading activities.</li>
+                                                <li><strong>5. Content Responsibility:</strong> Users are responsible for any content they post. We are not liable for user-generated content.</li>
+                                                <li><strong>6. Limitation of Liability:</strong> We are not liable for any damages, losses, injuries, or disputes arising from use of this platform.</li>
+                                                <li><strong>7. Termination:</strong> We reserve the right to suspend or terminate any account at our discretion.</li>
+                                                <li><strong>8. Acceptance:</strong> By using this website, you confirm that you understand and accept these terms.</li>
+                                            </ul>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-[12px] mb-1">Privacy Policy</h4>
+                                            <p className="mb-2">We respect your privacy and are committed to protecting your personal data.</p>
+                                            <ul className="space-y-1.5">
+                                                <li><strong>1. Information We Collect:</strong> We may collect basic information such as name, email, and usage data.</li>
+                                                <li><strong>2. How We Use Information:</strong> To provide and improve our services, and to ensure platform safety.</li>
+                                                <li><strong>3. No Guarantee of Security:</strong> While we take reasonable measures, we cannot guarantee complete data security.</li>
+                                                <li><strong>4. Third-Party Sharing:</strong> We do not sell your data but may share it if required by law.</li>
+                                                <li><strong>5. User Responsibility:</strong> Users should not share sensitive personal information with others on the platform.</li>
+                                                <li><strong>6. Consent:</strong> By using the website, you agree to this policy.</li>
+                                            </ul>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-[12px] mb-1">Disclaimer</h4>
+                                            <p className="mb-2">This platform is provided "as is" without any warranties.</p>
+                                            <ul className="list-disc pl-4 space-y-1">
+                                                <li>We do not guarantee the accuracy, honesty, or intentions of users.</li>
+                                                <li>We are not responsible for any offline meetings or outcomes.</li>
+                                                <li>Users interact at their own risk.</li>
+                                                <li>We are not liable for any harm, loss, fraud, or damages.</li>
+                                            </ul>
+                                            <p className="mt-2 font-semibold">Use this platform responsibly.</p>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-[12px] mb-1">Safety Notice</h4>
+                                            <ul className="list-disc pl-4 space-y-1 mb-2">
+                                                <li>Always meet in public places.</li>
+                                                <li>Do not share financial or sensitive personal information.</li>
+                                                <li>Report suspicious users immediately.</li>
+                                            </ul>
+                                            <p className="font-semibold text-red-500/80">We are not responsible for user behavior or actions.</p>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-[12px] mb-1">Community Guidelines</h4>
+                                            <ul className="list-disc pl-4 space-y-1 mb-2">
+                                                <li>Be respectful and honest.</li>
+                                                <li>No harassment, hate speech, or abuse.</li>
+                                                <li>No scams or fake profiles.</li>
+                                                <li>No illegal activities.</li>
+                                            </ul>
+                                            <p className="font-semibold text-red-500/80">Violation may result in account suspension.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <label className="flex items-start gap-3 cursor-pointer group mb-2">
+                                        <div className="relative flex items-center justify-center mt-0.5">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={agreedToTerms} 
+                                                onChange={(e) => {
+                                                    setAgreedToTerms(e.target.checked);
+                                                    if (e.target.checked) setErrorMsg('');
+                                                }} 
+                                                className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded bg-white checked:bg-slate-900 checked:border-slate-900 transition-all cursor-pointer"
+                                            />
+                                            <CheckCircle className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" strokeWidth={3} />
+                                        </div>
+                                        <span className="text-[12px] text-slate-600 font-medium leading-tight group-hover:text-slate-800 transition-colors">
+                                            I have read and agree to the Terms of Service, Privacy Policy, Disclaimer, Safety Notice, and Community Guidelines.
+                                        </span>
+                                    </label>
+                                </div>
+
                                 {/* Social Signup Group */}
-                                <div className="flex flex-col gap-4 items-center">
+                                <div className={`flex flex-col gap-4 items-center transition-all duration-300 relative ${!agreedToTerms ? 'opacity-50 grayscale' : ''}`}>
+                                    {!agreedToTerms && <div className="absolute inset-0 z-10 cursor-not-allowed" onClick={() => setErrorMsg("Please agree to the terms first.")} />}
                                     <div className="w-full flex justify-center max-w-[320px]">
                                         <GoogleLogin
                                             onSuccess={handleGoogleSuccess}
@@ -246,7 +332,7 @@ export default function SignUp() {
                                     
                                     <button
                                         onClick={handleFacebookLogin}
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || !agreedToTerms}
                                         className="flex items-center justify-center gap-3 w-full max-w-[320px] bg-white border border-slate-200 py-2.5 rounded-full hover:bg-slate-50 transition-all font-medium text-sm text-slate-700 shadow-sm"
                                     >
                                         <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
@@ -290,7 +376,8 @@ export default function SignUp() {
                                         </div>
                                         <button
                                             type="submit"
-                                            className="w-full bg-slate-900 text-white rounded-xl py-3 text-[14px] font-bold tracking-wide hover:bg-slate-800 transition-all"
+                                            disabled={!agreedToTerms}
+                                            className={`w-full text-white rounded-xl py-3 text-[14px] font-bold tracking-wide transition-all ${!agreedToTerms ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800'}`}
                                         >
                                             Continue with Email
                                         </button>
