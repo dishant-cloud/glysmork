@@ -3,9 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.conf import settings
-from .models import Transaction, UserSubscription, SubscriptionPlan
+from .models import Payment, Subscription, SubscriptionPlan, GemLedger
 import razorpay
 from django.utils import timezone
+from datetime import timedelta
 
 # Razorpay Client
 razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -26,24 +27,27 @@ class PlanListView(APIView):
 class CreateOrderView(APIView):
     def post(self, request):
         user = request.user
-        item_type = request.data.get('item_type') # 'SUBSCRIPTION' or 'GEMS'
+        product_type = request.data.get('product_type') # 'subscription', 'gems', 'mitoforge'
         item_id = request.data.get('item_id')
         
-        if item_type == 'SUBSCRIPTION':
+        if product_type == 'subscription':
             try:
                 item = SubscriptionPlan.objects.get(id=item_id, is_active=True)
+                amount = int(item.price_inr * 100)
             except SubscriptionPlan.DoesNotExist:
                 return Response({"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif product_type == 'gems':
+            amount = int(request.data.get('amount', 0)) * 100
+        elif product_type == 'mitoforge':
+            amount = int(request.data.get('amount', 0)) * 100
         else:
-            return Response({"error": "Invalid item type"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid product type"}, status=status.HTTP_400_BAD_REQUEST)
             
-        amount = int(item.price_inr * 100) # Razorpay expects paise
-        
         # Create Razorpay Order
         payment_data = {
             "amount": amount,
             "currency": "INR",
-            "receipt": f"receipt_{user.id}_{item_type}_{item_id}"
+            "receipt": f"receipt_{user.id}_{product_type}_{item_id}"
         }
         
         try:
@@ -51,20 +55,20 @@ class CreateOrderView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
-        # Create DB Transaction record
-        transaction = Transaction.objects.create(
+        # Create DB Payment record
+        payment = Payment.objects.create(
             user=user,
-            amount_inr=item.price_inr,
-            item_type=item_type,
-            item_id=item_id,
-            razorpay_order_id=order['id']
+            amount=amount / 100,
+            product_type=product_type,
+            status='pending',
+            razorpay_payment_id=order['id'] # Store order ID here temporarily until verified
         )
         
         return Response({
             "order_id": order['id'],
             "amount": amount,
             "currency": order['currency'],
-            "transaction_id": transaction.id
+            "payment_id": payment.id
         })
 
 class VerifyPaymentView(APIView):
@@ -74,9 +78,9 @@ class VerifyPaymentView(APIView):
         razorpay_signature = request.data.get('razorpay_signature')
         
         try:
-            transaction = Transaction.objects.get(razorpay_order_id=razorpay_order_id)
-        except Transaction.DoesNotExist:
-            return Response({"error": "Transaction not found"}, status=status.HTTP_404_NOT_FOUND)
+            payment = Payment.objects.get(razorpay_payment_id=razorpay_order_id)
+        except Payment.DoesNotExist:
+            return Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
             
         # Verify Signature
         try:
@@ -86,27 +90,36 @@ class VerifyPaymentView(APIView):
                 'razorpay_signature': razorpay_signature
             })
         except razorpay.errors.SignatureVerificationError:
-            transaction.status = 'FAILED'
-            transaction.save()
+            payment.status = 'failed'
+            payment.save()
             return Response({"error": "Signature verification failed"}, status=status.HTTP_400_BAD_REQUEST)
             
         # Payment is successful
-        transaction.status = 'SUCCESS'
-        transaction.razorpay_payment_id = razorpay_payment_id
-        transaction.razorpay_signature = razorpay_signature
-        transaction.save()
+        payment.status = 'success'
+        payment.razorpay_payment_id = razorpay_payment_id
+        payment.save()
         
         # Fulfill Order
-        if transaction.item_type == 'SUBSCRIPTION':
-            plan = SubscriptionPlan.objects.get(id=transaction.item_id)
-            sub, created = UserSubscription.objects.get_or_create(user=transaction.user)
-            sub.plan = plan
-            sub.is_active = True
+        if payment.product_type == 'subscription':
+            plan_id = request.data.get('item_id')
+            try:
+                plan = SubscriptionPlan.objects.get(id=plan_id)
+                Subscription.objects.update_or_create(
+                    user=payment.user,
+                    defaults={
+                        'plan': plan,
+                        'status': 'active',
+                        'next_billing_date': timezone.now() + timedelta(days=plan.duration_days)
+                    }
+                )
+            except SubscriptionPlan.DoesNotExist:
+                pass
+        elif payment.product_type == 'gems':
+            gems_amount = int(request.data.get('gems_amount', 0))
+            GemLedger.objects.create(
+                user=payment.user,
+                gems_added=gems_amount,
+                source='purchase'
+            )
             
-            # If already subscribed, extend it. Else from now.
-            start = sub.expires_at if (not created and sub.is_valid()) else timezone.now()
-            sub.expires_at = start + timezone.timedelta(days=plan.duration_days)
-            sub.save()
-            
-
-        return Response({"status": "Payment verified and item fulfilled"})
+        return Response({"status": "success", "message": "Payment verified and order fulfilled"})
