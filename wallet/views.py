@@ -27,7 +27,7 @@ class PlanListView(APIView):
 class CreateOrderView(APIView):
     def post(self, request):
         user = request.user
-        product_type = request.data.get('product_type') # 'subscription', 'gems', 'mitoforge'
+        product_type = request.data.get('product_type') # 'subscription', 'gems'
         item_id = request.data.get('item_id')
         
         if product_type == 'subscription':
@@ -37,8 +37,6 @@ class CreateOrderView(APIView):
             except SubscriptionPlan.DoesNotExist:
                 return Response({"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND)
         elif product_type == 'gems':
-            amount = int(request.data.get('amount', 0)) * 100
-        elif product_type == 'mitoforge':
             amount = int(request.data.get('amount', 0)) * 100
         else:
             return Response({"error": "Invalid product type"}, status=status.HTTP_400_BAD_REQUEST)
