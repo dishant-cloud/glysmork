@@ -28,7 +28,7 @@ export default function WalletPage() {
         return () => { document.body.removeChild(script); };
     }, []);
 
-    const handlePayment = async (type: 'SUBSCRIPTION', itemId: number) => {
+    const handlePayment = async (type: 'subscription', itemId: number) => {
         if (!scriptLoaded) {
             alert('Payment gateway is still loading. Please try again in a second.');
             return;
@@ -39,7 +39,7 @@ export default function WalletPage() {
             // 1. Create order on backend
             const orderRes = await fetchApi('/wallet/order/create/', {
                 method: 'POST',
-                body: JSON.stringify({ item_type: type, item_id: itemId })
+                body: JSON.stringify({ product_type: type, item_id: itemId })
             });
 
             if (!orderRes.order_id) {
@@ -63,7 +63,9 @@ export default function WalletPage() {
                             body: JSON.stringify({
                                 razorpay_order_id: response.razorpay_order_id,
                                 razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
+                                razorpay_signature: response.razorpay_signature,
+                                product_type: 'subscription',
+                                item_id: itemId
                             })
                         });
                         alert(verifyRes.status || "Purchase successful!");
@@ -146,7 +148,7 @@ export default function WalletPage() {
                                 )}
                                 
                                 <button 
-                                    onClick={() => handlePayment('SUBSCRIPTION', plan.id)}
+                                    onClick={() => handlePayment('subscription', plan.id)}
                                     disabled={loading}
                                     className={`mt-auto py-3 rounded-xl font-bold text-sm transition-transform active:scale-95 ${plan.recommended ? 'bg-white text-slate-900 hover:bg-slate-100' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'}`}
                                 >

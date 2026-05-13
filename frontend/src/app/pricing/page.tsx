@@ -57,8 +57,8 @@ export default function PricingPage() {
             // 1. Create Order on Backend
             const orderData = await fetchApi('/wallet/order/create/', {
                 method: 'POST',
-                body: JSON.stringify({ 
-                    item_type: 'SUBSCRIPTION',
+                body: JSON.stringify({
+                    product_type: 'subscription',
                     item_id: plan.id 
                 })
             });
@@ -80,7 +80,8 @@ export default function PricingPage() {
                             body: JSON.stringify({
                                 razorpay_order_id: response.razorpay_order_id,
                                 razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
+                                razorpay_signature: response.razorpay_signature,
+                                item_id: plan.id
                             })
                         });
                         router.push('/pricing/success');
