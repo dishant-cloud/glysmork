@@ -48,6 +48,7 @@ export default function DMPage() {
     const bottomRef = useRef<HTMLDivElement>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSendTimeRef = useRef(0);
 
     const roomName = myUsername
         ? (friend.startsWith('session_') ? friend : `direct_${[myUsername, friend].sort().join('_')}`)
@@ -261,7 +262,10 @@ export default function DMPage() {
     };
 
     const sendMessage = async () => {
+        const now = Date.now();
+        if (now - lastSendTimeRef.current < 400) return;
         if (!input.trim() || sending || !roomName || !myUsername) return;
+        lastSendTimeRef.current = now;
         const text = input.trim();
         setInput('');
         setSending(true);

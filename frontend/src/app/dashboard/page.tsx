@@ -43,6 +43,7 @@ export default function Dashboard() {
 
     const isInitialMountIntent = useRef(true);
     const matchLockRef = useRef(false);
+    const lastClickTimeRef = useRef(0);
 
     useEffect(() => {
         if (isInitialMountIntent.current) {
@@ -262,6 +263,12 @@ export default function Dashboard() {
     };
 
     const startPersonaMatch = async (forceOffline: boolean = false, isRetry: boolean = false) => {
+        const now = Date.now();
+        if (!isRetry && now - lastClickTimeRef.current < 1500) {
+            showNotification("Please wait a moment before trying again.");
+            return;
+        }
+        lastClickTimeRef.current = now;
         if (isMatching || matchLockRef.current) return;
         matchLockRef.current = true;
         setIsMatching(true);
@@ -307,6 +314,12 @@ export default function Dashboard() {
     };
 
     const startOmegleMatch = async () => {
+        const now = Date.now();
+        if (now - lastClickTimeRef.current < 1500) {
+            showNotification("Please wait a moment before trying again.");
+            return;
+        }
+        lastClickTimeRef.current = now;
         if (isMatching || matchLockRef.current) return;
         matchLockRef.current = true;
         setIsMatching(true);
@@ -351,6 +364,12 @@ export default function Dashboard() {
     };
 
     const startMatching = async (overrideIntent?: string, forceOffline: boolean = false, isRetry: boolean = false) => {
+        const now = Date.now();
+        if (!isRetry && now - lastClickTimeRef.current < 1500) {
+            showNotification("Please wait a moment before trying again.");
+            return;
+        }
+        lastClickTimeRef.current = now;
         if (isMatching || matchLockRef.current) return;
         matchLockRef.current = true;
         const intentText = overrideIntent || intent;

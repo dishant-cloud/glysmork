@@ -54,8 +54,12 @@ export default function PrivacyPolicy() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">4. Data Security</h2>
-                        <p>We implement industry-standard security measures, including SSL encryption, secure WebSocket connections, API rate limiting, and protection against common vulnerabilities (e.g., XML injection, SQL injection). However, no system is entirely impenetrable, and we cannot guarantee absolute security of your data.</p>
+                        <h2 className="text-xl font-semibold text-white mb-3">4. Data Security & Limitations</h2>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>We implement industry-standard security measures, including SSL encryption, secure WebSocket connections, API rate limiting, and protection against common vulnerabilities.</li>
+                            <li><strong>No Absolute Security:</strong> While we strive to protect your personal data, no method of transmission over the Internet or electronic storage is 100% secure. We cannot guarantee absolute security against all malicious attacks, unauthorized access, or hardware failures.</li>
+                            <li>In the event of a severe data breach or server compromise, Glysmork shall not be held legally or financially liable for any resulting damages, loss of privacy, or exposure of conversational data.</li>
+                        </ul>
                     </section>
 
                     <section>

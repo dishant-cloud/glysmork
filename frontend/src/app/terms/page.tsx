@@ -104,16 +104,27 @@ export default function TermsOfService() {
 
                     <section>
                         <h2 className="text-xl font-semibold text-white mb-3">10. Limitation of Liability</h2>
-                        <p>Glysmork provides connections based on AI analysis. We do not guarantee the suitability, safety, or behavior of any matched user. Interactions with other users are entirely at your own risk. Glysmork is not responsible for any consequences arising from connections made through the platform.</p>
+                        <p className="mb-3">Glysmork provides connections based on AI analysis. We do not guarantee the suitability, safety, or behavior of any matched user. Interactions with other users are entirely at your own risk. Glysmork is not responsible for any consequences arising from connections made through the platform.</p>
+                        <p>To the maximum extent permitted by law, Glysmork shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or goodwill, arising from your use of the service, unauthorized access to your account, or temporary/permanent server downtime.</p>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">11. Changes to Terms</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">11. Service Availability & Uptime</h2>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>The service is provided on an &quot;as is&quot; and &quot;as available&quot; basis. We do not guarantee 100% uptime.</li>
+                            <li>Glysmork may occasionally experience disruptions, maintenance periods, or server crashes.</li>
+                            <li>We are not liable for any lost opportunities, connections, or revenue resulting from service unavailability.</li>
+                            <li>Temporary downtime does not entitle users to refunds or extensions on their paid subscriptions or daily quotas.</li>
+                        </ul>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-white mb-3">12. Changes to Terms</h2>
                         <p>We may update these Terms of Service at any time. Continued use of Glysmork after changes are posted constitutes acceptance of the updated terms.</p>
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-white mb-3">12. Contact</h2>
+                        <h2 className="text-xl font-semibold text-white mb-3">13. Contact</h2>
                         <p>For questions about these terms, contact us at <span className="text-purple-400">legal@glysmork.com</span>. For billing issues, contact <span className="text-purple-400">billing@glysmork.com</span>.</p>
                     </section>
                 </div>
