@@ -476,6 +476,8 @@ class JoinMatchmakingView(APIView):
             from datetime import timedelta
             two_mins_ago = timezone.now() - timedelta(minutes=2)
             candidates_qs = candidates_qs.filter(last_seen__gte=two_mins_ago)
+        else:
+            candidates_qs = candidates_qs.filter(available_for_offline_search=True)
 
         # --- PRE-FILTER: Country (Multiple) ---
         if country_filter:

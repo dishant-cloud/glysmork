@@ -59,6 +59,7 @@ class Profile(models.Model):
     
     # Privacy Settings
     is_profile_public = models.BooleanField(default=True)
+    available_for_offline_search = models.BooleanField(default=False, help_text="Allow others to discover this profile when offline (resets daily at 12 PM GMT)")
     show_ai_analysis = models.BooleanField(default=True)
     hidden_data_fields = models.JSONField(default=list, blank=True, help_text="List of keys in profile to hide from public")
 

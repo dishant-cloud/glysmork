@@ -22,7 +22,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'is_verified', 'psychological_profile', 'self_reported_traits',
             'connection_preferences', 'interests', 'expertise_areas',
             'conversation_topics', 'current_intent',
-            'last_quiz_taken', 'is_profile_public',
+            'last_quiz_taken', 'is_profile_public', 'available_for_offline_search',
             'show_ai_analysis', 'hidden_data_fields',
             'country', 'state', 'languages', 'latitude', 'longitude',
             'persona_image_url', 'fast_avatar', 'trust_score', 'trust_tier',

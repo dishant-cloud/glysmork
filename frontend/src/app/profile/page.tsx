@@ -20,6 +20,7 @@ export default function ProfilePage() {
     const [editLanguages, setEditLanguages] = useState<string[]>([]);
     const [editLatitude, setEditLatitude] = useState<number | null>(null);
     const [editLongitude, setEditLongitude] = useState<number | null>(null);
+    const [editOfflineSearch, setEditOfflineSearch] = useState<boolean>(false);
     const [saving, setSaving] = useState(false);
 
     // Avatar state
@@ -122,6 +123,7 @@ export default function ProfilePage() {
             setEditLanguages(data.languages || []);
             setEditLatitude(data.latitude || null);
             setEditLongitude(data.longitude || null);
+            setEditOfflineSearch(data.available_for_offline_search || false);
         } catch (err) {
             console.error("Failed to load profile", err);
             setError('Could not load your AI profile insights.');
@@ -145,7 +147,8 @@ export default function ProfilePage() {
                     country: editCountry,
                     languages: editLanguages,
                     latitude: editLatitude,
-                    longitude: editLongitude
+                    longitude: editLongitude,
+                    available_for_offline_search: editOfflineSearch
                 })
             });
             setProfileData(data);
@@ -389,6 +392,25 @@ export default function ProfilePage() {
                                             placeholder="en, hi, es..."
                                             className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm transition-all font-sans text-[13px] font-medium"
                                         />
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <label className="flex items-center gap-3 cursor-pointer group">
+                                            <div className="relative">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={editOfflineSearch}
+                                                    onChange={(e) => setEditOfflineSearch(e.target.checked)}
+                                                />
+                                                <div className={`block w-10 h-6 rounded-full transition-colors ${editOfflineSearch ? 'bg-cyan-500' : 'bg-slate-300'}`}></div>
+                                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${editOfflineSearch ? 'transform translate-x-4' : ''}`}></div>
+                                            </div>
+                                            <div>
+                                                <span className="text-[11px] font-bold text-slate-700 block uppercase tracking-widest">Available for Offline Search</span>
+                                                <span className="text-[9px] text-slate-400 block mt-1 leading-relaxed">Opt-in to be discovered by others when you're offline.<br/>Automatically turns off daily at 12 PM GMT for privacy.</span>
+                                            </div>
+                                        </label>
                                     </div>
                                     <div className="flex gap-3 pt-4">
                                         <button
