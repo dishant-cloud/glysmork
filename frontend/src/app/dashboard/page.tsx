@@ -899,7 +899,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Right Col: Floating Feature Cards */}
-                    <div className="lg:col-span-5 relative mt-16 lg:mt-0 h-[600px] w-full hidden md:block">
+                    <div className="lg:col-span-5 relative mt-16 lg:mt-0 h-[680px] w-full hidden md:block">
 
                         {/* Ambient glow behind right column */}
                         <div className="absolute top-[50%] left-[50%] w-[400px] h-[400px] -translate-x-1/2 -translate-y-1/2 bg-white/40 blur-[100px] rounded-full mix-blend-overlay pointer-events-none z-0" />
@@ -909,7 +909,7 @@ export default function Dashboard() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.2 }}
-                            className="absolute z-10 w-[360px] right-10 top-1/2 -translate-y-[60%]"
+                            className="absolute z-10 w-[360px] right-10 top-1/2 -translate-y-[50%]"
                         >
                             <motion.div
                                 animate={{ y: [0, -12, 0] }}
