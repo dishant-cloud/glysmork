@@ -772,7 +772,19 @@ export default function Dashboard() {
 
                         {/* Mobile Usage Stats (Visible only on small screens) */}
                         <div className="w-full max-w-xl mb-6 md:hidden">
-                            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm relative">
+                                {profile?.subscription_tier !== 'free' && profile?.subscription_expiry && (
+                                    <div className="absolute top-3 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-sm">
+                                        PRO • {(() => {
+                                            const diff = new Date(profile.subscription_expiry).getTime() - Date.now();
+                                            if (diff < 0) return 'Expired';
+                                            const hours = Math.ceil(diff / (1000 * 60 * 60));
+                                            if (hours < 24) return `${hours}h left`;
+                                            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                            return `${days}d left`;
+                                        })()}
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Smart Searches Left</span>
                                     <span className="text-sm font-bold text-slate-800">{profile?.subscription_tier === 'free' ? Math.max(0, 4 - (profile?.daily_ai_llm_searches || 0)) + ' / 4' : Math.max(0, 40 - (profile?.daily_ai_llm_searches || 0)) + ' / 40'}</span>
@@ -876,14 +888,28 @@ export default function Dashboard() {
                                     <span className="font-semibold text-xs text-slate-600 uppercase tracking-widest">Active Status</span>
                                 </div>
                                 {profile?.subscription_tier !== 'free' && (
-                                    <motion.div 
-                                        initial={{ scale: 0.8 }}
-                                        animate={{ scale: 1 }}
-                                        className="bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-lg"
-                                    >
-                                        <Zap className="w-3 h-3 fill-current" />
-                                        Pro
-                                    </motion.div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <motion.div 
+                                            initial={{ scale: 0.8 }}
+                                            animate={{ scale: 1 }}
+                                            className="bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-lg"
+                                        >
+                                            <Zap className="w-3 h-3 fill-current" />
+                                            Pro
+                                        </motion.div>
+                                        {profile?.subscription_expiry && (
+                                            <span className="text-[9px] font-bold text-slate-500 bg-white/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                {(() => {
+                                                    const diff = new Date(profile.subscription_expiry).getTime() - Date.now();
+                                                    if (diff < 0) return 'Expired';
+                                                    const hours = Math.ceil(diff / (1000 * 60 * 60));
+                                                    if (hours < 24) return `${hours}h left`;
+                                                    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                                    return `${days}d left`;
+                                                })()}
+                                            </span>
+                                        )}
+                                    </div>
                                 )}
                                 <span className="text-[11px] font-bold text-slate-400 tracking-wider">02</span>
                             </div>

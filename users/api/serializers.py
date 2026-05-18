@@ -26,7 +26,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'show_ai_analysis', 'hidden_data_fields',
             'country', 'state', 'languages', 'latitude', 'longitude',
             'persona_image_url', 'fast_avatar', 'trust_score', 'trust_tier',
-            'subscription_tier', 'is_premium',
+            'subscription_tier', 'is_premium', 'subscription_expiry',
             'daily_ai_llm_searches', 'daily_standard_searches', 'daily_roulette_searches',
             'is_online',
         ]
