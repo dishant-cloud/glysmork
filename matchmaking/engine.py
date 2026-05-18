@@ -391,8 +391,19 @@ def run_hybrid_discovery(intent_string, profiles_qs, searcher_profile=None):
             cand_vec = _extract_profile_vec(candidate)
             if cand_vec is not None:
                 onboarding_sim = cosine_similarity(searcher_vec, cand_vec)
-                # 70% Intent (primary), 30% Onboarding chemistry
-                final_score = (intent_score * 0.7) + (max(0.0, onboarding_sim) * 0.3)
+                
+                # Dynamic weighting: if the user typed a long, specific query, their explicit intent 
+                # should dominate (preventing the "opposite match" penalty). If the query is generic, 
+                # we rely more on baseline chemistry/similarity.
+                if len(intent_string) > 30:
+                    intent_weight = 0.90
+                elif len(intent_string) > 15:
+                    intent_weight = 0.75
+                else:
+                    intent_weight = 0.60
+                    
+                sim_weight = 1.0 - intent_weight
+                final_score = (intent_score * intent_weight) + (max(0.0, onboarding_sim) * sim_weight)
         
         # Ensure the final score never exceeds 100% (1.0)
         final_score = min(1.0, final_score)

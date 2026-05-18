@@ -55,7 +55,7 @@ class Profile(models.Model):
     # Phase 3: AI Visual Assets & Trust Core
     persona_image_url = models.URLField(max_length=500, blank=True, null=True, help_text="AI generated conceptual avatar")
     chat_status_image_url = models.URLField(max_length=500, blank=True, null=True, help_text="Live AI generated status/warning image during chat")
-    trust_score = models.IntegerField(default=100, help_text="Dynamic AI-adjusted trust score based on chat intent (0-100)")
+    trust_score = models.IntegerField(default=60, help_text="Dynamic AI-adjusted trust score based on chat intent (0-100)")
     
     # Privacy Settings
     is_profile_public = models.BooleanField(default=True)
