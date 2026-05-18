@@ -221,13 +221,14 @@ export default function OnboardingChat() {
             <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-100/50 blur-[120px] rounded-full mix-blend-overlay pointer-events-none" />
 
             {/* Back Button */}
-            <div className="absolute top-6 left-6 z-50">
+            <div className="absolute top-3 left-3 md:top-6 md:left-6 z-[100]">
                 <button 
                     onClick={() => router.push('/dashboard')}
-                    className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group px-4 py-2 bg-white/50 backdrop-blur-md rounded-full shadow-sm border border-white/60"
+                    className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors group px-4 py-2.5 bg-white/70 backdrop-blur-md rounded-full shadow-md border border-white/80 cursor-pointer"
                 >
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-xs font-bold uppercase tracking-widest">Dashboard</span>
+                    <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">Dashboard</span>
+                    <span className="text-xs font-bold uppercase tracking-widest sm:hidden">Back</span>
                 </button>
             </div>
 
