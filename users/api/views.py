@@ -192,6 +192,11 @@ class AIOnboardingQuizView(APIView):
                 profile.is_verified = True  # Mark them as verified so they appear in matchmaking
                 profile.save()
 
+                # Recalculate trust score to ensure it reflects the latest baseline
+                from users.trust import calculate_trust_score
+                calculate_trust_score(profile.user.id)
+                profile.refresh_from_db()
+
                 return Response({
                     "message": "Profound analysis complete. Profile updated.", 
                     "profile": profile.psychological_profile,

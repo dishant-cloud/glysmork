@@ -1,13 +1,13 @@
-import requests
-from django.contrib.auth.models import User
-from room.models import Room
+import os
+import django
+import json
 
-room = Room.objects.filter(name__startswith='session_').last()
-if room:
-    print(f"Room: {room.name}")
-    print(f"Users in DB: {[u.username for u in room.users.all()]}")
-    
-    r = requests.get(f"http://127.0.0.1:8000/api/room/{room.name}/")
-    print(f"API Response: {r.status_code} {r.text}")
-else:
-    print("No session room found")
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chat.settings')
+django.setup()
+
+from django.contrib.auth.models import User
+from users.api.serializers import ProfileSerializer
+
+u = User.objects.get(username='test_trust_user')
+serializer = ProfileSerializer(u.profile)
+print(json.dumps(serializer.data, indent=2))
