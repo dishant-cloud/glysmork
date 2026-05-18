@@ -203,6 +203,21 @@ export default function Dashboard() {
         } catch { return null; }
     };
 
+    const handleToggleOfflineSearch = async () => {
+        if (!profile) return;
+        const newStatus = !profile.available_for_offline_search;
+        setProfile({ ...profile, available_for_offline_search: newStatus });
+        try {
+            await fetchApi(`/users/profile/`, {
+                method: 'PATCH',
+                body: JSON.stringify({ available_for_offline_search: newStatus })
+            });
+        } catch (err) {
+            console.error("Failed to update offline search preference", err);
+            setProfile({ ...profile, available_for_offline_search: !newStatus });
+        }
+    };
+
     const stopPolling = () => {
         if (pollRef) clearInterval(pollRef);
         setPollRef(null);
@@ -799,6 +814,25 @@ export default function Dashboard() {
                                 <div className="w-full bg-slate-200 rounded-full h-1.5">
                                     <div className="bg-green-500 h-1.5 rounded-full transition-all duration-500" style={{ width: profile?.subscription_tier === 'free' ? `${Math.max(0, 100 - ((profile?.daily_roulette_searches || 0) / 20 * 100))}%` : '100%' }}></div>
                                 </div>
+                                
+                                <div className="pt-4 mt-4 border-t border-slate-200/60">
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Available Offline</span>
+                                            <span className="text-[9px] text-slate-400">Resets daily at 12 PM GMT</span>
+                                        </div>
+                                        <div className="relative flex-shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only"
+                                                checked={!!profile?.available_for_offline_search}
+                                                onChange={handleToggleOfflineSearch}
+                                            />
+                                            <div className={`block w-9 h-5 rounded-full transition-colors ${profile?.available_for_offline_search ? 'bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'bg-slate-300'}`}></div>
+                                            <div className={`dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${profile?.available_for_offline_search ? 'transform translate-x-4' : ''}`}></div>
+                                        </div>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -938,6 +972,25 @@ export default function Dashboard() {
                                         <div className="w-full bg-slate-100 rounded-full h-1">
                                             <div className="bg-green-500 h-1 rounded-full transition-all duration-500" style={{ width: profile?.subscription_tier === 'free' ? `${Math.max(0, 100 - ((profile?.daily_roulette_searches || 0) / 20 * 100))}%` : '100%' }}></div>
                                         </div>
+                                    </div>
+                                    
+                                    <div className="pt-3 border-t border-slate-100 mt-2">
+                                        <label className="flex items-center justify-between cursor-pointer group">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest group-hover:text-cyan-600 transition-colors">Available Offline</span>
+                                                <span className="text-[9px] text-slate-400">Resets daily at 12 PM GMT</span>
+                                            </div>
+                                            <div className="relative flex-shrink-0">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={!!profile?.available_for_offline_search}
+                                                    onChange={handleToggleOfflineSearch}
+                                                />
+                                                <div className={`block w-9 h-5 rounded-full transition-colors ${profile?.available_for_offline_search ? 'bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'bg-slate-200'}`}></div>
+                                                <div className={`dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform shadow-sm ${profile?.available_for_offline_search ? 'transform translate-x-4' : ''}`}></div>
+                                            </div>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
