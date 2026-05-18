@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/api';
 import { Crown, Sparkles, Gem, ShieldCheck, Zap, AlertCircle, ChevronLeft } from 'lucide-react';
 
 const PLANS = [
+    { id: 6, name: '1 Day Test', duration: 1, price: 9, discount: 'For Testing' },
     { id: 1, name: 'Weekly', duration: 7, price: 99, discount: '' },
     { id: 2, name: 'Monthly', duration: 30, price: 299, discount: '24% off' },
     { id: 3, name: '3 Months', duration: 90, price: 699, discount: '40% off' },

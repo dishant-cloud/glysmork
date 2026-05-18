@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, ShieldAlert, Phone, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, Loader2, ShieldAlert, Sparkles, ChevronLeft } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 
 type Message = { role: 'model' | 'user'; text: string; isCrisis?: boolean };
@@ -42,6 +43,7 @@ export default function OnboardingChat() {
     const [capDetected, setCapDetected] = useState<string | null>(null);
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const didInit = useRef(false); // prevent React StrictMode double-call
+    const router = useRouter();
 
     // GLYSMORK letter animation
     useEffect(() => {
@@ -217,6 +219,17 @@ export default function OnboardingChat() {
             {/* Ambient Background Glows */}
             <div className="absolute top-[10%] left-[20%] w-[600px] h-[600px] bg-white/60 blur-[150px] rounded-full mix-blend-overlay pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-100/50 blur-[120px] rounded-full mix-blend-overlay pointer-events-none" />
+
+            {/* Back Button */}
+            <div className="absolute top-6 left-6 z-50">
+                <button 
+                    onClick={() => router.push('/dashboard')}
+                    className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group px-4 py-2 bg-white/50 backdrop-blur-md rounded-full shadow-sm border border-white/60"
+                >
+                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-xs font-bold uppercase tracking-widest">Dashboard</span>
+                </button>
+            </div>
 
             {/* Header */}
             <div className="relative z-10 w-full max-w-2xl px-6 pt-20 pb-6 flex flex-col items-center">
