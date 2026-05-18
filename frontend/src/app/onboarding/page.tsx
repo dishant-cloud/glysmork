@@ -221,10 +221,10 @@ export default function OnboardingChat() {
             <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-100/50 blur-[120px] rounded-full mix-blend-overlay pointer-events-none" />
 
             {/* Header */}
-            <div className="relative z-10 w-full max-w-2xl px-6 pt-16 md:pt-20 pb-6 flex flex-col items-center">
+            <div className="relative z-10 w-full max-w-2xl px-6 pt-24 md:pt-28 pb-6 flex flex-col items-center">
                 
                 {/* Back Button (Absolute relative to header, respects max-w-2xl and avoids notch) */}
-                <div className="absolute top-10 md:top-14 left-6 z-[100]">
+                <div className="absolute top-14 md:top-16 left-6 z-[100]">
                     <button 
                         onClick={() => router.push('/dashboard')}
                         className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors group px-4 py-2 bg-white/70 backdrop-blur-md rounded-full shadow-sm border border-white/80 cursor-pointer"
