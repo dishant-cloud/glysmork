@@ -110,6 +110,23 @@ class VerifyPaymentView(APIView):
                         'next_billing_date': timezone.now() + timedelta(days=plan.duration_days)
                     }
                 )
+                
+                # Sync with the user's master profile to immediately apply quotas
+                profile = payment.user.profile
+                
+                # Determine tier (map plan name loosely to SUBSCRIPTION_TIER_CHOICES)
+                plan_name_lower = plan.name.lower()
+                if 'week' in plan_name_lower:
+                    profile.subscription_tier = 'weekly'
+                else:
+                    profile.subscription_tier = 'monthly'
+                    
+                profile.subscription_expiry = timezone.now() + timedelta(days=plan.duration_days)
+                
+                # Reset quotas so they immediately benefit from premium limits
+                profile.daily_ai_llm_searches = 0
+                profile.daily_roulette_searches = 0
+                profile.save()
             except SubscriptionPlan.DoesNotExist:
                 pass
         elif payment.product_type == 'gems':

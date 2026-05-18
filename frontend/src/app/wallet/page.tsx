@@ -58,7 +58,7 @@ export default function WalletPage() {
                 order_id: orderRes.order_id,
                 handler: async function (response: any) {
                     try {
-                        const verifyRes = await fetchApi('/wallet/order/verify/', {
+                        await fetchApi('/wallet/order/verify/', {
                             method: 'POST',
                             body: JSON.stringify({
                                 razorpay_order_id: response.razorpay_order_id,
@@ -68,8 +68,7 @@ export default function WalletPage() {
                                 item_id: itemId
                             })
                         });
-                        alert(verifyRes.status || "Purchase successful!");
-                        window.location.reload();
+                        router.push('/pricing/success');
                     } catch (e) {
                         alert("Verification failed. Please contact support.");
                     }
