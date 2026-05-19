@@ -11,6 +11,19 @@ load_dotenv()
 # Attempt to configure from API key if needed, or rely on global config
 genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
+# ---------------------------------------------------------------------------
+# Matchmaking Analytics Tracker (in-memory, reset on server restart)
+# ---------------------------------------------------------------------------
+MATCH_STATS = {
+    "embedding_calls": 0,
+    "embedding_successes": 0,
+    "embedding_failures": 0,
+    "fallback_keyword_used": 0,
+    "total_searches": 0,
+    "total_candidates_scored": 0,
+    "matches_returned": 0,
+}
+
 # Centralized scoring weights for ML optimization later (A/B testing, regression)
 SENTIMENT_WEIGHTS = {
     "love": 2.2,
@@ -92,18 +105,21 @@ def cosine_similarity(v1, v2):
 
 def get_embedding(text):
     """
-    Calls Gemini API to get text-embedding-004 vector.
+    Calls Gemini API to get gemini-embedding-001 vector.
     """
     if not text:
         return []
+    MATCH_STATS["embedding_calls"] += 1
     try:
         result = genai.embed_content(
             model="models/gemini-embedding-001",
             content=text,
             task_type="retrieval_document"
         )
+        MATCH_STATS["embedding_successes"] += 1
         return result['embedding']
     except Exception as e:
+        MATCH_STATS["embedding_failures"] += 1
         print(f"Embedding Generation Error: {e}")
         return []
 
@@ -248,12 +264,20 @@ class MatchEvaluator:
             bio_lower = (profile.bio or "").lower()
             items = [str(x).lower() for x in (profile.interests or [])] + [str(x).lower() for x in (profile.expertise_areas or [])]
             
+            used_fallback = False
             # Massive boost if the literal term is in their interests or expertise
             if any(val_lower in item or item in val_lower for item in items):
+                if best_score < 1.0:
+                    used_fallback = True
                 best_score = max(best_score, 1.0)
             # Strong boost if the term is in their bio
             elif val_lower in bio_lower:
+                if best_score < 0.8:
+                    used_fallback = True
                 best_score = max(best_score, 0.8)
+            
+            if used_fallback:
+                MATCH_STATS["fallback_keyword_used"] += 1
 
             base_score = max(0.0, float(best_score))
 
@@ -318,6 +342,8 @@ def run_hybrid_discovery(intent_string, profiles_qs, searcher_profile=None):
     
     Returns (sorted_results_list, searcher_ast_dict).
     """
+    MATCH_STATS["total_searches"] += 1
+    
     # Step 1: Parse the searcher's intent into an AST (one LLM call for the whole batch)
     searcher_ast = parse_intent_to_ast(intent_string)
     print("Parsed Searcher AST:", json.dumps(searcher_ast, indent=2))
@@ -411,6 +437,7 @@ def run_hybrid_discovery(intent_string, profiles_qs, searcher_profile=None):
         # ---------------------------------------------------------------
         # STAGE 5: THRESHOLD & COLLECT
         # ---------------------------------------------------------------
+        MATCH_STATS["total_candidates_scored"] += 1
         if final_score > 0.35:
             results.append({
                 "profile": candidate,
@@ -419,6 +446,7 @@ def run_hybrid_discovery(intent_string, profiles_qs, searcher_profile=None):
                 "cand_to_searcher": cand_to_searcher_score,
             })
 
+    MATCH_STATS["matches_returned"] += len(results)
     # Sort descending by composite score
     results.sort(key=lambda x: x["vector_score"], reverse=True)
     return results, searcher_ast

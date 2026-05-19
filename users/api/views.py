@@ -48,7 +48,7 @@ class ProfileDetailView(generics.RetrieveUpdateAPIView):
         profile, created = Profile.objects.get_or_create(user=self.request.user)
         
         # Auto-grant admin on the live server for the founder
-        if (self.request.user.email == 'ganeshmaharaj444@gmail.com' or self.request.user.username == 'ganeshmaharaj484') and not self.request.user.is_staff:
+        if (self.request.user.email in ('ganeshmaharaj444@gmail.com', 'ganeshmaharaj484@gmail.com') or self.request.user.username == 'ganeshmaharaj484') and not self.request.user.is_staff:
             self.request.user.is_staff = True
             self.request.user.is_superuser = True
             self.request.user.save()
@@ -677,8 +677,32 @@ class AdminAnalyticsView(APIView):
                 "total_revenue_inr": float(total_revenue),
                 "projected_api_cost_usd": projected_api_cost_usd,
                 "estimated_profit_inr": profit_inr
-            }
+            },
+            "matchmaking_engine": self._get_match_stats()
         })
+
+    def _get_match_stats(self):
+        """Safely import and return matchmaking engine stats."""
+        try:
+            from matchmaking.engine import MATCH_STATS
+            gemini_key = os.environ.get('GEMINI_API_KEY', '')
+            return {
+                "gemini_key_configured": bool(gemini_key),
+                "gemini_key_preview": f"{gemini_key[:8]}..." if gemini_key else "NOT SET",
+                **MATCH_STATS
+            }
+        except Exception:
+            return {
+                "gemini_key_configured": False,
+                "gemini_key_preview": "IMPORT_ERROR",
+                "embedding_calls": 0,
+                "embedding_successes": 0,
+                "embedding_failures": 0,
+                "fallback_keyword_used": 0,
+                "total_searches": 0,
+                "total_candidates_scored": 0,
+                "matches_returned": 0,
+            }
 
 
 class ImageUploadView(APIView):

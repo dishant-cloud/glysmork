@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
-import { ShieldAlert, Users, TrendingUp, AlertTriangle, MessageSquare, IndianRupee, ArrowLeft, Ban } from 'lucide-react';
+import { ShieldAlert, Users, TrendingUp, AlertTriangle, MessageSquare, IndianRupee, ArrowLeft, Ban, Brain, Zap, Search } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminAnalytics {
@@ -10,6 +10,17 @@ interface AdminAnalytics {
     toxicity: { total_reports: number; banned_users: number; flagged_users: number };
     engagement: { total_rooms: number; total_messages: number; qualifying_sessions: number };
     financials: { total_revenue_inr: number; projected_api_cost_usd: number; estimated_profit_inr: number };
+    matchmaking_engine: {
+        gemini_key_configured: boolean;
+        gemini_key_preview: string;
+        embedding_calls: number;
+        embedding_successes: number;
+        embedding_failures: number;
+        fallback_keyword_used: number;
+        total_searches: number;
+        total_candidates_scored: number;
+        matches_returned: number;
+    };
 }
 
 export default function AdminDashboard() {
@@ -44,6 +55,9 @@ export default function AdminDashboard() {
     );
 
     if (!data) return null;
+
+    const me = data.matchmaking_engine;
+    const embeddingRate = me.embedding_calls > 0 ? ((me.embedding_successes / me.embedding_calls) * 100).toFixed(1) : "0.0";
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-200 p-6 md:p-12 font-sans selection:bg-emerald-500/30">
@@ -116,6 +130,66 @@ export default function AdminDashboard() {
                                 * Qualifying sessions represent users who completed meaningful interactions (e.g., &gt; 2min chats).
                             </p>
                         </div>
+                    </div>
+                </div>
+
+                {/* AI Engine Health Card */}
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8 relative overflow-hidden">
+                    <div className="absolute -right-10 -top-10 text-cyan-500/10 pointer-events-none">
+                        <Brain className="w-64 h-64" />
+                    </div>
+                    <div className="flex items-center gap-3 mb-6">
+                        <Brain className="w-6 h-6 text-cyan-400" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-cyan-400">AI Engine Health</h3>
+                        <span className={`ml-auto text-xs font-bold px-3 py-1 rounded-full ${me.gemini_key_configured ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                            {me.gemini_key_configured ? '● ONLINE' : '● OFFLINE'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide">Gemini Key</p>
+                            <p className="text-lg font-bold text-white font-mono">{me.gemini_key_preview}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide">Embedding Success Rate</p>
+                            <p className={`text-3xl font-black ${parseFloat(embeddingRate) > 90 ? 'text-emerald-400' : parseFloat(embeddingRate) > 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                {embeddingRate}%
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide">Total Searches</p>
+                            <p className="text-3xl font-black text-white">{me.total_searches}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide">Matches Returned</p>
+                            <p className="text-3xl font-black text-cyan-400">{me.matches_returned}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-slate-800">
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide flex items-center gap-1"><Zap className="w-3 h-3" /> Embedding Calls</p>
+                            <p className="text-xl font-bold text-white">{me.embedding_calls}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide">Successes</p>
+                            <p className="text-xl font-bold text-emerald-400">{me.embedding_successes}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide">Failures</p>
+                            <p className="text-xl font-bold text-rose-400">{me.embedding_failures}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 text-xs mb-1 uppercase tracking-wide flex items-center gap-1"><Search className="w-3 h-3" /> Keyword Fallbacks</p>
+                            <p className="text-xl font-bold text-amber-400">{me.fallback_keyword_used}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-800">
+                        <p className="text-xs text-slate-500">
+                            * Stats are in-memory and reset on server restart. Candidates Scored: {me.total_candidates_scored}.
+                        </p>
                     </div>
                 </div>
 
