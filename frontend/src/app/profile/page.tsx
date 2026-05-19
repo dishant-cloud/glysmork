@@ -422,7 +422,7 @@ export default function ProfilePage() {
                                         </button>
                                         <button
                                             onClick={() => setIsEditing(false)}
-                                            className="px-6 bg-white/80 hover:bg-white/10 text-white font-bold text-xs py-3.5 rounded-2xl border border-slate-200/60 shadow-sm transition-all"
+                                            className="px-6 bg-white/80 hover:bg-white text-slate-600 hover:text-slate-900 font-bold text-xs py-3.5 rounded-2xl border border-slate-200 shadow-sm transition-all"
                                         >
                                             Cancel
                                         </button>
