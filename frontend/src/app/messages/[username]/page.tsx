@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Phone, PhoneOff, Video, VideoOff, CheckCheck, Trash2, UserPlus, Check, MoreHorizontal, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Send, Phone, PhoneOff, Video, VideoOff, CheckCheck, Trash2, UserPlus, Check, MoreHorizontal, ShieldAlert, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useCall } from '@/components/CallProvider';
 import { fetchApi, getMediaUrl } from '@/lib/api';
@@ -151,6 +151,22 @@ export default function DMPage() {
         } finally {
             setLoading(false);
             setLoadingMore(false);
+        }
+    };
+
+    const handleDownloadTranscript = async () => {
+        if (!roomName) return;
+        try {
+            const res = await fetchApi(`/room/${roomName}/transcript/`);
+            const blob = new Blob([res], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transcript_${roomName}.txt`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Failed to download transcript", e);
         }
     };
 
@@ -379,6 +395,13 @@ export default function DMPage() {
                         title="AI Analysis"
                     >
                         <ShieldAlert className="w-5 h-5" />
+                    </button>
+                    <button 
+                        onClick={handleDownloadTranscript} 
+                        className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+                        title="Download Transcript"
+                    >
+                        <Download className="w-5 h-5" />
                     </button>
                     <button onClick={() => startCall(friend.replace('session_', ''), 'audio', roomName || undefined)} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"><Phone className="w-5 h-5" /></button>
                     <button onClick={() => startCall(friend.replace('session_', ''), 'video', roomName || undefined)} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"><Video className="w-5 h-5" /></button>

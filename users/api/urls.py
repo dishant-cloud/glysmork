@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView, GoogleLoginView, FacebookLoginView, OnlineCountView, HeartbeatView, AnalyticsView, AdminAnalyticsView, TrustScoreView, ReportUserView, BlockUserView, ImageUploadView, debug_cache
+from .views import ProfileDetailView, PublicProfileView, AIOnboardingQuizView, ImprovementBotView, LoginView, RegisterView, GoogleLoginView, FacebookLoginView, OnlineCountView, HeartbeatView, AnalyticsView, AdminAnalyticsView, TrustScoreView, ReportUserView, BlockUserView, ImageUploadView, debug_cache, AdminReportListView, AdminReportContextView, AdminBanUserView
 from .subscriptions import StripeCheckoutView, StripeWebhookView
 
 urlpatterns = [
@@ -24,4 +24,9 @@ urlpatterns = [
     # Subscriptions
     path('subscription/checkout/', StripeCheckoutView.as_view(), name='api-subscription-checkout'),
     path('subscription/webhook/', StripeWebhookView.as_view(), name='api-subscription-webhook'),
+
+    # Admin Moderation
+    path('admin/moderation/reports/', AdminReportListView.as_view(), name='api-admin-reports'),
+    path('admin/moderation/reports/<int:report_id>/context/', AdminReportContextView.as_view(), name='api-admin-report-context'),
+    path('admin/moderation/ban/', AdminBanUserView.as_view(), name='api-admin-ban'),
 ]

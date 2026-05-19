@@ -819,3 +819,73 @@ class BlockUserView(APIView):
             return Response({"message": f"User {username} has been blocked."}, status=status.HTTP_201_CREATED)
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+from rest_framework.permissions import IsAdminUser
+
+class AdminReportListView(APIView):
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        from users.models import Report
+        reports = Report.objects.filter(status='pending').order_by('-timestamp')
+        data = []
+        for r in reports:
+            data.append({
+                "id": r.id,
+                "reporter": r.reporter.username,
+                "reported_user": r.reported_user.username,
+                "reason": r.reason,
+                "timestamp": r.timestamp.isoformat(),
+                "status": r.status
+            })
+        return Response(data)
+
+class AdminReportContextView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, report_id):
+        from users.models import Report
+        from room.models import Room, Message
+        from django.db.models import Q
+        try:
+            report = Report.objects.get(id=report_id)
+        except Report.DoesNotExist:
+            return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Find any room between the two
+        rooms = Room.objects.filter(users=report.reporter).filter(users=report.reported_user)
+        if not rooms.exists():
+            return Response({"messages": []})
+            
+        messages = Message.objects.filter(room__in=rooms).order_by('date')
+        
+        data = []
+        for m in messages:
+            data.append({
+                "sender": m.user.username,
+                "text": m.value,
+                "timestamp": m.date.isoformat(),
+            })
+        return Response({"messages": data})
+
+class AdminBanUserView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        from django.contrib.auth.models import User
+        username = request.data.get('username')
+        try:
+            user = User.objects.get(username=username)
+            profile = user.profile
+            profile.is_banned = not profile.is_banned
+            profile.save()
+            
+            # If banned, mark related reports as action_taken
+            if profile.is_banned:
+                from users.models import Report
+                Report.objects.filter(reported_user=user).update(status='action_taken')
+                
+            return Response({"message": f"User {username} ban status updated to {profile.is_banned}", "is_banned": profile.is_banned})
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+

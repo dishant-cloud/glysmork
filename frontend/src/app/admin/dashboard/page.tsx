@@ -79,9 +79,14 @@ export default function AdminDashboard() {
                         </h1>
                         <p className="text-slate-500 mt-1">Highly classified internal metrics</p>
                     </div>
-                    <Link href="/dashboard" className="p-2 bg-slate-900 border border-slate-800 rounded-full hover:bg-slate-800 transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-slate-400" />
-                    </Link>
+                    <div className="flex gap-4 items-center">
+                        <Link href="/admin/moderation" className="px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-full font-bold text-sm hover:bg-rose-500/20 transition-colors flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4" /> Moderation Queue
+                        </Link>
+                        <Link href="/dashboard" className="p-2 bg-slate-900 border border-slate-800 rounded-full hover:bg-slate-800 transition-colors">
+                            <ArrowLeft className="w-5 h-5 text-slate-400" />
+                        </Link>
+                    </div>
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
