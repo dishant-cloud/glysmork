@@ -454,9 +454,10 @@ export default function ProfilePage() {
                                         </div>
                                         <button
                                             onClick={() => setIsEditing(true)}
-                                            className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-900 transition-all shadow-sm"
+                                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-slate-900 hover:border-slate-900 transition-all shadow-sm"
                                         >
-                                            <Edit3 className="w-4 h-4" />
+                                            <Edit3 className="w-3.5 h-3.5" />
+                                            <span>Edit Profile</span>
                                         </button>
                                     </div>
 
