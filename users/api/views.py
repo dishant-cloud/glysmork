@@ -619,7 +619,7 @@ class AdminAnalyticsView(APIView):
     def get(self, request, *args, **kwargs):
         from users.models import Report, Profile
         from room.models import Room, Message
-        from wallet.models import Transaction
+        from wallet.models import Payment
 
         now = timezone.now()
         one_day_ago = now - timedelta(days=1)
@@ -648,7 +648,7 @@ class AdminAnalyticsView(APIView):
         qualifying_sessions = Profile.objects.aggregate(total=Sum('qualifying_sessions'))['total'] or 0
 
         # 4. Financials & Costs
-        total_revenue = Transaction.objects.filter(status='SUCCESS').aggregate(total=Sum('amount_inr'))['total'] or 0.00
+        total_revenue = Payment.objects.filter(status='SUCCESS').aggregate(total=Sum('amount'))['total'] or 0.00
         
         # Cost heuristic: LLM calls + Onboarding quiz per user
         # Let's say onboarding = 2 API calls. Each daily quota burn = 1 API call.

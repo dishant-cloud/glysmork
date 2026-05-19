@@ -55,10 +55,10 @@ export default function RootLayout({
                 <main className="flex-1 flex flex-col">
                   {children}
                 </main>
-                <footer className="w-full py-4 px-6 text-center text-[12px] text-slate-400 font-medium bg-slate-50/50 backdrop-blur-md border-t border-slate-200/50 flex justify-center gap-6 mt-auto shrink-0 relative z-40">
-                  <a href="/privacy" className="hover:text-slate-900 transition-colors">Privacy Policy</a>
-                  <a href="/terms" className="hover:text-slate-900 transition-colors">Terms of Service</a>
-                  <span className="opacity-50">© {new Date().getFullYear()} Glysmork</span>
+                <footer className="w-full py-4 px-6 text-center text-[12px] font-semibold bg-white border-t border-slate-200 flex justify-center gap-6 mt-auto shrink-0 relative z-40">
+                  <a href="/privacy" className="text-slate-700 underline underline-offset-2 hover:text-black transition-colors">Privacy Policy</a>
+                  <a href="/terms" className="text-slate-700 underline underline-offset-2 hover:text-black transition-colors">Terms of Service</a>
+                  <span className="text-slate-400">© {new Date().getFullYear()} Glysmork</span>
                 </footer>
               </div>
               <IncomingCallUI />
