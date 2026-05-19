@@ -430,9 +430,9 @@ export default function ProfilePage() {
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div>
-                                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">{profileData?.user?.username}</h2>
+                                    <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
+                                        <div className="min-w-0 max-w-full">
+                                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none mb-2 break-all">{profileData?.user?.username}</h2>
                                             <div className="text-xs font-bold text-slate-400 flex flex-wrap gap-2 items-center">
                                                 <span>{profileData?.gender === 'M' ? 'Male' : profileData?.gender === 'F' ? 'Female' : 'Other'}</span>
                                                 <span className="w-1 h-1 bg-slate-200 rounded-full" />
@@ -454,7 +454,7 @@ export default function ProfilePage() {
                                         </div>
                                         <button
                                             onClick={() => setIsEditing(true)}
-                                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-slate-900 hover:border-slate-900 transition-all shadow-sm"
+                                            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-slate-900 hover:border-slate-900 transition-all shadow-sm"
                                         >
                                             <Edit3 className="w-3.5 h-3.5" />
                                             <span>Edit Profile</span>
