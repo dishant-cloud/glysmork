@@ -661,7 +661,7 @@ class AdminAnalyticsView(APIView):
         # 5. Advanced Analytics
         from wallet.models import Subscription
         plan_purchases = list(Subscription.objects.values('plan__name').annotate(count=Count('id')))
-        onboarding_completed = Profile.objects.filter(onboarding_completed=True).count()
+        onboarding_completed = Profile.objects.filter(last_quiz_taken__isnull=False).count()
         average_profit_per_person = profit_inr / total_users if total_users > 0 else 0
 
         ai_searches = Profile.objects.aggregate(total=Sum('daily_ai_llm_searches'))['total'] or 0
