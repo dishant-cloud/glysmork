@@ -18,6 +18,7 @@ export default function ProfilePage() {
     const [editAge, setEditAge] = useState('');
     const [editCountry, setEditCountry] = useState('');
     const [editLanguages, setEditLanguages] = useState<string[]>([]);
+    const [editLanguageInput, setEditLanguageInput] = useState('');
     const [editLatitude, setEditLatitude] = useState<number | null>(null);
     const [editLongitude, setEditLongitude] = useState<number | null>(null);
     const [editOfflineSearch, setEditOfflineSearch] = useState<boolean>(false);
@@ -159,6 +160,21 @@ export default function ProfilePage() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleLanguageKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = editLanguageInput.trim().toUpperCase();
+            if (val && !editLanguages.includes(val)) {
+                setEditLanguages([...editLanguages, val]);
+            }
+            setEditLanguageInput('');
+        }
+    };
+
+    const removeLanguage = (lang: string) => {
+        setEditLanguages(editLanguages.filter(l => l !== lang));
     };
 
     const handleGetLocation = () => {
@@ -384,14 +400,25 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div>
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Languages (comma separated)</label>
-                                        <input
-                                            type="text"
-                                            value={editLanguages.join(', ')}
-                                            onChange={(e) => setEditLanguages(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                            placeholder="en, hi, es..."
-                                            className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl focus:border-slate-200 focus:bg-white/10 outline-none p-4 text-sm transition-all font-sans text-[13px] font-medium"
-                                        />
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Languages (Press Enter or Comma)</label>
+                                        <div className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl p-2 min-h-[56px] flex flex-wrap gap-2 items-center transition-all focus-within:border-slate-300 focus-within:bg-white/10">
+                                            {editLanguages.map(lang => (
+                                                <span key={lang} className="flex items-center gap-1 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-xl">
+                                                    {lang}
+                                                    <button type="button" onClick={() => removeLanguage(lang)} className="hover:text-red-400 ml-1">
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                            <input
+                                                type="text"
+                                                value={editLanguageInput}
+                                                onChange={(e) => setEditLanguageInput(e.target.value)}
+                                                onKeyDown={handleLanguageKeyDown}
+                                                placeholder={editLanguages.length === 0 ? "e.g. EN, HI, ES..." : ""}
+                                                className="flex-1 bg-transparent outline-none min-w-[100px] text-sm p-2"
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="pt-2">
