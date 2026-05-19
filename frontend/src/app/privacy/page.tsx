@@ -38,7 +38,7 @@ export default function PrivacyPolicy() {
                             <li>To create your AI psychological profile, calculate connection compatibility, and generate mathematical vector embeddings of your interests.</li>
                             <li>To dynamically adjust your <strong className="text-slate-800">Trust Score</strong> based on platform engagement, age of account, and negative feedback (Blocks/Reports).</li>
                             <li>To connect you with other users via text chat and WebRTC-based audio/video calls.</li>
-                            <li>To enforce our Terms of Service, prevent fraud, and maintain a safe community through automated moderation.</li>
+                            <li>To enforce our Terms of Service, prevent fraud, and maintain a safe community through moderation.</li>
                         </ul>
                     </section>
 
@@ -46,9 +46,8 @@ export default function PrivacyPolicy() {
                         <h2 className="text-xl font-semibold text-slate-900 mb-3">3. Data Sharing and Third-Party Services</h2>
                         <p className="mb-3">Glysmork does not sell your personal data. However, we integrate with third-party services to provide our core features:</p>
                         <ul className="list-disc ml-6 space-y-2">
-                            <li><strong className="text-slate-800">AI Inference (Groq/LLMs):</strong> Your onboarding answers, search intents, and select chat context may be sent to third-party Language Models for summarization and matching. This data is anonymized where possible.</li>
+                            <li><strong className="text-slate-800">AI Inference (Groq/Gemini):</strong> Your onboarding answers and search intents may be sent to third-party Language Models for summarization and matching. This data is anonymized where possible.</li>
                             <li><strong className="text-slate-800">Payment Processing (Razorpay):</strong> Subscription billing is handled securely by Razorpay. Glysmork does not store your credit card information.</li>
-                            <li><strong className="text-slate-800">Image Generation (Pollinations.ai):</strong> Persona image generation relies on text prompts sent to Pollinations.</li>
                             <li><strong className="text-slate-800">Law Enforcement:</strong> We may disclose information if legally required to do so by a valid subpoena or court order.</li>
                         </ul>
                     </section>

@@ -66,8 +66,7 @@ export default function TermsOfService() {
                         <ul className="list-disc ml-6 space-y-2">
                             <li>Your onboarding responses are summarized and embedded into a vector representation using third-party LLM APIs (e.g., Google Gemini). This data is stored on our servers to enable matchmaking.</li>
                             <li>Your intent queries during searching may be sent to LLM APIs to compute semantic matches. We minimize such calls to control costs — this is also why daily AI search limits exist.</li>
-                            <li>Conversations may be analyzed by AI to improve your profile and connection accuracy. This also includes automated fraud and misconduct detection.</li>
-                            <li>The onboarding quiz can only be re-taken once per week to ensure genuine responses.</li>
+                            <li>The onboarding quiz can only be re-taken twice per week to ensure genuine responses.</li>
                         </ul>
                     </section>
 
@@ -75,7 +74,6 @@ export default function TermsOfService() {
                         <h2 className="text-xl font-semibold text-slate-900 mb-3">7. Conversation Monitoring</h2>
                         <p>By using Glysmork, you consent to the following:</p>
                         <ul className="list-disc ml-6 mt-3 space-y-2">
-                            <li>You may download a transcript of any conversation you are part of.</li>
                             <li>Messages deleted &quot;for everyone&quot; are hidden from view but may be retained for moderation if the conversation is reported.</li>
                             <li>Reported conversations are stored and accessible to our moderation team.</li>
                         </ul>
