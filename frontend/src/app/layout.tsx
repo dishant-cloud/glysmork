@@ -21,10 +21,6 @@ const dancingScript = Dancing_Script({
 export const metadata: Metadata = {
   title: "Glysmork — Find Exactly Who You Need",
   description: "The Universal Connection Engine. Describe the person you need, and our AI finds them from the community. Not dating. Not random. Precise.",
-  icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
-  },
 };
 
 import { ThemeProvider } from "@/components/ThemeProvider";
