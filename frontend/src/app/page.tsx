@@ -191,6 +191,15 @@ export default function Home() {
 
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="relative z-20 max-w-[1600px] mx-auto px-4 md:px-12 py-8 flex flex-col sm:flex-row justify-between items-center border-t border-slate-200/50 text-slate-500 text-[13px] font-medium mt-auto">
+        <div className="mb-4 sm:mb-0">© {new Date().getFullYear()} Glysmork. All rights reserved.</div>
+        <div className="flex gap-6">
+          <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms of Service</Link>
+        </div>
+      </footer>
     </main>
   );
 }
