@@ -100,14 +100,19 @@ class AIOnboardingQuizView(APIView):
                 return Response({"error": "Authentication required. Please provide a username or log in."}, status=status.HTTP_401_UNAUTHORIZED)
 
         
-        # Check Cooldown (Temporarily disabled for active testing)
-        # if profile.last_quiz_taken:
-        #     time_since_last_quiz = timezone.now() - profile.last_quiz_taken
-        #     if time_since_last_quiz < timedelta(days=7):
-        #         return Response(
-        #             {"error": f"You can only take the analysis quiz once a week. Try again in {(timedelta(days=7) - time_since_last_quiz).days} days."},
-        #             status=status.HTTP_429_TOO_MANY_REQUESTS
-        #         )
+        # Check Cooldown Limit (2 times per week)
+        today = timezone.localtime(timezone.now()).date()
+        if not profile.weekly_quiz_reset_date or (today - profile.weekly_quiz_reset_date).days >= 7:
+            profile.weekly_quiz_attempts = 0
+            profile.weekly_quiz_reset_date = today
+            profile.save(update_fields=['weekly_quiz_attempts', 'weekly_quiz_reset_date'])
+            
+        if profile.weekly_quiz_attempts >= 2:
+            days_left = 7 - (today - profile.weekly_quiz_reset_date).days
+            return Response(
+                {"error": f"You can only take the analysis quiz twice a week. Try again in {max(1, days_left)} days."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
 
         serializer = OnboardingQuizSerializer(data=request.data)
         if serializer.is_valid():
@@ -189,6 +194,7 @@ class AIOnboardingQuizView(APIView):
 
                 profile.persona_image_url = pollinations_url
                 profile.last_quiz_taken = timezone.now()
+                profile.weekly_quiz_attempts += 1
                 profile.is_verified = True  # Mark them as verified so they appear in matchmaking
                 profile.save()
 

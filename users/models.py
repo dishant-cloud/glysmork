@@ -43,6 +43,8 @@ class Profile(models.Model):
     self_reported_traits = models.JSONField(default=dict, blank=True, help_text="User's answers to the onboarding quiz")
     connection_preferences = models.JSONField(default=dict, blank=True, help_text="What kind of people and conversations the user seeks")
     last_quiz_taken = models.DateTimeField(null=True, blank=True)
+    weekly_quiz_attempts = models.IntegerField(default=0)
+    weekly_quiz_reset_date = models.DateField(null=True, blank=True)
     
     # Knowledge & Interest Graph (The AI uses these to match people)
     interests = models.JSONField(default=list, blank=True, help_text="Topics the user is interested in")
