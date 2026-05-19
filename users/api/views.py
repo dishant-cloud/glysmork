@@ -650,10 +650,10 @@ class AdminAnalyticsView(APIView):
         # 4. Financials & Costs
         total_revenue = Payment.objects.filter(status__iexact='success').aggregate(total=Sum('amount'))['total'] or 0.00
         
-        # Cost heuristic: LLM calls + Onboarding quiz per user
-        # Let's say onboarding = 2 API calls. Each daily quota burn = 1 API call.
+        # Cost heuristic: LLM calls during Onboarding quiz per user
+        # Onboarding averages 6 API calls (one per question + final summarization).
         total_users = Profile.objects.count()
-        api_calls_estimate = (total_users * 2) + (total_messages / 5) # Rough estimate from % 5 logic
+        api_calls_estimate = (total_users * 6)
         projected_api_cost_usd = float(api_calls_estimate) * 0.001 # $0.001 per call avg
         
         profit_inr = float(total_revenue) - (projected_api_cost_usd * 83.0) # Approx conversion
