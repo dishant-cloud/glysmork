@@ -165,9 +165,12 @@ export default function ProfilePage() {
     const handleLanguageKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
-            const val = editLanguageInput.trim().toUpperCase();
-            if (val && !editLanguages.includes(val)) {
-                setEditLanguages([...editLanguages, val]);
+            const rawVal = editLanguageInput.trim();
+            if (rawVal) {
+                const val = rawVal.charAt(0).toUpperCase() + rawVal.slice(1).toLowerCase();
+                if (!editLanguages.includes(val)) {
+                    setEditLanguages([...editLanguages, val]);
+                }
             }
             setEditLanguageInput('');
         }
@@ -403,10 +406,10 @@ export default function ProfilePage() {
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Languages (Press Enter or Comma)</label>
                                         <div className="w-full bg-white/80 border border-slate-200/60 shadow-sm rounded-2xl p-2 min-h-[56px] flex flex-wrap gap-2 items-center transition-all focus-within:border-slate-300 focus-within:bg-white/10">
                                             {editLanguages.map(lang => (
-                                                <span key={lang} className="flex items-center gap-1 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-xl">
+                                                <span key={lang} className="flex items-center gap-1 bg-slate-900 text-white text-[11px] font-bold tracking-wide px-3 py-1.5 rounded-xl">
                                                     {lang}
                                                     <button type="button" onClick={() => removeLanguage(lang)} className="hover:text-red-400 ml-1">
-                                                        <X className="w-3 h-3" />
+                                                        <X className="w-3.5 h-3.5" />
                                                     </button>
                                                 </span>
                                             ))}
@@ -415,8 +418,8 @@ export default function ProfilePage() {
                                                 value={editLanguageInput}
                                                 onChange={(e) => setEditLanguageInput(e.target.value)}
                                                 onKeyDown={handleLanguageKeyDown}
-                                                placeholder={editLanguages.length === 0 ? "e.g. EN, HI, ES..." : ""}
-                                                className="flex-1 bg-transparent outline-none min-w-[100px] text-sm p-2"
+                                                placeholder={editLanguages.length === 0 ? "e.g. English, Hindi, Spanish..." : ""}
+                                                className="flex-1 bg-transparent outline-none min-w-[150px] text-sm p-2"
                                             />
                                         </div>
                                     </div>
@@ -472,9 +475,9 @@ export default function ProfilePage() {
                                                 )}
                                             </div>
                                             {profileData?.languages?.length > 0 && (
-                                                <div className="flex gap-1.5 mt-3">
+                                                <div className="flex gap-1.5 mt-3 flex-wrap">
                                                     {profileData.languages.map((l: string) => (
-                                                        <span key={l} className="text-[9px] font-sans text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg uppercase tracking-widest">{l}</span>
+                                                        <span key={l} className="text-[10px] font-sans font-bold text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg tracking-wide">{l}</span>
                                                     ))}
                                                 </div>
                                             )}
