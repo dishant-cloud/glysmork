@@ -21,6 +21,16 @@ interface AdminAnalytics {
         total_candidates_scored: number;
         matches_returned: number;
     };
+    advanced: {
+        plan_purchases: { plan__name: string; count: number }[];
+        onboarding_completed: number;
+        average_profit_per_person_inr: number;
+        searches_today: {
+            ai: number;
+            standard: number;
+            roulette: number;
+        };
+    };
 }
 
 export default function AdminDashboard() {
@@ -190,6 +200,56 @@ export default function AdminDashboard() {
                         <p className="text-xs text-slate-500">
                             * Stats are in-memory and reset on server restart. Candidates Scored: {me.total_candidates_scored}.
                         </p>
+                    </div>
+                </div>
+
+                {/* Advanced Analytics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    {/* Searches Breakdown */}
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                        <Search className="w-6 h-6 text-indigo-400 mb-4" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-6">Today's Search Usage</h3>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-end border-b border-slate-800 pb-2">
+                                <span className="text-slate-400">AI / LLM Searches</span>
+                                <span className="text-xl font-bold text-white">{data.advanced.searches_today.ai}</span>
+                            </div>
+                            <div className="flex justify-between items-end border-b border-slate-800 pb-2">
+                                <span className="text-slate-400">Standard Searches</span>
+                                <span className="text-xl font-bold text-white">{data.advanced.searches_today.standard}</span>
+                            </div>
+                            <div className="flex justify-between items-end">
+                                <span className="text-slate-400">Roulette Searches</span>
+                                <span className="text-xl font-bold text-white">{data.advanced.searches_today.roulette}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Subscriptions & Onboarding */}
+                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                        <TrendingUp className="w-6 h-6 text-fuchsia-400 mb-4" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-6">User Milestones & Plans</h3>
+                        <div className="flex justify-between items-end border-b border-slate-800 pb-4 mb-4">
+                            <span className="text-slate-400">Onboarding Completed</span>
+                            <span className="text-2xl font-black text-white">{data.advanced.onboarding_completed}</span>
+                        </div>
+                        <div className="flex justify-between items-end border-b border-slate-800 pb-4 mb-4">
+                            <span className="text-slate-400">Avg Profit Per User</span>
+                            <span className="text-xl font-bold text-emerald-400">₹{data.advanced.average_profit_per_person_inr.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})}</span>
+                        </div>
+                        <div>
+                            <span className="text-slate-500 text-xs uppercase tracking-wide block mb-2">Active Plan Distribution</span>
+                            {data.advanced.plan_purchases.length === 0 ? (
+                                <span className="text-slate-600 text-sm">No active subscriptions yet.</span>
+                            ) : (
+                                data.advanced.plan_purchases.map((p, idx) => (
+                                    <div key={idx} className="flex justify-between items-center mt-1">
+                                        <span className="text-slate-400 text-sm">{p.plan__name}</span>
+                                        <span className="text-white font-bold text-sm">{p.count}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
 

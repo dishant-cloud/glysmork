@@ -658,6 +658,16 @@ class AdminAnalyticsView(APIView):
         
         profit_inr = float(total_revenue) - (projected_api_cost_usd * 83.0) # Approx conversion
 
+        # 5. Advanced Analytics
+        from wallet.models import Subscription
+        plan_purchases = list(Subscription.objects.values('plan__name').annotate(count=Count('id')))
+        onboarding_completed = Profile.objects.filter(onboarding_completed=True).count()
+        average_profit_per_person = profit_inr / total_users if total_users > 0 else 0
+
+        ai_searches = Profile.objects.aggregate(total=Sum('daily_ai_llm_searches'))['total'] or 0
+        standard_searches = Profile.objects.aggregate(total=Sum('daily_standard_searches'))['total'] or 0
+        roulette_searches = Profile.objects.aggregate(total=Sum('daily_roulette_searches'))['total'] or 0
+
         return Response({
             "retention": {
                 "day_1": day_1_retention,
@@ -677,6 +687,16 @@ class AdminAnalyticsView(APIView):
                 "total_revenue_inr": float(total_revenue),
                 "projected_api_cost_usd": projected_api_cost_usd,
                 "estimated_profit_inr": profit_inr
+            },
+            "advanced": {
+                "plan_purchases": plan_purchases,
+                "onboarding_completed": onboarding_completed,
+                "average_profit_per_person_inr": average_profit_per_person,
+                "searches_today": {
+                    "ai": ai_searches,
+                    "standard": standard_searches,
+                    "roulette": roulette_searches
+                }
             },
             "matchmaking_engine": self._get_match_stats()
         })
