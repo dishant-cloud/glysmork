@@ -23,14 +23,19 @@ export default function NotificationProvider({ children }: { children: React.Rea
     const [notifications, setNotifications] = useState<any[]>([]);
     const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Shared dedup store: prevents WS + polling from both firing a toast for the same message
-    const seenNotifIds = useRef<Set<string | number>>(new Set());
-
-    // Tracks current pathname without stale closures — updated on every navigation
+    // Tracks current pathname without stale closures
     const pathnameRef = useRef<string>(typeof window !== 'undefined' ? window.location.pathname : '/');
 
+    // Sync path and clear active toast when user navigates to sender's direct chat
     useEffect(() => {
-        const syncPath = () => { pathnameRef.current = window.location.pathname; };
+        const syncPath = () => {
+            pathnameRef.current = window.location.pathname;
+            const match = window.location.pathname.match(/\/messages\/([^\/]+)/);
+            if (match && match[1]) {
+                const targetSender = decodeURIComponent(match[1]);
+                setNotifications(prev => prev.filter(n => n.sender !== targetSender));
+            }
+        };
         window.addEventListener('popstate', syncPath);
         window.addEventListener('next-route-change', syncPath);
         return () => {
@@ -39,12 +44,12 @@ export default function NotificationProvider({ children }: { children: React.Rea
         };
     }, []);
 
-    const showToast = (id: string | number, sender: string, text: string, type: string) => {
-        if (seenNotifIds.current.has(id)) return;
+    // Consolidated Toast: Groups notifications by sender so screen is never flooded
+    const showToast = (sender: string, text: string, type: string = 'Message') => {
+        if (!sender || sender === 'system' || text === 'clear_notification') return;
+        
+        // Suppress toast if user is already actively chatting with this sender
         if (pathnameRef.current.includes(`/messages/${sender}`)) return;
-        if (sender === 'system' || text === 'clear_notification') return;
-
-        seenNotifIds.current.add(id);
 
         try {
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
@@ -52,12 +57,42 @@ export default function NotificationProvider({ children }: { children: React.Rea
             audio.play().catch(() => {});
         } catch {}
 
-        const newNotif = { id, sender, text, type };
-        setNotifications(prev => [...prev, newNotif]);
-        setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== id));
-        }, 7000);
+        setNotifications(prev => {
+            const existingIndex = prev.findIndex(n => n.sender === sender);
+            if (existingIndex !== -1) {
+                // Sender already has an active toast! Update in place instead of spawning extra cards
+                const updated = [...prev];
+                const existing = updated[existingIndex];
+                updated[existingIndex] = {
+                    ...existing,
+                    text: text,
+                    count: (existing.count || 1) + 1,
+                    updatedAt: Date.now()
+                };
+                return updated;
+            } else {
+                // New sender: spawn one clean consolidated toast card
+                return [...prev, {
+                    id: sender,
+                    sender,
+                    text,
+                    type,
+                    count: 1,
+                    updatedAt: Date.now()
+                }];
+            }
+        });
     };
+
+    // Auto-dismiss inactive toasts after 6 seconds
+    useEffect(() => {
+        if (notifications.length === 0) return;
+        const timer = setInterval(() => {
+            const now = Date.now();
+            setNotifications(prev => prev.filter(n => now - (n.updatedAt || 0) < 6000));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [notifications.length]);
 
     useEffect(() => {
         const token = localStorage.getItem('access_token');
@@ -68,7 +103,6 @@ export default function NotificationProvider({ children }: { children: React.Rea
         try {
             user = JSON.parse(userStr);
         } catch {
-            window.dispatchEvent(new CustomEvent('ws_debug_sys', { detail: 'FATAL: Corrupted User String. WS Aborted.' }));
             return;
         }
 
@@ -115,25 +149,21 @@ export default function NotificationProvider({ children }: { children: React.Rea
                     } else if (data.type === 'call_ended') {
                         window.dispatchEvent(new CustomEvent('sys_call_ended', { detail: data }));
                     } else if (data.type === 'friend_message' || data.type === 'session_message') {
-                        // Unique key per message: prevents polling from re-toasting the same thing
-                        const dedupeId = `ws_${data.sender}_${data.id || data.text?.slice(0, 20)}`;
-                        showToast(
-                            dedupeId,
-                            data.sender,
-                            data.text,
-                            data.type === 'friend_message' ? 'Message' : 'Session'
-                        );
-                        window.dispatchEvent(new CustomEvent('sys_friend_message', { detail: data }));
+                        if (data.sender && data.sender !== user.username) {
+                            showToast(
+                                data.sender,
+                                data.text || 'sent you a message',
+                                data.type === 'friend_message' ? 'Message' : 'Session'
+                            );
+                            window.dispatchEvent(new CustomEvent('sys_friend_message', { detail: data }));
+                        }
                     }
                 } catch (e) {
                     console.error("WS Parse error", e);
                 }
             };
 
-            ws.onclose = (event) => {
-                window.dispatchEvent(new CustomEvent('ws_debug_sys', {
-                    detail: `WEBSOCKET CLOSED! Code: ${event.code}, Reason: ${event.reason || 'none'}`
-                }));
+            ws.onclose = () => {
                 setIsOnline(false);
                 if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
                 setTimeout(connect, 5000);
@@ -144,26 +174,26 @@ export default function NotificationProvider({ children }: { children: React.Rea
 
         connect();
 
-        // FAILSAFE: Polling fallback — only shows toast if WS didn't already handle it
-        let lastNotifId = 0;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || (isLocal ? `http://${host}:8000` : `https://${host}`);
-
+        // FAILSAFE: Polling fallback for offline notifications
+        let seenNotifTimestamps = new Set<string>();
         const poll = async () => {
             if (!user?.username) return;
             try {
                 const data = await fetchApi(`/matchmaking/notifications/?username=${encodeURIComponent(user.username)}`);
                 const notifs = data.notifications || [];
-                    if (notifs.length > 0) {
-                        const latest = notifs[0];
-                        if (latest.id > lastNotifId) {
-                            lastNotifId = latest.id;
-                            // seenNotifIds shared set prevents re-toast if WS already handled it
-                            showToast(latest.id, latest.sender, latest.message, 'Message');
+                for (const notif of notifs) {
+                    const notifSender = notif.sender || notif.from_user;
+                    if (notifSender && notifSender !== user.username) {
+                        const stampKey = `${notifSender}_${notif.created_at || notif.id}_${notif.message}`;
+                        if (!seenNotifTimestamps.has(stampKey)) {
+                            seenNotifTimestamps.add(stampKey);
+                            showToast(notifSender, notif.message || 'sent you a message', 'Message');
                             window.dispatchEvent(new CustomEvent('sys_friend_message', { detail: { type: 'friend_message' } }));
                         }
                     }
+                }
             } catch (e) {
-                // Silently fail — WS is primary transport
+                // Silently fail — WS is primary
             }
         };
 
@@ -191,41 +221,41 @@ export default function NotificationProvider({ children }: { children: React.Rea
         <NotificationContext.Provider value={{ sendSignal, onlineStatus: isOnline }}>
             {children}
 
-            {/* Global Toasts */}
+            {/* Global Consolidated Toasts */}
             <div className="fixed top-20 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
                 <AnimatePresence>
                     {notifications.map((notif) => (
                         <motion.div
-                            key={notif.id}
+                            key={notif.sender}
                             initial={{ opacity: 0, y: -20, scale: 0.9, filter: 'blur(10px)' }}
                             animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                             exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
                             onClick={() => {
-                                if (notif.text === 'Wants to be friends!') {
-                                    window.location.href = '/messages';
-                                } else {
-                                    window.location.href = `/messages/${notif.sender}`;
-                                }
-                                setNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                window.location.href = `/messages/${encodeURIComponent(notif.sender)}`;
+                                setNotifications(prev => prev.filter(n => n.sender !== notif.sender));
                             }}
-                            className="pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/40 p-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-start gap-4 min-w-[320px] max-w-sm relative overflow-hidden cursor-pointer hover:bg-white/90 transition-colors"
+                            className="pointer-events-auto bg-white/90 backdrop-blur-xl border border-slate-200/80 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] flex items-start gap-3.5 min-w-[300px] max-w-sm relative overflow-hidden cursor-pointer hover:bg-white transition-all group"
                         >
-                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-indigo-600" />
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-purple-500 to-indigo-600" />
 
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/10 to-indigo-600/10 flex items-center justify-center text-purple-600 flex-shrink-0 border border-purple-500/20">
-                                <MessageSquare className="w-6 h-6" />
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 flex-shrink-0 border border-purple-500/20 group-hover:scale-105 transition-transform">
+                                <MessageSquare className="w-5 h-5" />
                             </div>
 
                             <div className="flex-1 min-w-0 pt-0.5">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-bold text-purple-500/80 uppercase tracking-[0.2em]">
-                                        {notif.type} Received
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider">
+                                        {notif.type || 'Message'}
                                     </span>
-                                    <div className="w-1 h-1 rounded-full bg-slate-300" />
-                                    <span className="text-[10px] text-slate-400 font-medium">Just now</span>
+                                    {notif.count > 1 && (
+                                        <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                            {notif.count} new
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] text-slate-400 font-medium ml-auto">Just now</span>
                                 </div>
-                                <h4 className="text-slate-900 font-bold text-[15px] mb-0.5">{notif.sender}</h4>
-                                <p className="text-slate-500 text-[13px] line-clamp-2 leading-relaxed font-medium capitalize">
+                                <h4 className="text-slate-900 font-bold text-sm mb-0.5 truncate">{notif.sender}</h4>
+                                <p className="text-slate-600 text-xs line-clamp-2 leading-snug font-medium">
                                     {notif.text}
                                 </p>
                             </div>
@@ -233,9 +263,9 @@ export default function NotificationProvider({ children }: { children: React.Rea
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                    setNotifications(prev => prev.filter(n => n.sender !== notif.sender));
                                 }}
-                                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0 mt-0.5"
+                                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
                             >
                                 <X className="w-4 h-4" />
                             </button>

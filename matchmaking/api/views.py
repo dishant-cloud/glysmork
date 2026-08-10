@@ -786,15 +786,17 @@ class FriendshipActionView(APIView):
 
 
 class SendChatNotificationView(APIView):
-    """Send a notification to a user that someone wants to chat."""
+    """Send a notification to a user that someone wants to chat or sent a message."""
     permission_classes = []
 
     def post(self, request):
         from django.contrib.auth.models import User
+        from django.utils import timezone
 
         sender_username = request.data.get('sender')
         receiver_username = request.data.get('receiver')
         room_name = request.data.get('room_name', '')
+        message_text = request.data.get('message', f'{sender_username} sent you a message!')
 
         if not sender_username or not receiver_username:
             return Response({'error': 'sender and receiver required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -807,20 +809,36 @@ class SendChatNotificationView(APIView):
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Don't spam — only create if no unread notif from same sender exists
-        existing = ChatNotification.objects.filter(
-            sender=sender, receiver=receiver, is_read=False
-        ).first()
-        if existing:
-            return Response({'status': 'already_notified'})
-
-        ChatNotification.objects.create(
-            sender=sender,
-            receiver=receiver,
-            room_name=room_name,
-            message=f'{sender_username} wants to chat with you!'
+        # Create or update single unread notification per (sender, receiver)
+        notif, created = ChatNotification.objects.get_or_create(
+            sender=sender, receiver=receiver, is_read=False,
+            defaults={'room_name': room_name, 'message': message_text}
         )
-        return Response({'status': 'sent'}, status=status.HTTP_201_CREATED)
+        if not created:
+            notif.created_at = timezone.now()
+            notif.message = message_text
+            notif.save()
+
+        # Always broadcast real-time WS signal to receiver's notification group
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            layer = get_channel_layer()
+            if layer:
+                async_to_sync(layer.group_send)(
+                    f'user_{receiver.id}',
+                    {
+                        'type': 'friend_message_recv',
+                        'conversation_id': room_name,
+                        'id': notif.id,
+                        'sender': sender.username,
+                        'text': message_text,
+                    }
+                )
+        except Exception as ws_err:
+            print(f"DEBUG: WS notification signal error: {ws_err}")
+
+        return Response({'status': 'sent', 'created': created}, status=status.HTTP_200_OK)
 
 class GetNotificationsView(APIView):
     """View to fetch unread chat notifications."""
