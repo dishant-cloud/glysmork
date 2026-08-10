@@ -616,11 +616,17 @@ class FriendshipActionView(APIView):
     Handles social actions: request, accept, decline, remove.
     """
     def _resolve_user(self, request):
-        if request.user.is_authenticated:
+        if hasattr(request, 'user') and request.user and getattr(request.user, 'is_authenticated', False):
             return request.user
         
         # Check body (POST) or query params (GET)
-        username = request.data.get('username') or request.query_params.get('username')
+        username = None
+        if hasattr(request, 'data') and isinstance(request.data, dict):
+            username = request.data.get('username')
+        if not username and hasattr(request, 'query_params'):
+            username = request.query_params.get('username')
+        if not username and hasattr(request, 'GET'):
+            username = request.GET.get('username')
         
         if username:
             from django.contrib.auth.models import User as AuthUser
@@ -752,10 +758,11 @@ class FriendshipActionView(APIView):
         requests_received = Friendship.objects.filter(to_user=user, status='pending').select_related('from_user')
         requests_sent = Friendship.objects.filter(from_user=user, status='pending').select_related('to_user')
         
+        from matchmaking.api.serializers import get_profile_image
+        
         friends_data = []
         for f in friends:
             profile = f.to_user.profile if hasattr(f.to_user, 'profile') else None
-            from matchmaking.api.serializers import get_profile_image
             friends_data.append({
                 "id": f.to_user.id,
                 "username": f.to_user.username,
